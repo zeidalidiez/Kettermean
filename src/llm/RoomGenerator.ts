@@ -114,26 +114,41 @@ export class RoomGenerator {
       return normalized;
     } catch (err) {
       this.sessionFailures += 1;
-      console.warn('[Kettermean] LLM room generation failed; using offline.', err);
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn('[Kettermean] LLM room generation failed; using offline.', message, err);
       return generateOfflineRoom(ctx);
     }
   }
 
   private async callProvider(ctx: GenerationContext): Promise<string> {
     const { system, user } = buildPrompt(ctx, this.settings.allowGore);
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), LLM_BUDGET.requestTimeoutMs);
+    // Soft timeout: race a timer, but do NOT AbortController-kill the fetch.
+    // Free OpenRouter routes are often slow; aborting forces offline fallback.
+    const call =
+      this.settings.provider === 'anthropic'
+        ? this.callAnthropic(system, user)
+        : this.callOpenAI(system, user);
+
+    let timer: number | undefined;
     try {
-      if (this.settings.provider === 'anthropic') {
-        return await this.callAnthropic(system, user, controller.signal);
-      }
-      return await this.callOpenAI(system, user, controller.signal);
+      return await Promise.race([
+        call,
+        new Promise<string>((_, reject) => {
+          timer = window.setTimeout(() => {
+            reject(
+              new Error(
+                `LLM timed out after ${LLM_BUDGET.requestTimeoutMs}ms (request may still complete server-side)`,
+              ),
+            );
+          }, LLM_BUDGET.requestTimeoutMs);
+        }),
+      ]);
     } finally {
-      window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     }
   }
 
-  private async callOpenAI(system: string, user: string, signal: AbortSignal): Promise<string> {
+  private async callOpenAI(system: string, user: string): Promise<string> {
     const base = (this.settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
     const model = this.settings.model || DEFAULT_OPENROUTER_MODEL;
     const headers: Record<string, string> = {
@@ -159,7 +174,6 @@ export class RoomGenerator {
 
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      signal,
       headers,
       body: JSON.stringify(body),
     });
@@ -176,12 +190,11 @@ export class RoomGenerator {
     return text;
   }
 
-  private async callAnthropic(system: string, user: string, signal: AbortSignal): Promise<string> {
+  private async callAnthropic(system: string, user: string): Promise<string> {
     const base = (this.settings.baseUrl || DEFAULT_ANTHROPIC_BASE).replace(/\/$/, '');
     const model = this.settings.model || DEFAULT_ANTHROPIC_MODEL;
     const res = await fetch(`${base}/v1/messages`, {
       method: 'POST',
-      signal,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': this.settings.apiKey,

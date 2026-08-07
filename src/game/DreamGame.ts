@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LINK, LLM_BUDGET, RANDOM_RESEED_EVERY } from '../config';
+import { LINK, RANDOM_RESEED_EVERY } from '../config';
 import { childSeed, randomSeed } from '../core/rng';
 import type { AppSettings, GenerationContext, MoodAxis, RoomSpec } from '../types';
 import { InputManager } from '../input/InputManager';
@@ -90,42 +90,40 @@ export class DreamGame {
     this.menu.classList.add('hidden');
     this.pauseMenu.classList.add('hidden');
     this.hud.classList.remove('hidden');
-    this.showToast('Entering dream…');
+
+    // Pointer lock must happen in the same user-gesture turn as the click.
+    // Do all awaits AFTER enabling input + requesting lock.
+    this.state = 'playing';
+    this.input.setEnabled(true);
+    this.input.requestPointerLock();
 
     const ctx = this.makeCtx(this.currentSeed);
     const useLlm = this.settings.provider !== 'offline' && Boolean(this.settings.apiKey.trim());
 
-    let spec: RoomSpec;
+    // Always enter a playable offline room immediately. Never block controls on the API.
+    const boot = this.generator.getOrOffline(ctx);
+    this.applyRoom(boot);
+    this.schedulePrefetch();
+
     if (!useLlm) {
-      spec = this.generator.getOrOffline(ctx);
-    } else {
-      this.showToast('Generating room…');
-      // Wait for the LLM on first room; fall back if it is slow/fails.
-      const specPromise = this.generator.get(ctx);
-      const raced = await Promise.race([
-        specPromise.then((s) => ({ source: 'llm' as const, s })),
-        sleep(LLM_BUDGET.startWaitMs).then(() => ({ source: 'timeout' as const, s: null })),
-      ]);
-      if (raced.source === 'llm') {
-        spec = raced.s;
-      } else {
-        // Keep waiting in background; show offline now so the player is not stuck.
-        void specPromise.then((late) => {
-          if (!late.offline && this.state === 'playing' && this.currentSeed === ctx.seed) {
-            this.applyRoom(late);
-            this.showToast('LLM room ready');
-          }
-        });
-        spec = this.generator.getOrOffline(ctx);
-      }
+      this.showToast('Offline room');
+      return;
     }
 
-    this.applyRoom(spec);
-    this.state = 'playing';
-    this.input.setEnabled(true);
-    this.input.requestPointerLock();
-    this.schedulePrefetch();
-    this.showToast(spec.offline ? (useLlm ? 'Offline fallback' : 'Offline room') : 'LLM room');
+    this.showToast('Generating LLM room…');
+    // Background upgrade: keep the request alive; swap in when ready.
+    void this.generator.get(ctx).then((late) => {
+      if (this.state === 'menu') return;
+      if (this.currentSeed !== ctx.seed) return;
+      if (late.offline) {
+        this.showToast('LLM unavailable · offline room');
+        return;
+      }
+      // Preserve look direction roughly by re-applying room at spawn.
+      this.applyRoom(late);
+      this.showToast('LLM room ready');
+      this.schedulePrefetch();
+    });
   }
 
   pause(): void {
@@ -292,7 +290,10 @@ export class DreamGame {
   };
 
   private onCanvasClick = (): void => {
-    if (this.state === 'playing') this.input.requestPointerLock();
+    if (this.state === 'playing' || this.state === 'paused') {
+      if (this.state === 'paused') this.resume();
+      else this.input.requestPointerLock();
+    }
   };
 
   private onPointerLockChange = (): void => {

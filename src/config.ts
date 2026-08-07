@@ -47,9 +47,10 @@ export const LLM_BUDGET = {
   maxTokens: 1100,
   temperature: 0.8,
   cacheLimit: 48,
-  requestTimeoutMs: 25000,
-  /** Wait this long on dream start before showing an offline placeholder. */
-  startWaitMs: 8000,
+  /** Free routers can be slow; do not abort quickly. */
+  requestTimeoutMs: 90000,
+  /** Kept for compatibility; start no longer blocks on the LLM. */
+  startWaitMs: 0,
   /** Only stop calling the API after this many consecutive failures. */
   maxConsecutiveFailures: 3,
   failOpenToOffline: true,
