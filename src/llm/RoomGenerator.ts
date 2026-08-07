@@ -34,20 +34,39 @@ export class RoomGenerator {
   }
 
   updateSettings(settings: AppSettings): void {
+    const providerChanged =
+      settings.provider !== this.settings.provider ||
+      settings.model !== this.settings.model ||
+      settings.baseUrl !== this.settings.baseUrl ||
+      settings.apiKey !== this.settings.apiKey;
     this.settings = settings;
+    // New credentials/model should get fresh attempts.
+    if (providerChanged) this.sessionFailures = 0;
   }
 
   getApiCallCount(): number {
     return this.apiCallsThisSession;
   }
 
-  /** Sync path used when a room must exist immediately (start / link). */
+  /**
+   * Instant offline room for UI continuity. Does NOT write cache while an LLM
+   * request for the same seed is in flight, so a later success can still land.
+   */
   getOrOffline(ctx: GenerationContext): RoomSpec {
-    const cached = this.memory.get(cacheKey(ctx));
+    const key = cacheKey(ctx);
+    const cached = this.memory.get(key);
     if (cached) return cached;
     const offline = generateOfflineRoom(ctx);
-    this.remember(ctx, offline);
+    if (!this.inflight.has(key)) {
+      this.remember(ctx, offline);
+    }
     return offline;
+  }
+
+  /** True when this seed already has a non-offline cached room. */
+  hasLlmRoom(ctx: GenerationContext): boolean {
+    const spec = this.memory.get(cacheKey(ctx));
+    return Boolean(spec && !spec.offline);
   }
 
   /**
@@ -57,7 +76,10 @@ export class RoomGenerator {
   async get(ctx: GenerationContext): Promise<RoomSpec> {
     const key = cacheKey(ctx);
     const cached = this.memory.get(key);
-    if (cached) return cached;
+    // Offline placeholders must not block a later LLM attempt for the same seed.
+    if (cached && (!cached.offline || this.settings.provider === 'offline')) {
+      return cached;
+    }
 
     const pending = this.inflight.get(key);
     if (pending) return pending;
@@ -80,8 +102,9 @@ export class RoomGenerator {
     if (this.settings.provider === 'offline') return;
     if (!this.settings.apiKey.trim()) return;
     if (this.inflight.size >= LLM_BUDGET.maxInFlight) return;
-    if (this.memory.has(cacheKey(ctx))) return;
-    if (this.sessionFailures > 0 && LLM_BUDGET.failOpenToOffline) return;
+    const existing = this.memory.get(cacheKey(ctx));
+    if (existing && !existing.offline) return;
+    if (this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures) return;
     void this.get(ctx);
   }
 
@@ -89,7 +112,10 @@ export class RoomGenerator {
     if (this.settings.provider === 'offline' || !this.settings.apiKey.trim()) {
       return generateOfflineRoom(ctx);
     }
-    if (this.sessionFailures > 0 && LLM_BUDGET.failOpenToOffline) {
+    if (
+      LLM_BUDGET.failOpenToOffline &&
+      this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures
+    ) {
       return generateOfflineRoom(ctx);
     }
 
@@ -101,6 +127,7 @@ export class RoomGenerator {
       if (!normalized) {
         throw new Error('LLM returned unusable room JSON');
       }
+      this.sessionFailures = 0;
       return normalized;
     } catch (err) {
       this.sessionFailures += 1;
@@ -136,6 +163,8 @@ export class RoomGenerator {
       headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://kettermean.local';
       headers['X-Title'] = 'Kettermean';
     }
+    // Many free/OpenRouter models reject response_format / json_object.
+    // We ask for raw JSON in the prompt and parse defensively instead.
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       signal,
@@ -144,7 +173,6 @@ export class RoomGenerator {
         model,
         temperature: LLM_BUDGET.temperature,
         max_tokens: LLM_BUDGET.maxTokens,
-        response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user },

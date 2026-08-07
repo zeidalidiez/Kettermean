@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LINK, RANDOM_RESEED_EVERY } from '../config';
+import { LINK, LLM_BUDGET, RANDOM_RESEED_EVERY } from '../config';
 import { childSeed, randomSeed } from '../core/rng';
 import type { AppSettings, GenerationContext, MoodAxis, RoomSpec } from '../types';
 import { InputManager } from '../input/InputManager';
@@ -93,21 +93,39 @@ export class DreamGame {
     this.showToast('Entering dream…');
 
     const ctx = this.makeCtx(this.currentSeed);
-    // Prefer cache/LLM if ready, but never block forever: offline is instant.
-    const specPromise = this.generator.get(ctx);
-    const raced = await Promise.race([
-      specPromise,
-      sleep(120).then(() => this.generator.getOrOffline(ctx)),
-    ]);
-    // If offline won the race, still let LLM result warm the cache for later.
-    void specPromise;
+    const useLlm = this.settings.provider !== 'offline' && Boolean(this.settings.apiKey.trim());
 
-    this.applyRoom(raced);
+    let spec: RoomSpec;
+    if (!useLlm) {
+      spec = this.generator.getOrOffline(ctx);
+    } else {
+      this.showToast('Generating room…');
+      // Wait for the LLM on first room; fall back if it is slow/fails.
+      const specPromise = this.generator.get(ctx);
+      const raced = await Promise.race([
+        specPromise.then((s) => ({ source: 'llm' as const, s })),
+        sleep(LLM_BUDGET.startWaitMs).then(() => ({ source: 'timeout' as const, s: null })),
+      ]);
+      if (raced.source === 'llm') {
+        spec = raced.s;
+      } else {
+        // Keep waiting in background; show offline now so the player is not stuck.
+        void specPromise.then((late) => {
+          if (!late.offline && this.state === 'playing' && this.currentSeed === ctx.seed) {
+            this.applyRoom(late);
+            this.showToast('LLM room ready');
+          }
+        });
+        spec = this.generator.getOrOffline(ctx);
+      }
+    }
+
+    this.applyRoom(spec);
     this.state = 'playing';
     this.input.setEnabled(true);
     this.input.requestPointerLock();
     this.schedulePrefetch();
-    this.showToast(raced.offline ? 'Offline room' : 'LLM room');
+    this.showToast(spec.offline ? (useLlm ? 'Offline fallback' : 'Offline room') : 'LLM room');
   }
 
   pause(): void {

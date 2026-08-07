@@ -47,8 +47,11 @@ export const LLM_BUDGET = {
   maxTokens: 900,
   temperature: 0.8,
   cacheLimit: 48,
-  requestTimeoutMs: 20000,
-  /** Prefer offline if a call fails once this session. */
+  requestTimeoutMs: 25000,
+  /** Wait this long on dream start before showing an offline placeholder. */
+  startWaitMs: 8000,
+  /** Only stop calling the API after this many consecutive failures. */
+  maxConsecutiveFailures: 3,
   failOpenToOffline: true,
 } as const;
 
