@@ -1,4 +1,4 @@
-﻿import { PLAYER } from '../config';
+import { PLAYER } from '../config';
 import { SeededRng } from '../core/rng';
 import type {
   EntityBehavior,

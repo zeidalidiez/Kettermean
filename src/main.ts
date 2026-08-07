@@ -73,13 +73,8 @@ function syncProviderUi(): void {
     ) {
       baseUrlInput.value = DEFAULT_OPENROUTER_BASE;
     }
-    if (
-      !modelInput.value ||
-      modelInput.value.includes('claude') ||
-      modelInput.value === DEFAULT_OPENAI_MODEL ||
-      modelInput.value.includes('ling-3.0') ||
-      modelInput.value.includes('inclusionai/')
-    ) {
+    // Only fill a default when empty — never overwrite the user's chosen model.
+    if (!modelInput.value.trim()) {
       modelInput.value = DEFAULT_OPENROUTER_MODEL;
     }
     baseUrlInput.placeholder = DEFAULT_OPENROUTER_BASE;

@@ -1,4 +1,4 @@
-﻿import {
+import {
   DEFAULT_ANTHROPIC_BASE,
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_OPENAI_BASE,
@@ -6,30 +6,18 @@
   LLM_BUDGET,
   STORAGE_KEYS,
 } from '../config';
-import type { AppSettings, GenerationContext, MoodAxis, RoomSpec } from '../types';
-import { generateOfflineRoom, applyThemeOverlay } from '../world/offlineGenerator';
-import { extractJsonObject } from './schema';
+import type { AppSettings, GenerationContext, RoomSpec } from '../types';
+import { generateOfflineRoom } from '../world/offlineGenerator';
+import { extractJsonObject, normalizeRoomSpec } from './schema';
 
 interface CacheEntry {
   spec: RoomSpec;
   savedAt: number;
 }
 
-interface ThemeIdea {
-  title: string;
-  blurb: string;
-  mood: MoodAxis;
-  tags: string[];
-  paletteHint?: string;
-  entityHint?: string;
-  propHints?: string[];
-}
-
 /**
- * Cost-aware room generation:
- * - LLM only authors a tiny theme idea (not full mesh JSON)
- * - offline layout/kits always build the playable room
- * - seed cache + single-flight + fail-open
+ * Cost-aware room generation with FULL structural RoomSpec output.
+ * Provider failures fall back offline without shrinking the game design.
  */
 export class RoomGenerator {
   private memory = new Map<string, RoomSpec>();
@@ -116,15 +104,14 @@ export class RoomGenerator {
     try {
       const text = await this.callProvider(ctx);
       this.apiCallsThisSession += 1;
-      const idea = parseThemeIdea(text);
-      if (!idea) {
-        throw new Error(`LLM theme unusable. Preview: ${text.slice(0, 180)}`);
+      const json = extractJsonObject(text);
+      const normalized = json ? normalizeRoomSpec(json, ctx.seed) : null;
+      if (!normalized) {
+        throw new Error(`LLM room JSON unusable. Preview: ${text.slice(0, 200)}`);
       }
-      const base = generateOfflineRoom(ctx);
-      const spec = applyThemeOverlay(base, idea);
-      spec.offline = false;
+      normalized.offline = false;
       this.sessionFailures = 0;
-      return spec;
+      return normalized;
     } catch (err) {
       this.sessionFailures += 1;
       console.warn('[Kettermean] LLM room generation failed; using offline.', err);
@@ -164,16 +151,11 @@ export class RoomGenerator {
       model,
       temperature: LLM_BUDGET.temperature,
       max_tokens: LLM_BUDGET.maxTokens,
-      // Prefer plain chat content; some free models put text only in reasoning otherwise.
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
     };
-    // OpenRouter free router / many free models: avoid structured-output flags.
-    if (base.includes('openrouter.ai')) {
-      body.provider = { require_parameters: false };
-    }
 
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
@@ -274,67 +256,45 @@ function cacheKey(ctx: GenerationContext): string {
 
 function buildPrompt(ctx: GenerationContext, allowGore: boolean): { system: string; user: string } {
   const goreLine = allowGore
-    ? 'Mild blood/gore allowed sparingly.'
-    : 'No blood or gore.';
+    ? 'Mild blood/gore allowed sparingly. Still no torture-porn.'
+    : 'No blood, gore, wounds, or graphic violence.';
 
   const system = [
-    'Return ONLY one minified JSON object. No markdown. No prose.',
-    'You invent a liminal dream room THEME for a walking simulator.',
-    'Style: uncanny, liminal, dreamlike. Sometimes unsettling, not always horror.',
-    'Never sexual or obscene.',
+    'You design ONE liminal first-person dream room as a single JSON object.',
+    'Return ONLY JSON. No markdown fences. No commentary.',
+    'This JSON is a structural room plan for a WebGL engine with furniture kits.',
+    'Style: uncanny, liminal, cinematic interiors. Sometimes unsettling (giant baby ok), not always horror.',
+    'Never sexual, pornographic, or obscene.',
     goreLine,
-    'Schema keys: title, blurb, mood, tags, paletteHint, entityHint, propHints.',
-    'mood must be one of: upper, downer, static, dynamic.',
-    'title <= 40 chars. blurb <= 90 chars. tags: 2-4 short strings.',
-    'propHints: up to 4 short prop names from: chair, desk, vending, crib, plant, lamp, mirror, bench, cart, door, pillar, baby, deer, mannequin, shadow.',
-    'entityHint: one short creature/figure name or empty string.',
+    'Required keys: title, blurb, themeTags, mood, width, depth, height, fogNear, fogFar, linkColor, openSides, palette, physics, props, entities.',
+    'mood: upper|downer|static|dynamic.',
+    'palette: floor,ceiling,walls,accent,fog,light,ambient as CSS hex colors.',
+    'physics: gravity,moveSpeed,friction,bounce,sway numbers.',
+    'props items: id,label,shape,position,rotationY,scale,color,linksOnTouch,solid,kind.',
+    'entities items: id,label,shape,position,scale,color,behavior,speed,linksOnTouch,kind.',
+    'shape: box|sphere|cylinder|cone|torus|plane. behavior: idle|wander|orbit|stare.',
+    'kind one of: chair,desk,vending,cabinet,crib,plant,payphone,cooler,cart,door_fake,mattress,sign,bottle_giant,mirror,bench,pillar,lamp,table,shelf,tv,figure_baby,figure_clerk,figure_deer,figure_mannequin,figure_shadow,figure_balloon,figure_guide,figure_raincoat.',
+    'Room centered at origin. Floor at y=0. Put prop/entity feet on floor (position.y = 0).',
+    'width/depth 10-24, height 2.8-6. props 6-12, entities 1-3.',
+    'At least one linksOnTouch true wall-adjacent prop or entity.',
+    'Keep spawn center clear of solids within radius 1.8.',
   ].join(' ');
 
-  const user = [
-    `seed=${ctx.seed}`,
-    `moodBias=${ctx.moodBias}`,
-    `linkIndex=${ctx.linkIndex}`,
-    `avoidTitles=${JSON.stringify(ctx.previousTitles.slice(-5))}`,
-    'Example: {"title":"Yellow Lobby After Hours","blurb":"The plants still wait for a receptionist.","mood":"static","tags":["lobby","fluorescent"],"paletteHint":"beige","entityHint":"hallway clerk","propHints":["desk","plant","bench","lamp"]}',
-  ].join('\n');
+  const user = JSON.stringify({
+    seed: ctx.seed,
+    parentSeed: ctx.parentSeed ?? null,
+    moodBias: ctx.moodBias,
+    linkIndex: ctx.linkIndex,
+    avoidTitles: ctx.previousTitles.slice(-6),
+    note: 'Compose a specific memorable interior, not abstract shapes.',
+  });
 
   return { system, user };
 }
 
-function parseThemeIdea(text: string): ThemeIdea | null {
-  const json = extractJsonObject(text);
-  if (!json || typeof json !== 'object') return null;
-  const o = json as Record<string, unknown>;
-  const title = typeof o.title === 'string' ? o.title.trim().slice(0, 48) : '';
-  const blurb = typeof o.blurb === 'string' ? o.blurb.trim().slice(0, 120) : '';
-  if (!title || !blurb) return null;
-  const moodRaw = typeof o.mood === 'string' ? o.mood.toLowerCase() : 'static';
-  const mood = (['upper', 'downer', 'static', 'dynamic'].includes(moodRaw)
-    ? moodRaw
-    : 'static') as MoodAxis;
-  const tags = Array.isArray(o.tags)
-    ? o.tags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 24)).slice(0, 6)
-    : [];
-  const propHints = Array.isArray(o.propHints)
-    ? o.propHints.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 32)).slice(0, 6)
-    : [];
-  return {
-    title,
-    blurb,
-    mood,
-    tags,
-    paletteHint: typeof o.paletteHint === 'string' ? o.paletteHint.slice(0, 32) : undefined,
-    entityHint: typeof o.entityHint === 'string' ? o.entityHint.slice(0, 48) : undefined,
-    propHints,
-  };
-}
-
-/** Pull assistant text from OpenAI-compatible / OpenRouter payload shapes. */
 function extractChatText(data: unknown): string {
   if (!data || typeof data !== 'object') return '';
   const root = data as Record<string, unknown>;
-
-  // Standard chat.completion
   const choices = root.choices;
   if (Array.isArray(choices) && choices[0] && typeof choices[0] === 'object') {
     const c0 = choices[0] as Record<string, unknown>;
@@ -343,7 +303,6 @@ function extractChatText(data: unknown): string {
       const m = msg as Record<string, unknown>;
       const fromContent = normalizeContent(m.content);
       if (fromContent) return fromContent;
-      // Reasoning models sometimes only fill these:
       const reasoning =
         normalizeContent(m.reasoning) ||
         normalizeContent(m.reasoning_content) ||
@@ -352,18 +311,8 @@ function extractChatText(data: unknown): string {
     }
     const text = normalizeContent(c0.text);
     if (text) return text;
-    const delta = c0.delta;
-    if (delta && typeof delta === 'object') {
-      const d = normalizeContent((delta as Record<string, unknown>).content);
-      if (d) return d;
-    }
   }
-
-  // Some gateways put output at top level
-  const top = normalizeContent(root.output_text) || normalizeContent(root.content);
-  if (top) return top;
-
-  return '';
+  return normalizeContent(root.output_text) || normalizeContent(root.content);
 }
 
 function normalizeContent(content: unknown): string {
@@ -376,7 +325,6 @@ function normalizeContent(content: unknown): string {
         const p = part as Record<string, unknown>;
         if (typeof p.text === 'string') parts.push(p.text);
         else if (typeof p.content === 'string') parts.push(p.content);
-        else if (p.type === 'output_text' && typeof p.text === 'string') parts.push(p.text);
       }
     }
     return parts.join('\n').trim();

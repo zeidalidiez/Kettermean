@@ -10,7 +10,6 @@ export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
 export const DEFAULT_OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 export const DEFAULT_ANTHROPIC_BASE = 'https://api.anthropic.com';
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
-/** OpenRouter free auto-router is more reliable than a single flaky free slug. */
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 
@@ -45,7 +44,7 @@ export const RANDOM_RESEED_EVERY = 7;
 export const LLM_BUDGET = {
   maxInFlight: 1,
   prefetchDepth: 1,
-  maxTokens: 220,
+  maxTokens: 1100,
   temperature: 0.8,
   cacheLimit: 48,
   requestTimeoutMs: 25000,

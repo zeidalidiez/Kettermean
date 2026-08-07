@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PLAYER } from '../config';
 import type { BuiltRoom, ColliderBox, RoomEntity, RoomProp, RoomSpec, Vec3 } from '../types';
+import { plainMaterial, styleForMood, surfaceMaterial } from './materials';
 import { boundsForKind, buildModel, kindFromLabel, type PropKind } from './models';
 
 interface LiveEntity {
@@ -29,11 +30,14 @@ export class RoomWorld {
     const halfD = spec.depth / 2;
     const h = spec.height;
     const wallT = 0.35;
+    const seedKey = spec.seed;
+    const tags = spec.themeTags ?? [];
 
-    const floorMat = mat(spec.palette.floor, 0.9, 0.05);
-    const ceilMat = mat(spec.palette.ceiling, 0.95, 0.02);
-    const wallMat = mat(spec.palette.walls, 0.85, 0.04);
-    const accentMat = mat(spec.palette.accent, 0.7, 0.1);
+    const floorMat = surfaceMaterial(styleForMood('floor', spec.mood, tags), spec.palette.floor, seedKey);
+    const ceilMat = surfaceMaterial(styleForMood('ceiling', spec.mood, tags), spec.palette.ceiling, seedKey);
+    const wallMat = surfaceMaterial(styleForMood('wall', spec.mood, tags), spec.palette.walls, seedKey);
+    const trimMat = plainMaterial(spec.palette.accent, 0.55, 0.15);
+    const baseMat = plainMaterial('#3a342c', 0.85, 0.05);
 
     // Floor / ceiling
     const floor = new THREE.Mesh(new THREE.BoxGeometry(spec.width, 0.25, spec.depth), floorMat);
@@ -54,6 +58,26 @@ export class RoomWorld {
     ceiling.position.y = h;
     this.group.add(ceiling);
 
+    // Baseboards + crown around the room for architectural readability
+    const ring = (
+      y: number,
+      thickness: number,
+      depth: number,
+      material: THREE.Material,
+    ): void => {
+      const north = new THREE.Mesh(new THREE.BoxGeometry(spec.width, thickness, depth), material);
+      north.position.set(0, y, -halfD + depth * 0.5);
+      const south = north.clone();
+      south.position.z = halfD - depth * 0.5;
+      const east = new THREE.Mesh(new THREE.BoxGeometry(depth, thickness, spec.depth), material);
+      east.position.set(halfW - depth * 0.5, y, 0);
+      const west = east.clone();
+      west.position.x = -halfW + depth * 0.5;
+      this.group.add(north, south, east, west);
+    };
+    ring(0.08, 0.16, 0.08, baseMat);
+    ring(h - 0.1, 0.1, 0.07, trimMat);
+
     const open = new Set(spec.openSides ?? []);
     const walls: Array<{ side: 'north' | 'south' | 'east' | 'west'; open: boolean }> = [
       { side: 'north', open: open.has('north') },
@@ -64,9 +88,15 @@ export class RoomWorld {
 
     for (const w of walls) {
       if (w.open) {
-        // Open side: low curb + fog bleed, still links if walked through void edge
-        const curb = new THREE.Mesh(new THREE.BoxGeometry(w.side === 'east' || w.side === 'west' ? wallT : spec.width * 0.4, 0.25, w.side === 'north' || w.side === 'south' ? wallT : spec.depth * 0.4), accentMat);
-        placeWall(curb, w.side, halfW, halfD, 0.12);
+        const curb = new THREE.Mesh(
+          new THREE.BoxGeometry(
+            w.side === 'east' || w.side === 'west' ? wallT : spec.width * 0.45,
+            0.28,
+            w.side === 'north' || w.side === 'south' ? wallT : spec.depth * 0.45,
+          ),
+          trimMat,
+        );
+        placeWall(curb, w.side, halfW, halfD, 0.14);
         this.group.add(curb);
         this.addLinkTrigger(edgeTrigger(w.side, halfW, halfD, h), `open:${w.side}`);
         continue;
@@ -81,6 +111,18 @@ export class RoomWorld {
       mesh.receiveShadow = true;
       this.group.add(mesh);
       this.addCollider(wallCollider(w.side, halfW, halfD, h, wallT, true), `wall:${w.side}`);
+
+      // Fake window / panel insets so walls aren't flat slabs
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          w.side === 'north' || w.side === 'south' ? Math.min(2.4, spec.width * 0.25) : 0.06,
+          Math.min(1.6, h * 0.45),
+          w.side === 'east' || w.side === 'west' ? Math.min(2.4, spec.depth * 0.25) : 0.06,
+        ),
+        plainMaterial(spec.palette.light, 0.35, 0.05, spec.palette.light, 0.25),
+      );
+      placeWall(panel, w.side, halfW - 0.05, halfD - 0.05, h * 0.55);
+      this.group.add(panel);
     }
 
     for (const prop of spec.props) {
@@ -267,10 +309,6 @@ export class RoomWorld {
     this.linkTriggers.push(trigger);
     this.colliders.push(trigger);
   }
-}
-
-function mat(color: string, roughness: number, metalness: number): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
 
 function feetBounds(pos: { x: number; y: number; z: number }, scale: Vec3): ColliderBox {
