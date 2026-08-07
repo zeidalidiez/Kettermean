@@ -64,22 +64,32 @@ export async function browserChatCompletion(params: {
   onProgress?: ProgressCb;
 }): Promise<string> {
   const eng = await ensureBrowserEngine(params.modelId, params.onProgress);
+  // WebLLM requires the last message to be from user/tool — do NOT prefill assistant.
   const messages = [
     { role: 'system' as const, content: params.system },
-    { role: 'user' as const, content: params.user },
-    { role: 'assistant' as const, content: '{' },
+    {
+      role: 'user' as const,
+      content: `${params.user}
+
+Return ONLY one JSON object. Start with { and end with }. No markdown. No thinking.`,
+    },
   ];
 
   type NonStream = {
     choices?: Array<{ message?: { content?: string | null }; text?: string }>;
   };
 
-  const requestBase = {
+  const requestBase: Record<string, unknown> = {
     messages,
     temperature: params.temperature,
     max_tokens: params.maxTokens,
-    stream: false as const,
+    stream: false,
   };
+
+  // Qwen3 defaults to thinking mode; disable for faster/cleaner JSON.
+  if (/qwen3/i.test(params.modelId)) {
+    requestBase.extra_body = { enable_thinking: false };
+  }
 
   // Prefer JSON mode when supported; fall back cleanly if the runtime rejects it.
   let completion: NonStream;
@@ -88,21 +98,37 @@ export async function browserChatCompletion(params: {
       ...requestBase,
       response_format: { type: 'json_object' },
     } as never)) as NonStream;
-  } catch {
-    completion = (await eng.chat.completions.create(requestBase as never)) as NonStream;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    try {
+      completion = (await eng.chat.completions.create({
+        messages,
+        temperature: params.temperature,
+        max_tokens: params.maxTokens,
+        stream: false,
+      } as never)) as NonStream;
+    } catch (err2) {
+      const msg2 = err2 instanceof Error ? err2.message : String(err2);
+      throw new Error(`Browser model failed: ${msg2 || msg}`);
+    }
   }
 
   const choice = completion.choices?.[0];
   const content = choice?.message?.content;
   if (typeof content === 'string' && content.trim()) {
-    const t = content.trim();
-    return t.startsWith('{') ? t : `{${t}`;
+    return normalizeJsonText(content.trim());
   }
   if (choice?.text?.trim()) {
-    const t = choice.text.trim();
-    return t.startsWith('{') ? t : `{${t}`;
+    return normalizeJsonText(choice.text.trim());
   }
   throw new Error('Browser model returned empty content');
+}
+
+function normalizeJsonText(text: string): string {
+  // Qwen3 may still wrap reasoning even when thinking is disabled.
+  let t = text.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
+  if (!t.startsWith('{')) t = `{${t}`;
+  return t;
 }
 
 export function getBrowserEngineStatus(): { loaded: boolean; modelId: string } {
