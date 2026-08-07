@@ -15,16 +15,76 @@ let engine: MLCEngineLike | null = null;
 let loadedModelId = '';
 let loadPromise: Promise<MLCEngineLike> | null = null;
 
+export type WebGpuStatus = {
+  available: boolean;
+  secureContext: boolean;
+  hasNavigatorGpu: boolean;
+  host: string;
+  href: string;
+  reason?: string;
+};
+
+/**
+ * WebGPU only exists in secure contexts (https or localhost).
+ * Opening Vite via a LAN IP (http://192.168.x.x:5173) makes navigator.gpu undefined
+ * even in Chrome — that is the usual false "not detected" report.
+ */
+export function getWebGpuStatus(): WebGpuStatus {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      available: false,
+      secureContext: false,
+      hasNavigatorGpu: false,
+      host: '',
+      href: '',
+      reason: 'No browser window.',
+    };
+  }
+
+  const secureContext = Boolean(window.isSecureContext);
+  const gpu = (navigator as Navigator & { gpu?: unknown }).gpu;
+  const hasNavigatorGpu = gpu != null;
+  const host = window.location.host;
+  const href = window.location.href;
+
+  if (!secureContext) {
+    return {
+      available: false,
+      secureContext,
+      hasNavigatorGpu,
+      host,
+      href,
+      reason:
+        `Not a secure context (${href}). Open http://localhost:${window.location.port || '5173'}/ — LAN IPs like http://192.168.x.x disable WebGPU in Chrome.`,
+    };
+  }
+
+  if (!hasNavigatorGpu) {
+    return {
+      available: false,
+      secureContext,
+      hasNavigatorGpu,
+      host,
+      href,
+      reason:
+        'navigator.gpu is missing. Use up-to-date Chrome/Edge, check chrome://gpu, and ensure WebGPU is not disabled in chrome://flags.',
+    };
+  }
+
+  return { available: true, secureContext, hasNavigatorGpu, host, href };
+}
+
 export function isWebGpuAvailable(): boolean {
-  return typeof navigator !== 'undefined' && 'gpu' in navigator;
+  return getWebGpuStatus().available;
 }
 
 export async function ensureBrowserEngine(
   modelId: string,
   onProgress?: ProgressCb,
 ): Promise<MLCEngineLike> {
-  if (!isWebGpuAvailable()) {
-    throw new Error('WebGPU is required for browser models. Use Chrome/Edge with WebGPU enabled.');
+  const gpu = getWebGpuStatus();
+  if (!gpu.available) {
+    throw new Error(gpu.reason || 'WebGPU is required for browser models.');
   }
 
   const id = modelId.trim() || DEFAULT_BROWSER_MODEL;
