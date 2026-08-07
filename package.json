@@ -1,0 +1,21 @@
+{
+  "name": "kettermean",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Liminal first-person dream walker inspired by LSD: Dream Emulator, with optional LLM-generated rooms.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.172.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.172.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

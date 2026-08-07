@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b0b12" />
+    <meta
+      name="description"
+      content="Kettermean — a liminal first-person dream walker with LLM-generated rooms."
+    />
+    <title>Kettermean</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas" tabindex="0" aria-label="Dream world"></canvas>
+
+      <div id="hud" class="hidden" aria-live="polite">
+        <div id="hud-theme"></div>
+        <div id="hud-seed"></div>
+        <div id="hud-hint">Walk into walls or strange things to link</div>
+      </div>
+
+      <div id="fade-overlay" aria-hidden="true"></div>
+
+      <div id="touch-controls" class="hidden" aria-hidden="true">
+        <div id="stick-move" class="stick-zone">
+          <div class="stick-base"><div class="stick-knob"></div></div>
+        </div>
+        <div id="stick-look" class="stick-zone">
+          <div class="stick-base"><div class="stick-knob"></div></div>
+        </div>
+      </div>
+
+      <div id="menu" class="panel-root">
+        <div class="panel">
+          <header class="panel-header">
+            <h1>Kettermean</h1>
+            <p class="tagline">
+              Walk through liminal rooms. Link through walls. Let the dream drift.
+            </p>
+          </header>
+
+          <section class="panel-section">
+            <h2>Dream mode</h2>
+            <label class="field">
+              <span>Mode</span>
+              <select id="mode-select">
+                <option value="random" selected>Fully randomized</option>
+                <option value="seeded">Seeded continuum</option>
+              </select>
+            </label>
+            <label class="field" id="seed-field">
+              <span>Seed</span>
+              <input id="seed-input" type="text" placeholder="e.g. yellow-hallway-07" autocomplete="off" />
+            </label>
+            <p class="help">
+              Seeded mode keeps later rooms related to your starting seed. Random mode invents
+              new seeds and can reshuffle mid-dream.
+            </p>
+          </section>
+
+          <section class="panel-section">
+            <h2>LLM (optional)</h2>
+            <p class="help warn">
+              Keys stay in this browser only (localStorage). Prefer a proxy or key with spend
+              limits. Offline procedural rooms work without a key.
+            </p>
+            <label class="field">
+              <span>Provider</span>
+              <select id="provider-select">
+                <option value="offline" selected>Offline procedural only</option>
+                <option value="openai">OpenAI-compatible</option>
+                <option value="anthropic">Anthropic Claude</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>API key</span>
+              <input id="api-key-input" type="password" placeholder="sk-... or leave blank" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Base URL</span>
+              <input
+                id="base-url-input"
+                type="url"
+                placeholder="https://api.openai.com/v1 or your proxy"
+                autocomplete="off"
+              />
+            </label>
+            <label class="field">
+              <span>Model</span>
+              <input id="model-input" type="text" placeholder="gpt-4o-mini / claude-sonnet-4-5" autocomplete="off" />
+            </label>
+          </section>
+
+          <section class="panel-section">
+            <h2>Content</h2>
+            <label class="check">
+              <input id="gore-toggle" type="checkbox" />
+              <span>Allow mild blood &amp; gore in prompts</span>
+            </label>
+            <p class="help">
+              Off by default. Sexual or obscene content is always blocked. Expect liminal unease,
+              not torture porn.
+            </p>
+          </section>
+
+          <section class="panel-section">
+            <h2>Controls</h2>
+            <ul class="controls-list">
+              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</li>
+              <li>Mouse look · click canvas to lock pointer</li>
+              <li>Gamepad supported · touch sticks on mobile</li>
+              <li><kbd>Esc</kbd> pause / menu</li>
+            </ul>
+          </section>
+
+          <footer class="panel-footer">
+            <button id="start-btn" type="button" class="primary">Enter dream</button>
+            <button id="clear-key-btn" type="button" class="ghost">Clear saved key</button>
+          </footer>
+        </div>
+      </div>
+
+      <div id="pause-menu" class="panel-root hidden">
+        <div class="panel compact">
+          <h2>Paused</h2>
+          <p class="help">Pointer unlocked. Resume to keep dreaming.</p>
+          <div class="row">
+            <button id="resume-btn" type="button" class="primary">Resume</button>
+            <button id="quit-btn" type="button" class="ghost">Back to menu</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="status-toast" class="hidden" role="status"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
