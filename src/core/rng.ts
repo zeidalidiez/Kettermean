@@ -65,11 +65,11 @@ export function randomSeed(): string {
     'wrong',
     'soft',
     'empty',
-    ' orth',
+    'north',
     'pale',
     'late',
     'narrow',
-  ];
+  ] as const;
   const nouns = [
     'hallway',
     'lobby',
@@ -81,9 +81,7 @@ export function randomSeed(): string {
     'courtyard',
     'clinic',
     'basement',
-  ];
+  ] as const;
   const rng = new SeededRng(`${Date.now()}-${Math.random()}`);
-  // fix accidental space in ' orth'
-  const adj = adjectives.map((a) => a.trim());
-  return `${rng.pick(adj)}-${rng.pick(nouns)}-${rng.int(1, 99)}`;
+  return `${rng.pick(adjectives)}-${rng.pick(nouns)}-${rng.int(1, 99)}`;
 }
