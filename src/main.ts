@@ -76,7 +76,9 @@ function syncProviderUi(): void {
     if (
       !modelInput.value ||
       modelInput.value.includes('claude') ||
-      modelInput.value === DEFAULT_OPENAI_MODEL
+      modelInput.value === DEFAULT_OPENAI_MODEL ||
+      modelInput.value.includes('ling-3.0') ||
+      modelInput.value.includes('inclusionai/')
     ) {
       modelInput.value = DEFAULT_OPENROUTER_MODEL;
     }

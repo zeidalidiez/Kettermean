@@ -406,3 +406,62 @@ function moodLinkColor(mood: MoodAxis, allowGore: boolean): string {
 export function defaultSpawnHeight(): number {
   return PLAYER.eyeHeight;
 }
+
+export interface ThemeOverlay {
+  title: string;
+  blurb: string;
+  mood: MoodAxis;
+  tags: string[];
+  paletteHint?: string;
+  entityHint?: string;
+  propHints?: string[];
+}
+
+/** Overlay LLM theme text onto a deterministic offline layout (keeps playable geometry). */
+export function applyThemeOverlay(base: RoomSpec, idea: ThemeOverlay): RoomSpec {
+  const next: RoomSpec = {
+    ...base,
+    title: idea.title || base.title,
+    blurb: idea.blurb || base.blurb,
+    mood: idea.mood || base.mood,
+    themeTags: idea.tags.length ? [...idea.tags, idea.mood] : base.themeTags,
+    offline: false,
+  };
+
+  // Light palette nudges from free-text hints without requiring full color JSON.
+  const hint = (idea.paletteHint || '').toLowerCase();
+  if (hint.includes('red') || hint.includes('blood')) {
+    next.palette = { ...next.palette, accent: '#6b3038', fog: '#2a1820' };
+  } else if (hint.includes('blue') || hint.includes('night')) {
+    next.palette = { ...next.palette, walls: '#3a4560', fog: '#1c2438', light: '#c8d8ff' };
+  } else if (hint.includes('green')) {
+    next.palette = { ...next.palette, accent: '#3f8f4e', fog: '#1c2a20' };
+  } else if (hint.includes('yellow') || hint.includes('beige') || hint.includes('liminal')) {
+    next.palette = {
+      ...next.palette,
+      floor: '#9a8458',
+      walls: '#d2c08a',
+      ceiling: '#e8e0cc',
+      fog: '#c8b890',
+    };
+  }
+
+  if (idea.entityHint && next.entities[0]) {
+    next.entities = next.entities.map((e, i) =>
+      i === 0 ? { ...e, label: idea.entityHint || e.label, kind: e.kind } : e,
+    );
+  }
+
+  if (idea.propHints && idea.propHints.length) {
+    next.props = next.props.map((p, i) => {
+      const hintLabel = idea.propHints![i % idea.propHints!.length];
+      if (!hintLabel) return p;
+      return { ...p, label: hintLabel };
+    });
+  }
+
+  next.linkColor =
+    next.mood === 'downer' ? '#15203f' : next.mood === 'upper' ? '#eef2ff' : next.mood === 'dynamic' ? '#2dd4bf' : '#c4a35a';
+
+  return next;
+}
