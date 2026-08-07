@@ -1,11 +1,13 @@
 import {
   DEFAULT_ANTHROPIC_BASE,
   DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_BROWSER_MODEL,
   DEFAULT_OPENAI_BASE,
   DEFAULT_OPENAI_MODEL,
   DEFAULT_OPENROUTER_BASE,
   DEFAULT_OPENROUTER_MODEL,
 } from './config';
+import { isWebGpuAvailable } from './llm/browserEngine';
 import { clearApiKey, loadSettings, modelForProvider, saveSettings } from './core/settings';
 import { DreamGame } from './game/DreamGame';
 import type { AppSettings, DreamMode, LlmProvider } from './types';
@@ -60,12 +62,14 @@ function syncModeUi(): void {
 function syncProviderUi(): void {
   const provider = providerSelect.value as LlmProvider;
   const offline = provider === 'offline';
-  apiKeyInput.disabled = offline;
-  baseUrlInput.disabled = offline;
+  const browser = provider === 'browser';
+  apiKeyInput.disabled = offline || browser;
+  baseUrlInput.disabled = offline || browser;
   modelInput.disabled = offline;
 
+  const help = document.getElementById('provider-help');
+
   if (provider === 'openai') {
-    // Prefer OpenRouter as the practical browser-friendly default.
     if (
       !baseUrlInput.value ||
       baseUrlInput.value.includes('api.openai.com') ||
@@ -73,26 +77,36 @@ function syncProviderUi(): void {
     ) {
       baseUrlInput.value = DEFAULT_OPENROUTER_BASE;
     }
-    // Only fill a default when empty — never overwrite the user's chosen model.
-    if (!modelInput.value.trim()) {
-      modelInput.value = DEFAULT_OPENROUTER_MODEL;
-    }
+    if (!modelInput.value.trim()) modelInput.value = DEFAULT_OPENROUTER_MODEL;
     baseUrlInput.placeholder = DEFAULT_OPENROUTER_BASE;
     modelInput.placeholder = DEFAULT_OPENROUTER_MODEL;
+    if (help) {
+      help.textContent =
+        'OpenAI-compatible works with OpenRouter. Example base https://openrouter.ai/api/v1.';
+    }
   }
   if (provider === 'anthropic') {
     if (!baseUrlInput.value || baseUrlInput.value.includes('openai') || baseUrlInput.value.includes('openrouter')) {
       baseUrlInput.value = DEFAULT_ANTHROPIC_BASE;
     }
-    if (!modelInput.value.includes('claude')) {
-      modelInput.value = DEFAULT_ANTHROPIC_MODEL;
-    }
+    if (!modelInput.value.includes('claude')) modelInput.value = DEFAULT_ANTHROPIC_MODEL;
     baseUrlInput.placeholder = DEFAULT_ANTHROPIC_BASE;
     modelInput.placeholder = DEFAULT_ANTHROPIC_MODEL;
+    if (help) help.textContent = 'Anthropic browser calls often need a CORS proxy.';
+  }
+  if (provider === 'browser') {
+    modelInput.value = modelForProvider('browser', modelInput.value);
+    modelInput.placeholder = DEFAULT_BROWSER_MODEL;
+    if (help) {
+      help.textContent = isWebGpuAvailable()
+        ? 'Local WebLLM model via WebGPU. First run downloads ~0.5–1GB weights, then caches.'
+        : 'WebGPU not detected. Use Chrome/Edge, or pick another provider.';
+    }
   }
   if (provider === 'offline') {
     baseUrlInput.placeholder = DEFAULT_OPENAI_BASE;
     modelInput.placeholder = DEFAULT_OPENAI_MODEL;
+    if (help) help.textContent = 'Fully local procedural rooms. No network, no model download.';
   }
   modelInput.value = modelForProvider(provider, modelInput.value);
 }
@@ -106,11 +120,15 @@ startBtn.addEventListener('click', () => {
     alert('Enter a seed for seeded mode, or switch to randomized.');
     return;
   }
-  if (next.provider !== 'offline' && !next.apiKey) {
+  if ((next.provider === 'openai' || next.provider === 'anthropic') && !next.apiKey) {
     const ok = confirm('No API key entered. Continue with offline procedural rooms?');
     if (!ok) return;
     next.provider = 'offline';
     providerSelect.value = 'offline';
+  }
+  if (next.provider === 'browser' && !isWebGpuAvailable()) {
+    alert('WebGPU is required for browser models. Try Chrome/Edge, or use offline/cloud.');
+    return;
   }
   saveSettings(next);
   game.updateSettings(next);

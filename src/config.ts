@@ -12,6 +12,14 @@ export const DEFAULT_ANTHROPIC_BASE = 'https://api.anthropic.com';
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
+/** Small enough for many laptops; coder variant is better at JSON-ish output. */
+export const DEFAULT_BROWSER_MODEL = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+export const BROWSER_MODEL_OPTIONS = [
+  'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+  'Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC',
+  'SmolLM2-360M-Instruct-q4f16_1-MLC',
+  'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
+] as const;
 
 export const PLAYER = {
   eyeHeight: 1.65,

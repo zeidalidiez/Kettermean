@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.84",
     "three": "^0.172.0"
   },
   "devDependencies": {

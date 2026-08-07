@@ -73,7 +73,8 @@
               <span>Provider</span>
               <select id="provider-select">
                 <option value="offline" selected>Offline procedural only</option>
-                <option value="openai">OpenAI-compatible</option>
+                <option value="browser">Browser model (WebGPU / WebLLM)</option>
+                <option value="openai">OpenAI-compatible / OpenRouter</option>
                 <option value="anthropic">Anthropic Claude</option>
               </select>
             </label>
@@ -95,13 +96,21 @@
               <input
                 id="model-input"
                 type="text"
-                placeholder="openrouter/free"
+                list="browser-model-list"
+                placeholder="openrouter/free or Qwen2.5-0.5B..."
                 autocomplete="off"
               />
+              <datalist id="browser-model-list">
+                <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC"></option>
+                <option value="Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC"></option>
+                <option value="SmolLM2-360M-Instruct-q4f16_1-MLC"></option>
+                <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC"></option>
+                <option value="openrouter/free"></option>
+              </datalist>
             </label>
-            <p class="help">
-              OpenAI-compatible works with OpenRouter. Example base
-              <code>https://openrouter.ai/api/v1</code> and a free model id.
+            <p class="help" id="provider-help">
+              Browser models run locally via WebGPU (no API key). First load downloads weights.
+              Cloud providers still supported.
             </p>
           </section>
 

@@ -1,7 +1,9 @@
 import {
   DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_BROWSER_MODEL,
   DEFAULT_OPENAI_BASE,
   DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENROUTER_MODEL,
   STORAGE_KEYS,
 } from '../config';
 import type { AppSettings } from '../types';
@@ -56,7 +58,15 @@ export function modelForProvider(provider: AppSettings['provider'], current: str
     return current.includes('claude') ? current : DEFAULT_ANTHROPIC_MODEL;
   }
   if (provider === 'openai') {
-    return current.includes('claude') ? DEFAULT_OPENAI_MODEL : current || DEFAULT_OPENAI_MODEL;
+    if (!current.trim()) return DEFAULT_OPENROUTER_MODEL;
+    if (current.includes('claude')) return DEFAULT_OPENAI_MODEL;
+    return current;
+  }
+  if (provider === 'browser') {
+    if (!current.trim() || current.includes('openrouter') || current.includes('claude') || current.includes('gpt-')) {
+      return DEFAULT_BROWSER_MODEL;
+    }
+    return current;
   }
   return current;
 }

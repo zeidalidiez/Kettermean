@@ -1,5 +1,5 @@
 export type DreamMode = 'random' | 'seeded';
-export type LlmProvider = 'offline' | 'openai' | 'anthropic';
+export type LlmProvider = 'offline' | 'openai' | 'anthropic' | 'browser';
 export type MoodAxis = 'upper' | 'downer' | 'static' | 'dynamic';
 
 export interface AppSettings {

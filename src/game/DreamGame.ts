@@ -62,6 +62,7 @@ export class DreamGame {
     this.player = new PlayerController(window.innerWidth / window.innerHeight);
     this.input = new InputManager(this.canvas);
     this.generator = new RoomGenerator(settings);
+    this.generator.setStatusHandler((msg) => this.showToast(msg));
 
     window.addEventListener('resize', this.onResize);
     this.canvas.addEventListener('click', this.onCanvasClick);
@@ -98,7 +99,10 @@ export class DreamGame {
     this.input.requestPointerLock();
 
     const ctx = this.makeCtx(this.currentSeed);
-    const useLlm = this.settings.provider !== 'offline' && Boolean(this.settings.apiKey.trim());
+    const useLlm =
+      this.settings.provider === 'browser' ||
+      ((this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
+        Boolean(this.settings.apiKey.trim()));
 
     // Always enter a playable offline room immediately. Never block controls on the API.
     const boot = this.generator.getOrOffline(ctx);

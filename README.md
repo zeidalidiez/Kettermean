@@ -50,8 +50,11 @@ You should still use spend-limited keys or a proxy. Keys are stored only in your
 ### Providers
 
 - **Offline procedural only** — default
+- **Browser model (WebLLM / WebGPU)** — local Qwen2.5-0.5B (or similar); first run downloads weights, then cached. No API key.
 - **OpenAI-compatible** — `baseUrl` + key + model (official API, OpenRouter, local proxies, etc.)
 - **Anthropic Claude** — may require a CORS-friendly proxy from browsers
+
+Browser models are small (about 0.5B). They are good enough for short structured room JSON when geometry is kit-based; they will not match large cloud models.
 
 > Direct browser calls to cloud LLM APIs often hit CORS. Prefer a small proxy or an OpenAI-compatible gateway you control.
 

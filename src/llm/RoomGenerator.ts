@@ -1,13 +1,20 @@
 import {
   DEFAULT_ANTHROPIC_BASE,
   DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_BROWSER_MODEL,
   DEFAULT_OPENAI_BASE,
   DEFAULT_OPENROUTER_MODEL,
   LLM_BUDGET,
   STORAGE_KEYS,
 } from '../config';
 import type { AppSettings, GenerationContext, RoomSpec } from '../types';
-import { generateOfflineRoom } from '../world/offlineGenerator';
+import { catalogPromptSummary } from '../world/assetCatalog';
+import {
+  assembleRoomSpec,
+  generateOfflineRoom,
+  parseRoomDirection,
+} from '../world/offlineGenerator';
+import { browserChatCompletion } from './browserEngine';
 import { extractJsonObject, normalizeRoomSpec } from './schema';
 
 interface CacheEntry {
@@ -24,9 +31,14 @@ export class RoomGenerator {
   private inflight = new Map<string, Promise<RoomSpec>>();
   private sessionFailures = 0;
   private apiCallsThisSession = 0;
+  private onStatus: ((msg: string) => void) | null = null;
 
   constructor(private settings: AppSettings) {
     this.hydrateCache();
+  }
+
+  setStatusHandler(handler: ((msg: string) => void) | null): void {
+    this.onStatus = handler;
   }
 
   updateSettings(settings: AppSettings): void {
@@ -82,7 +94,12 @@ export class RoomGenerator {
 
   prefetch(ctx: GenerationContext): void {
     if (this.settings.provider === 'offline') return;
-    if (!this.settings.apiKey.trim()) return;
+    if (
+      (this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
+      !this.settings.apiKey.trim()
+    ) {
+      return;
+    }
     if (this.inflight.size >= LLM_BUDGET.maxInFlight) return;
     const existing = this.memory.get(cacheKey(ctx));
     if (existing && !existing.offline) return;
@@ -91,7 +108,13 @@ export class RoomGenerator {
   }
 
   private async generate(ctx: GenerationContext): Promise<RoomSpec> {
-    if (this.settings.provider === 'offline' || !this.settings.apiKey.trim()) {
+    if (this.settings.provider === 'offline') {
+      return generateOfflineRoom(ctx);
+    }
+    if (
+      (this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
+      !this.settings.apiKey.trim()
+    ) {
       return generateOfflineRoom(ctx);
     }
     if (
@@ -104,15 +127,13 @@ export class RoomGenerator {
     try {
       let text = await this.callProvider(ctx, 'initial');
       this.apiCallsThisSession += 1;
-      let json = extractJsonObject(text);
-      let normalized = json ? normalizeRoomSpec(json, ctx.seed) : null;
+      let normalized = parseDirectedOrLegacy(text, ctx.seed);
 
       // One cheap repair pass if the model reasoned in prose instead of JSON.
       if (!normalized) {
         text = await this.callProvider(ctx, 'repair', text);
         this.apiCallsThisSession += 1;
-        json = extractJsonObject(text);
-        normalized = json ? normalizeRoomSpec(json, ctx.seed) : null;
+        normalized = parseDirectedOrLegacy(text, ctx.seed);
       }
 
       if (!normalized) {
@@ -137,9 +158,11 @@ export class RoomGenerator {
     const { system, user } = buildPrompt(ctx, this.settings.allowGore, mode, previousText);
     // Soft timeout only — do not AbortController-kill free routes mid-flight.
     const call =
-      this.settings.provider === 'anthropic'
-        ? this.callAnthropic(system, user, true)
-        : this.callOpenAI(system, user, true);
+      this.settings.provider === 'browser'
+        ? this.callBrowser(ctx, mode, previousText)
+        : this.settings.provider === 'anthropic'
+          ? this.callAnthropic(system, user, true)
+          : this.callOpenAI(system, user, true);
 
     let timer: number | undefined;
     try {
@@ -158,6 +181,25 @@ export class RoomGenerator {
     } finally {
       if (timer !== undefined) window.clearTimeout(timer);
     }
+  }
+
+  private async callBrowser(
+    ctx: GenerationContext,
+    mode: 'initial' | 'repair',
+    previousText = '',
+  ): Promise<string> {
+    const model = this.settings.model.trim() || DEFAULT_BROWSER_MODEL;
+    // Tiny on-device models get a shorter director JSON brief; client kits build geometry.
+    const compact = buildBrowserPrompt(ctx, this.settings.allowGore, mode, previousText);
+    const text = await browserChatCompletion({
+      modelId: model,
+      system: compact.system,
+      user: compact.user,
+      maxTokens: 450,
+      temperature: 0.5,
+      onProgress: (msg) => this.onStatus?.(msg),
+    });
+    return text;
   }
 
   private async callOpenAI(system: string, user: string, prefillJson = true): Promise<string> {
@@ -298,116 +340,113 @@ function buildPrompt(
   previousText = '',
 ): { system: string; user: string } {
   const goreLine = allowGore
-    ? 'Mild blood/gore allowed sparingly. Still no torture-porn.'
-    : 'No blood, gore, wounds, or graphic violence.';
+    ? 'Mild blood/gore allowed sparingly.'
+    : 'No blood or gore.';
 
+  // Director mode: pick catalog assets + atmospheric scale. Client builds meshes.
   const system = [
-    'You are a JSON generator for a WebGL dream game.',
-    'Output MUST be one valid JSON object and nothing else.',
-    'No markdown. No analysis. No chain-of-thought. No keys outside the schema.',
-    'Begin with { and end with }.',
-    'Style: uncanny liminal cinematic interiors. Sometimes unsettling (giant baby ok).',
-    'Never sexual or obscene.',
+    'You are an art director for a liminal WebGL game.',
+    'Return ONE JSON object only. No markdown. No analysis.',
+    'Do NOT invent meshes. SELECT assets from the catalog by assetId.',
+    'You may scale assets for atmosphere (e.g. anomaly_giant_baby scaleMul 2.5-3.8).',
+    'Schema: themeId?, title, blurb, mood, tags, width, depth, height, fogNear, fogFar, linkColor, openSides, palette?, physics?, placements[].',
+    'placements item: {assetId,x,z,rotY,scaleMul,linksOnTouch,behavior?}.',
+    'mood: upper|downer|static|dynamic. Keep spawn center clear (no solid near 0,0 within 1.8).',
+    '6-12 placements. Include at least one portal/link asset (door_fake often).',
     goreLine,
-    'Schema: title,blurb,themeTags,mood,width,depth,height,fogNear,fogFar,linkColor,openSides,palette,physics,props,entities.',
-    'mood: upper|downer|static|dynamic.',
-    'palette hex: floor,ceiling,walls,accent,fog,light,ambient.',
-    'physics numbers: gravity,moveSpeed,friction,bounce,sway.',
-    'props/entities use kind from furniture kits and position.y=0.',
-    'kinds: chair,desk,vending,cabinet,crib,plant,payphone,cooler,cart,door_fake,mattress,sign,bottle_giant,mirror,bench,pillar,lamp,table,shelf,tv,figure_baby,figure_clerk,figure_deer,figure_mannequin,figure_shadow,figure_balloon,figure_guide,figure_raincoat.',
-    'width/depth 10-24, height 2.8-6, props 6-12, entities 1-3, clear spawn center.',
+    'Never sexual or obscene.',
   ].join(' ');
 
   if (mode === 'repair') {
     return {
       system,
       user: [
-        'Your previous reply was invalid because it was not pure JSON.',
-        'Rewrite as ONE valid JSON object only. No prose before or after.',
+        'Previous reply was not valid director JSON. Reply with pure JSON only.',
         `seed=${ctx.seed}`,
         `moodBias=${ctx.moodBias}`,
-        `bad_reply_preview=${JSON.stringify(previousText.slice(0, 400))}`,
-        'Start with { now.',
+        `bad=${JSON.stringify(previousText.slice(0, 350))}`,
+        'Start with {',
       ].join('\n'),
     };
   }
 
   const example = {
-    title: 'Yellow Security Lobby',
-    blurb: 'The ferns are still waiting for a shift change.',
-    themeTags: ['lobby', 'fluorescent', 'liminal'],
-    mood: 'static',
-    width: 16,
-    depth: 14,
-    height: 3.6,
+    themeId: 'wrong_nursery',
+    title: 'Wrong Nursery',
+    blurb: 'The crib is empty. Something else is not.',
+    mood: 'downer',
+    tags: ['nursery', 'uncanny'],
+    width: 12,
+    depth: 12,
+    height: 3.4,
     fogNear: 10,
-    fogFar: 40,
-    linkColor: '#d9c27a',
-    openSides: [],
-    palette: {
-      floor: '#9a8458',
-      ceiling: '#e8e0cc',
-      walls: '#d2c08a',
-      accent: '#6a7a8a',
-      fog: '#c8b890',
-      light: '#fff2c9',
-      ambient: '#a09070',
-    },
-    physics: { gravity: 1, moveSpeed: 1, friction: 1, bounce: 0, sway: 0.3 },
-    props: [
-      {
-        id: 'p0',
-        label: 'security desk',
-        shape: 'box',
-        position: { x: 0, y: 0, z: -4 },
-        rotationY: 0,
-        scale: { x: 1.9, y: 1, z: 0.9 },
-        color: '#8a7a5a',
-        linksOnTouch: false,
-        solid: true,
-        kind: 'desk',
-      },
-      {
-        id: 'p1',
-        label: 'exit door',
-        shape: 'box',
-        position: { x: -7, y: 0, z: 0 },
-        rotationY: 1.57,
-        scale: { x: 1.1, y: 2.3, z: 0.2 },
-        color: '#6e5b45',
-        linksOnTouch: true,
-        solid: true,
-        kind: 'door_fake',
-      },
-    ],
-    entities: [
-      {
-        id: 'e0',
-        label: 'hallway clerk',
-        shape: 'cylinder',
-        position: { x: 2, y: 0, z: -3 },
-        scale: { x: 0.8, y: 2.2, z: 0.55 },
-        color: '#cccccc',
-        behavior: 'stare',
-        speed: 0.5,
-        linksOnTouch: true,
-        kind: 'figure_clerk',
-      },
+    fogFar: 34,
+    linkColor: '#15203f',
+    openSides: ['east'],
+    placements: [
+      { assetId: 'crib_empty', x: -2, z: -1.5, rotY: 0.2, scaleMul: 1 },
+      { assetId: 'anomaly_giant_baby', x: 1.5, z: 2, scaleMul: 3.1, linksOnTouch: true, behavior: 'idle' },
+      { assetId: 'bottle_giant', x: 3, z: -2.5, scaleMul: 1.4 },
+      { assetId: 'door_fake', x: -5.2, z: 0, rotY: 1.57, linksOnTouch: true },
+      { assetId: 'lamp_floor', x: -3.5, z: 3, scaleMul: 1 },
+      { assetId: 'mirror_tall', x: 5, z: 0, rotY: -1.57, scaleMul: 1.1 },
     ],
   };
 
   const user = [
     `seed=${ctx.seed}`,
-    `parentSeed=${ctx.parentSeed ?? ''}`,
     `moodBias=${ctx.moodBias}`,
     `linkIndex=${ctx.linkIndex}`,
-    `avoidTitles=${JSON.stringify(ctx.previousTitles.slice(-6))}`,
-    'Create a different room from the example, same schema.',
+    `avoidTitles=${JSON.stringify(ctx.previousTitles.slice(-5))}`,
+    'CATALOG (choose only these assetId values):',
+    catalogPromptSummary(),
     `example=${JSON.stringify(example)}`,
-    'Respond with JSON only.',
+    'Direct a different room. JSON only.',
   ].join('\n');
 
   return { system, user };
+}
+
+function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
+  const json = extractJsonObject(text);
+  if (!json) return null;
+  const directed = parseRoomDirection(json, seed);
+  if (directed) return assembleRoomSpec(directed);
+  // Legacy full RoomSpec path still accepted.
+  return normalizeRoomSpec(json, seed);
+}
+
+function buildBrowserPrompt(
+  ctx: GenerationContext,
+  allowGore: boolean,
+  mode: 'initial' | 'repair' = 'initial',
+  previousText = '',
+): { system: string; user: string } {
+  const gore = allowGore ? 'mild gore ok' : 'no gore';
+  const system = [
+    'JSON only. No markdown. No thinking.',
+    'Art-direct a room by selecting catalog assetIds and scaleMul.',
+    'Keys: themeId,title,blurb,mood,tags,width,depth,height,placements.',
+    'placements:[{assetId,x,z,rotY,scaleMul,linksOnTouch}].',
+    'Use anomaly_giant_baby with scaleMul 2.5-3.5 sometimes.',
+    'Include door_fake as a link. 6-10 placements.',
+    gore,
+  ].join(' ');
+  if (mode === 'repair') {
+    return {
+      system,
+      user: `Fix to pure director JSON. seed=${ctx.seed}. bad=${JSON.stringify(previousText.slice(0, 280))}`,
+    };
+  }
+  return {
+    system,
+    user: [
+      `seed=${ctx.seed}; moodBias=${ctx.moodBias}`,
+      'assetIds: chair_office,desk_security,vending_blue,crib_empty,door_fake,plant_fern,lamp_floor,anomaly_giant_baby,npc_clerk,npc_shadow,creature_deer,mirror_tall,bottle_giant,bench_wait',
+      'themeIds: fluorescent_lobby,wrong_nursery,backrooms_annex,dry_pool,soft_clinic',
+      'Make director JSON now.',
+    ].join('\n'),
+  };
 }
 
 function ensureLeadingBrace(text: string): string {
