@@ -1,0 +1,184 @@
+import type {
+  EntityBehavior,
+  MoodAxis,
+  PropShape,
+  RoomEntity,
+  RoomProp,
+  RoomSpec,
+  Vec3,
+} from '../types';
+
+const SHAPES = new Set<PropShape>(['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane']);
+const BEHAVIORS = new Set<EntityBehavior>(['idle', 'wander', 'orbit', 'stare']);
+const MOODS = new Set<MoodAxis>(['upper', 'downer', 'static', 'dynamic']);
+const SIDES = new Set(['north', 'south', 'east', 'west']);
+
+const BLOCKED =
+  /\b(nsfw|porn|nude|naked|sex|sexual|erotic|explicit|rape|child\s*porn|cp\b|underage|loli|shota)\b/i;
+
+export function sanitizeText(input: string, fallback: string): string {
+  const trimmed = input.replace(/\s+/g, ' ').trim().slice(0, 160);
+  if (!trimmed || BLOCKED.test(trimmed)) return fallback;
+  return trimmed;
+}
+
+function num(v: unknown, fallback: number, min: number, max: number): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function str(v: unknown, fallback: string): string {
+  return typeof v === 'string' && v.trim() ? v.trim() : fallback;
+}
+
+function vec3(v: unknown, fallback: Vec3): Vec3 {
+  if (!v || typeof v !== 'object') return fallback;
+  const o = v as Record<string, unknown>;
+  return {
+    x: num(o.x, fallback.x, -100, 100),
+    y: num(o.y, fallback.y, -20, 40),
+    z: num(o.z, fallback.z, -100, 100),
+  };
+}
+
+function shape(v: unknown, fallback: PropShape = 'box'): PropShape {
+  return typeof v === 'string' && SHAPES.has(v as PropShape) ? (v as PropShape) : fallback;
+}
+
+function parseProp(raw: unknown, index: number): RoomProp | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const label = sanitizeText(str(o.label, `prop-${index}`), `prop-${index}`);
+  const scale = vec3(o.scale, { x: 1, y: 1, z: 1 });
+  scale.x = num(scale.x, 1, 0.05, 12);
+  scale.y = num(scale.y, 1, 0.05, 12);
+  scale.z = num(scale.z, 1, 0.05, 12);
+  return {
+    id: str(o.id, `p${index}`),
+    label,
+    shape: shape(o.shape),
+    position: vec3(o.position, { x: 0, y: scale.y / 2, z: 0 }),
+    rotationY: num(o.rotationY, 0, -Math.PI * 4, Math.PI * 4),
+    scale,
+    color: str(o.color, '#888888'),
+    emissive: typeof o.emissive === 'string' ? o.emissive : undefined,
+    metalness: num(o.metalness, 0.1, 0, 1),
+    roughness: num(o.roughness, 0.8, 0, 1),
+    linksOnTouch: Boolean(o.linksOnTouch),
+    solid: o.solid === undefined ? true : Boolean(o.solid),
+  };
+}
+
+function parseEntity(raw: unknown, index: number): RoomEntity | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const label = sanitizeText(str(o.label, `entity-${index}`), `entity-${index}`);
+  const scale = vec3(o.scale, { x: 1, y: 1.8, z: 1 });
+  const behavior =
+    typeof o.behavior === 'string' && BEHAVIORS.has(o.behavior as EntityBehavior)
+      ? (o.behavior as EntityBehavior)
+      : 'idle';
+  return {
+    id: str(o.id, `e${index}`),
+    label,
+    shape: shape(o.shape, 'cylinder'),
+    position: vec3(o.position, { x: 2, y: scale.y / 2, z: 2 }),
+    scale,
+    color: str(o.color, '#cccccc'),
+    emissive: typeof o.emissive === 'string' ? o.emissive : undefined,
+    behavior,
+    speed: num(o.speed, 0.8, 0, 4),
+    linksOnTouch: o.linksOnTouch === undefined ? true : Boolean(o.linksOnTouch),
+  };
+}
+
+/** Normalize untrusted LLM JSON into a safe RoomSpec. Returns null if unusable. */
+export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+
+  const mood =
+    typeof o.mood === 'string' && MOODS.has(o.mood as MoodAxis) ? (o.mood as MoodAxis) : 'static';
+
+  const paletteIn = (o.palette && typeof o.palette === 'object' ? o.palette : {}) as Record<
+    string,
+    unknown
+  >;
+  const physicsIn = (o.physics && typeof o.physics === 'object' ? o.physics : {}) as Record<
+    string,
+    unknown
+  >;
+
+  const propsRaw = Array.isArray(o.props) ? o.props : [];
+  const entitiesRaw = Array.isArray(o.entities) ? o.entities : [];
+  const props = propsRaw
+    .slice(0, 16)
+    .map((p, i) => parseProp(p, i))
+    .filter((p): p is RoomProp => Boolean(p));
+  const entities = entitiesRaw
+    .slice(0, 6)
+    .map((e, i) => parseEntity(e, i))
+    .filter((e): e is RoomEntity => Boolean(e));
+
+  if (props.length < 1) return null;
+
+  const openSides = Array.isArray(o.openSides)
+    ? o.openSides
+        .filter((s): s is 'north' | 'south' | 'east' | 'west' => typeof s === 'string' && SIDES.has(s))
+        .slice(0, 2)
+    : [];
+
+  return {
+    id: str(o.id, `room-${seed}`),
+    seed,
+    title: sanitizeText(str(o.title, 'Unnamed Room'), 'Unnamed Room'),
+    blurb: sanitizeText(str(o.blurb, 'The room waits.'), 'The room waits.'),
+    themeTags: Array.isArray(o.themeTags)
+      ? o.themeTags
+          .filter((t): t is string => typeof t === 'string')
+          .map((t) => sanitizeText(t, 'liminal'))
+          .slice(0, 8)
+      : ['liminal'],
+    mood,
+    width: num(o.width, 14, 8, 28),
+    depth: num(o.depth, 14, 8, 28),
+    height: num(o.height, 3.5, 2.4, 10),
+    palette: {
+      floor: str(paletteIn.floor, '#6b5b3a'),
+      ceiling: str(paletteIn.ceiling, '#d9d2c5'),
+      walls: str(paletteIn.walls, '#cbb89a'),
+      accent: str(paletteIn.accent, '#6a7a8a'),
+      fog: str(paletteIn.fog, '#cfc6b0'),
+      light: str(paletteIn.light, '#fff2c9'),
+      ambient: str(paletteIn.ambient, '#a09070'),
+    },
+    fogNear: num(o.fogNear, 8, 2, 30),
+    fogFar: num(o.fogFar, 30, 10, 80),
+    physics: {
+      gravity: num(physicsIn.gravity, 1, 0.2, 2.2),
+      moveSpeed: num(physicsIn.moveSpeed, 1, 0.4, 2),
+      friction: num(physicsIn.friction, 1, 0.2, 2),
+      bounce: num(physicsIn.bounce, 0, 0, 0.8),
+      sway: num(physicsIn.sway, 0.35, 0, 2),
+    },
+    linkColor: str(o.linkColor, '#d9c27a'),
+    props,
+    entities,
+    openSides,
+    offline: false,
+  };
+}
+
+export function extractJsonObject(text: string): unknown | null {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced?.[1] ?? text;
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(candidate.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
