@@ -200,14 +200,68 @@ export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
 }
 
 export function extractJsonObject(text: string): unknown | null {
+  if (!text) return null;
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced?.[1] ?? text;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(candidate.slice(start, end + 1));
-  } catch {
-    return null;
+  let candidate = (fenced?.[1] ?? text).trim();
+
+  // Common junk prefixes from instruction-following failures.
+  candidate = candidate
+    .replace(/^[^\{\[]+/, (prefix) => (prefix.includes('{') ? prefix : ''))
+    .trim();
+
+  const attempts = [candidate, stripTrailingCommas(candidate)];
+  for (const attempt of attempts) {
+    const parsed = tryParseBalancedObject(attempt);
+    if (parsed !== null) return parsed;
   }
+  return null;
+}
+
+function stripTrailingCommas(s: string): string {
+  return s.replace(/,(\s*[}\]])/g, '$1');
+}
+
+function tryParseBalancedObject(text: string): unknown | null {
+  const start = text.indexOf('{');
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        const slice = text.slice(start, i + 1);
+        try {
+          return JSON.parse(slice);
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  // Fallback: old first/last brace strategy.
+  const end = text.lastIndexOf('}');
+  if (end > start) {
+    try {
+      return JSON.parse(stripTrailingCommas(text.slice(start, end + 1)));
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }

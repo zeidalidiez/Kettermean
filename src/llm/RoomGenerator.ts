@@ -102,12 +102,21 @@ export class RoomGenerator {
     }
 
     try {
-      const text = await this.callProvider(ctx);
+      let text = await this.callProvider(ctx, 'initial');
       this.apiCallsThisSession += 1;
-      const json = extractJsonObject(text);
-      const normalized = json ? normalizeRoomSpec(json, ctx.seed) : null;
+      let json = extractJsonObject(text);
+      let normalized = json ? normalizeRoomSpec(json, ctx.seed) : null;
+
+      // One cheap repair pass if the model reasoned in prose instead of JSON.
       if (!normalized) {
-        throw new Error(`LLM room JSON unusable. Preview: ${text.slice(0, 200)}`);
+        text = await this.callProvider(ctx, 'repair', text);
+        this.apiCallsThisSession += 1;
+        json = extractJsonObject(text);
+        normalized = json ? normalizeRoomSpec(json, ctx.seed) : null;
+      }
+
+      if (!normalized) {
+        throw new Error(`LLM room JSON unusable. Preview: ${text.slice(0, 220)}`);
       }
       normalized.offline = false;
       this.sessionFailures = 0;
@@ -120,14 +129,17 @@ export class RoomGenerator {
     }
   }
 
-  private async callProvider(ctx: GenerationContext): Promise<string> {
-    const { system, user } = buildPrompt(ctx, this.settings.allowGore);
-    // Soft timeout: race a timer, but do NOT AbortController-kill the fetch.
-    // Free OpenRouter routes are often slow; aborting forces offline fallback.
+  private async callProvider(
+    ctx: GenerationContext,
+    mode: 'initial' | 'repair',
+    previousText = '',
+  ): Promise<string> {
+    const { system, user } = buildPrompt(ctx, this.settings.allowGore, mode, previousText);
+    // Soft timeout only — do not AbortController-kill free routes mid-flight.
     const call =
       this.settings.provider === 'anthropic'
-        ? this.callAnthropic(system, user)
-        : this.callOpenAI(system, user);
+        ? this.callAnthropic(system, user, true)
+        : this.callOpenAI(system, user, true);
 
     let timer: number | undefined;
     try {
@@ -148,7 +160,7 @@ export class RoomGenerator {
     }
   }
 
-  private async callOpenAI(system: string, user: string): Promise<string> {
+  private async callOpenAI(system: string, user: string, prefillJson = true): Promise<string> {
     const base = (this.settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
     const model = this.settings.model || DEFAULT_OPENROUTER_MODEL;
     const headers: Record<string, string> = {
@@ -162,14 +174,20 @@ export class RoomGenerator {
       headers['X-Title'] = 'Kettermean';
     }
 
+    // Assistant prefill nudges many models to continue as JSON instead of reasoning prose.
+    const messages: Array<{ role: string; content: string }> = [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ];
+    if (prefillJson) {
+      messages.push({ role: 'assistant', content: '{' });
+    }
+
     const body: Record<string, unknown> = {
       model,
-      temperature: LLM_BUDGET.temperature,
+      temperature: Math.min(LLM_BUDGET.temperature, 0.7),
       max_tokens: LLM_BUDGET.maxTokens,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+      messages,
     };
 
     const res = await fetch(`${base}/chat/completions`, {
@@ -182,17 +200,22 @@ export class RoomGenerator {
       throw new Error(`OpenAI-compatible error ${res.status}: ${errBody.slice(0, 280)}`);
     }
     const data = (await res.json()) as unknown;
-    const text = extractChatText(data);
+    let text = extractChatText(data);
     if (!text) {
       const preview = JSON.stringify(data).slice(0, 280);
       throw new Error(`Empty OpenAI response. Payload: ${preview}`);
     }
+    // Prefill is not always echoed back by providers — restore the leading brace.
+    if (prefillJson) text = ensureLeadingBrace(text);
     return text;
   }
 
-  private async callAnthropic(system: string, user: string): Promise<string> {
+  private async callAnthropic(system: string, user: string, prefillJson = true): Promise<string> {
     const base = (this.settings.baseUrl || DEFAULT_ANTHROPIC_BASE).replace(/\/$/, '');
     const model = this.settings.model || DEFAULT_ANTHROPIC_MODEL;
+    const messages: Array<{ role: string; content: string }> = [{ role: 'user', content: user }];
+    if (prefillJson) messages.push({ role: 'assistant', content: '{' });
+
     const res = await fetch(`${base}/v1/messages`, {
       method: 'POST',
       headers: {
@@ -204,9 +227,9 @@ export class RoomGenerator {
       body: JSON.stringify({
         model,
         max_tokens: LLM_BUDGET.maxTokens,
-        temperature: LLM_BUDGET.temperature,
+        temperature: Math.min(LLM_BUDGET.temperature, 0.7),
         system,
-        messages: [{ role: 'user', content: user }],
+        messages,
       }),
     });
     if (!res.ok) {
@@ -216,8 +239,9 @@ export class RoomGenerator {
     const data = (await res.json()) as {
       content?: Array<{ type: string; text?: string }>;
     };
-    const text = data.content?.find((c) => c.type === 'text')?.text;
+    let text = data.content?.find((c) => c.type === 'text')?.text ?? '';
     if (!text) throw new Error('Empty Anthropic response');
+    if (prefillJson) text = ensureLeadingBrace(text);
     return text;
   }
 
@@ -267,42 +291,134 @@ function cacheKey(ctx: GenerationContext): string {
   return `${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
 }
 
-function buildPrompt(ctx: GenerationContext, allowGore: boolean): { system: string; user: string } {
+function buildPrompt(
+  ctx: GenerationContext,
+  allowGore: boolean,
+  mode: 'initial' | 'repair' = 'initial',
+  previousText = '',
+): { system: string; user: string } {
   const goreLine = allowGore
     ? 'Mild blood/gore allowed sparingly. Still no torture-porn.'
     : 'No blood, gore, wounds, or graphic violence.';
 
   const system = [
-    'You design ONE liminal first-person dream room as a single JSON object.',
-    'Return ONLY JSON. No markdown fences. No commentary.',
-    'This JSON is a structural room plan for a WebGL engine with furniture kits.',
-    'Style: uncanny, liminal, cinematic interiors. Sometimes unsettling (giant baby ok), not always horror.',
-    'Never sexual, pornographic, or obscene.',
+    'You are a JSON generator for a WebGL dream game.',
+    'Output MUST be one valid JSON object and nothing else.',
+    'No markdown. No analysis. No chain-of-thought. No keys outside the schema.',
+    'Begin with { and end with }.',
+    'Style: uncanny liminal cinematic interiors. Sometimes unsettling (giant baby ok).',
+    'Never sexual or obscene.',
     goreLine,
-    'Required keys: title, blurb, themeTags, mood, width, depth, height, fogNear, fogFar, linkColor, openSides, palette, physics, props, entities.',
+    'Schema: title,blurb,themeTags,mood,width,depth,height,fogNear,fogFar,linkColor,openSides,palette,physics,props,entities.',
     'mood: upper|downer|static|dynamic.',
-    'palette: floor,ceiling,walls,accent,fog,light,ambient as CSS hex colors.',
-    'physics: gravity,moveSpeed,friction,bounce,sway numbers.',
-    'props items: id,label,shape,position,rotationY,scale,color,linksOnTouch,solid,kind.',
-    'entities items: id,label,shape,position,scale,color,behavior,speed,linksOnTouch,kind.',
-    'shape: box|sphere|cylinder|cone|torus|plane. behavior: idle|wander|orbit|stare.',
-    'kind one of: chair,desk,vending,cabinet,crib,plant,payphone,cooler,cart,door_fake,mattress,sign,bottle_giant,mirror,bench,pillar,lamp,table,shelf,tv,figure_baby,figure_clerk,figure_deer,figure_mannequin,figure_shadow,figure_balloon,figure_guide,figure_raincoat.',
-    'Room centered at origin. Floor at y=0. Put prop/entity feet on floor (position.y = 0).',
-    'width/depth 10-24, height 2.8-6. props 6-12, entities 1-3.',
-    'At least one linksOnTouch true wall-adjacent prop or entity.',
-    'Keep spawn center clear of solids within radius 1.8.',
+    'palette hex: floor,ceiling,walls,accent,fog,light,ambient.',
+    'physics numbers: gravity,moveSpeed,friction,bounce,sway.',
+    'props/entities use kind from furniture kits and position.y=0.',
+    'kinds: chair,desk,vending,cabinet,crib,plant,payphone,cooler,cart,door_fake,mattress,sign,bottle_giant,mirror,bench,pillar,lamp,table,shelf,tv,figure_baby,figure_clerk,figure_deer,figure_mannequin,figure_shadow,figure_balloon,figure_guide,figure_raincoat.',
+    'width/depth 10-24, height 2.8-6, props 6-12, entities 1-3, clear spawn center.',
   ].join(' ');
 
-  const user = JSON.stringify({
-    seed: ctx.seed,
-    parentSeed: ctx.parentSeed ?? null,
-    moodBias: ctx.moodBias,
-    linkIndex: ctx.linkIndex,
-    avoidTitles: ctx.previousTitles.slice(-6),
-    note: 'Compose a specific memorable interior, not abstract shapes.',
-  });
+  if (mode === 'repair') {
+    return {
+      system,
+      user: [
+        'Your previous reply was invalid because it was not pure JSON.',
+        'Rewrite as ONE valid JSON object only. No prose before or after.',
+        `seed=${ctx.seed}`,
+        `moodBias=${ctx.moodBias}`,
+        `bad_reply_preview=${JSON.stringify(previousText.slice(0, 400))}`,
+        'Start with { now.',
+      ].join('\n'),
+    };
+  }
+
+  const example = {
+    title: 'Yellow Security Lobby',
+    blurb: 'The ferns are still waiting for a shift change.',
+    themeTags: ['lobby', 'fluorescent', 'liminal'],
+    mood: 'static',
+    width: 16,
+    depth: 14,
+    height: 3.6,
+    fogNear: 10,
+    fogFar: 40,
+    linkColor: '#d9c27a',
+    openSides: [],
+    palette: {
+      floor: '#9a8458',
+      ceiling: '#e8e0cc',
+      walls: '#d2c08a',
+      accent: '#6a7a8a',
+      fog: '#c8b890',
+      light: '#fff2c9',
+      ambient: '#a09070',
+    },
+    physics: { gravity: 1, moveSpeed: 1, friction: 1, bounce: 0, sway: 0.3 },
+    props: [
+      {
+        id: 'p0',
+        label: 'security desk',
+        shape: 'box',
+        position: { x: 0, y: 0, z: -4 },
+        rotationY: 0,
+        scale: { x: 1.9, y: 1, z: 0.9 },
+        color: '#8a7a5a',
+        linksOnTouch: false,
+        solid: true,
+        kind: 'desk',
+      },
+      {
+        id: 'p1',
+        label: 'exit door',
+        shape: 'box',
+        position: { x: -7, y: 0, z: 0 },
+        rotationY: 1.57,
+        scale: { x: 1.1, y: 2.3, z: 0.2 },
+        color: '#6e5b45',
+        linksOnTouch: true,
+        solid: true,
+        kind: 'door_fake',
+      },
+    ],
+    entities: [
+      {
+        id: 'e0',
+        label: 'hallway clerk',
+        shape: 'cylinder',
+        position: { x: 2, y: 0, z: -3 },
+        scale: { x: 0.8, y: 2.2, z: 0.55 },
+        color: '#cccccc',
+        behavior: 'stare',
+        speed: 0.5,
+        linksOnTouch: true,
+        kind: 'figure_clerk',
+      },
+    ],
+  };
+
+  const user = [
+    `seed=${ctx.seed}`,
+    `parentSeed=${ctx.parentSeed ?? ''}`,
+    `moodBias=${ctx.moodBias}`,
+    `linkIndex=${ctx.linkIndex}`,
+    `avoidTitles=${JSON.stringify(ctx.previousTitles.slice(-6))}`,
+    'Create a different room from the example, same schema.',
+    `example=${JSON.stringify(example)}`,
+    'Respond with JSON only.',
+  ].join('\n');
 
   return { system, user };
+}
+
+function ensureLeadingBrace(text: string): string {
+  const t = text.trim();
+  if (!t) return '{';
+  if (t.startsWith('{')) return t;
+  // Model continued after prefilled "{".
+  if (t.startsWith('"') || t.startsWith("'") || /^[a-zA-Z_]/.test(t)) return `{${t}`;
+  const idx = t.indexOf('{');
+  if (idx >= 0) return t.slice(idx);
+  return `{${t}`;
 }
 
 function extractChatText(data: unknown): string {
