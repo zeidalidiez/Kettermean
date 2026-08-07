@@ -205,16 +205,16 @@ export class DreamGame {
   }
 
   private nextSeed(): string {
+    // Always advance with linkIndex so doors never re-enter the same seed.
     if (this.settings.mode === 'random' && this.linkIndex > 0 && this.linkIndex % RANDOM_RESEED_EVERY === 0) {
       this.rootSeed = randomSeed();
-      return this.rootSeed;
+      return childSeed(this.rootSeed, `link-${this.linkIndex}`);
     }
     if (this.settings.mode === 'seeded') {
-      return childSeed(this.rootSeed, `${this.linkIndex}:${this.moodBias}`);
+      return childSeed(this.rootSeed, `link-${this.linkIndex}:${this.moodBias}`);
     }
-    // random mode: related child most of the time, occasional fresh branch
-    if (this.linkIndex % 3 === 0) return childSeed(this.currentSeed, this.linkIndex);
-    return childSeed(this.rootSeed, `${this.linkIndex}-${this.moodBias}`);
+    // random: branch from current room, always unique per link
+    return childSeed(this.currentSeed, `link-${this.linkIndex}-${this.moodBias}`);
   }
 
   private schedulePrefetch(): void {
@@ -225,17 +225,14 @@ export class DreamGame {
   }
 
   private nextSeedPreview(): string {
-    // Mirror nextSeed() without mutating rootSeed.
     const linkIndex = this.linkIndex + 1;
     if (this.settings.mode === 'random' && linkIndex > 0 && linkIndex % RANDOM_RESEED_EVERY === 0) {
-      // Don't burn a random seed until actually linking; use deterministic preview.
       return childSeed(this.currentSeed, `reseed-preview-${linkIndex}`);
     }
     if (this.settings.mode === 'seeded') {
-      return childSeed(this.rootSeed, `${linkIndex}:${this.moodBias}`);
+      return childSeed(this.rootSeed, `link-${linkIndex}:${this.moodBias}`);
     }
-    if (linkIndex % 3 === 0) return childSeed(this.currentSeed, linkIndex);
-    return childSeed(this.rootSeed, `${linkIndex}-${this.moodBias}`);
+    return childSeed(this.currentSeed, `link-${linkIndex}-${this.moodBias}`);
   }
 
   private async performLink(): Promise<void> {
@@ -253,15 +250,13 @@ export class DreamGame {
     this.fade.classList.add('active');
 
     const parent = this.currentSeed;
-    const seed =
-      this.nextPrefetchSeed && this.settings.mode !== 'random'
-        ? this.nextPrefetchSeed
-        : this.nextSeed();
-    // For random reseed path use actual nextSeed
+    // Prefer prefetch only if it matches the seed we would generate now.
+    const expected = this.nextSeed();
     const finalSeed =
-      this.settings.mode === 'random' && this.linkIndex % RANDOM_RESEED_EVERY === 0
-        ? this.nextSeed()
-        : seed;
+      this.nextPrefetchSeed && this.nextPrefetchSeed === expected
+        ? this.nextPrefetchSeed
+        : expected;
+    this.nextPrefetchSeed = null;
 
     this.currentSeed = finalSeed;
     const ctx = this.makeCtx(finalSeed, parent);

@@ -130,7 +130,7 @@ export class RoomGenerator {
       this.apiCallsThisSession += 1;
       let normalized =
         this.settings.provider === 'browser'
-          ? parseBrowserDirection(text, ctx.seed)
+          ? parseBrowserDirection(text, ctx)
           : parseDirectedOrLegacy(text, ctx.seed);
 
       // One cheap repair pass if the first reply was unusable.
@@ -139,7 +139,7 @@ export class RoomGenerator {
         this.apiCallsThisSession += 1;
         normalized =
           this.settings.provider === 'browser'
-            ? parseBrowserDirection(text, ctx.seed)
+            ? parseBrowserDirection(text, ctx)
             : parseDirectedOrLegacy(text, ctx.seed);
       }
 
@@ -222,15 +222,15 @@ export class RoomGenerator {
       mode === 'repair'
         ? `${qa.user}
 
-Previous answers were incomplete. Answer all 9 questions again, one per line.
+Previous answers were incomplete. Answer lines 1-5 again only.
 bad=${JSON.stringify(previousText.slice(0, 240))}`
         : qa.user;
     const text = await browserChatCompletion({
       modelId: model,
       system: qa.system,
       user,
-      maxTokens: 220,
-      temperature: 0.25,
+      maxTokens: 140,
+      temperature: 0.35,
       onProgress: (msg) => this.onStatus?.(msg),
     });
     return text;
@@ -450,13 +450,13 @@ function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
   return normalizeRoomSpec(json, seed);
 }
 
-function parseBrowserDirection(text: string, seed: string): RoomSpec | null {
-  // Prefer strict numbered Q&A. Never accept chat preamble as a title.
-  const qa = parseQaDirection(text, seed);
+function parseBrowserDirection(text: string, ctx: GenerationContext): RoomSpec | null {
+  // Q&A only steers; offline director builds the full room (density/layouts/doors).
+  const qa = parseQaDirection(text, ctx.seed, ctx);
   if (qa) return assembleRoomSpec(qa);
 
-  // JSON salvage only if it still yields a sane title.
-  const legacy = parseDirectedOrLegacy(text, seed);
+  // JSON salvage also goes through director via parseRoomDirection.
+  const legacy = parseDirectedOrLegacy(text, ctx.seed);
   if (!legacy) return null;
   if (isBadDisplayText(legacy.title) || isBadDisplayText(legacy.blurb)) return null;
   return legacy;

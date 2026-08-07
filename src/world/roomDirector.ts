@@ -1,4 +1,4 @@
-import { PLAYER } from '../config';
+﻿import { PLAYER } from '../config';
 import { SeededRng } from '../core/rng';
 import type {
   EntityBehavior,
@@ -13,74 +13,112 @@ import {
   THEME_PRESETS,
   type DirectedPlacement,
   type RoomDirection,
+  type ThemePreset,
   getAsset,
   getTheme,
 } from './assetCatalog';
 
-/**
- * Offline director: pick a theme + place preferred assets with atmospheric scales.
- * LLM directors should emit the same RoomDirection shape.
- */
-export function generateOfflineDirection(ctx: GenerationContext): RoomDirection {
-  const rng = new SeededRng(ctx.seed);
-  const pool = THEME_PRESETS.filter((t) => !ctx.previousTitles.includes(t.title));
-  const theme = rng.pick(pool.length ? pool : THEME_PRESETS);
-  const mood = rng.chance(0.7) ? theme.mood : biasMood(rng, ctx.moodBias);
-  const scaleRoom = 0.92 + rng.float(0, 0.2);
-  const width = theme.width * scaleRoom;
-  const depth = theme.depth * scaleRoom;
-  const height = theme.height;
+/** Optional high-level steer from an LLM. Layout/placement always done here. */
+export interface DirectorSteer {
+  themeId?: string;
+  mood?: MoodAxis;
+  title?: string;
+  blurb?: string;
+  /** Extra asset ids the LLM wants present. */
+  preferAssets?: string[];
+  giant?: boolean;
+  width?: number;
+  depth?: number;
+  height?: number;
+}
 
-  const placements: DirectedPlacement[] = [];
-  const preferred = [...theme.preferredAssets];
-  // Shuffle lightly
-  for (let i = preferred.length - 1; i > 0; i -= 1) {
-    const j = rng.int(0, i);
-    const tmp = preferred[i]!;
-    preferred[i] = preferred[j]!;
-    preferred[j] = tmp;
+type LayoutKind = 'scatter' | 'perimeter' | 'spine' | 'corners' | 'centerpiece' | 'pairs';
+
+/**
+ * Offline / hybrid director: pick theme + place many catalog assets with layout patterns.
+ * This is the source of room variety — LLM only optionally steers theme/mood/title.
+ */
+export function generateOfflineDirection(ctx: GenerationContext, steer?: DirectorSteer): RoomDirection {
+  const rng = new SeededRng(ctx.seed);
+  const recent = new Set(ctx.previousTitles.slice(-8));
+  const pool = THEME_PRESETS.filter((t) => !recent.has(t.title) && t.id !== steer?.themeId);
+  let theme =
+    (steer?.themeId ? getTheme(steer.themeId) : undefined) ||
+    rng.pick(pool.length ? pool : THEME_PRESETS);
+
+  // If LLM keeps picking the same theme, force rotation every other room.
+  if (steer?.themeId && recent.has(theme.title) && pool.length) {
+    theme = rng.pick(pool);
   }
 
-  const count = Math.min(preferred.length, rng.int(6, Math.min(12, preferred.length)));
+  const mood = steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
+  const layout = rng.pick(['scatter', 'perimeter', 'spine', 'corners', 'centerpiece', 'pairs'] as const);
+
+  const sizeJitterW = rng.float(0.72, 1.38);
+  const sizeJitterD = rng.float(0.72, 1.38);
+  const sizeJitterH = rng.float(0.82, 1.4);
+  const width = clamp(steer?.width ?? theme.width * sizeJitterW, 8, 28);
+  const depth = clamp(steer?.depth ?? theme.depth * sizeJitterD, 8, 28);
+  const height = clamp(steer?.height ?? theme.height * sizeJitterH, 2.5, 9);
+
+  const pickIds = buildAssetList(rng, theme, mood, steer);
+  const placements: DirectedPlacement[] = [];
+
+  // 1–3 doors depending on room size
+  const doorCount = width * depth > 220 ? 3 : width * depth > 120 ? 2 : 1;
+  placeDoors(rng, placements, width, depth, doorCount);
+
+  const propsOnly = pickIds.filter((id) => {
+    const a = getAsset(id);
+    return a && a.category !== 'portal';
+  });
+
+  const count = clamp(
+    rng.int(Math.min(7, propsOnly.length), Math.min(14, Math.max(7, propsOnly.length))),
+    5,
+    14,
+  );
+
   for (let i = 0; i < count; i += 1) {
-    const assetId = preferred[i]!;
+    const assetId = propsOnly[i % propsOnly.length]!;
     const asset = getAsset(assetId);
     if (!asset) continue;
 
-    // Giant anomaly bias for atmosphere.
-    let scaleMul = rng.float(0.95, 1.15);
-    if (asset.id === 'anomaly_giant_baby') scaleMul = rng.float(2.2, 3.6);
-    else if (asset.category === 'anomaly') scaleMul = rng.float(1.2, Math.min(asset.scaleRange.max, 2.4));
-    else if (asset.category === 'npc' && rng.chance(0.2)) scaleMul = rng.float(1.3, 1.8);
-
+    let scaleMul = rng.float(0.9, 1.2);
+    if (asset.id === 'anomaly_giant_baby' || (steer?.giant && asset.category === 'anomaly' && i === 0)) {
+      scaleMul = rng.float(2.3, 3.8);
+    } else if (asset.category === 'anomaly') {
+      scaleMul = rng.float(1.15, Math.min(asset.scaleRange.max, 2.5));
+    } else if (asset.category === 'npc' && rng.chance(0.25)) {
+      scaleMul = rng.float(1.25, 1.85);
+    } else if (rng.chance(0.08)) {
+      scaleMul = rng.float(1.4, Math.min(asset.scaleRange.max, 2.2));
+    }
     scaleMul = clamp(scaleMul, asset.scaleRange.min, asset.scaleRange.max);
 
-    const margin = 1.6 + asset.defaultScale.x * scaleMul * 0.35;
-    let x = rng.float(-width / 2 + margin, width / 2 - margin);
-    let z = rng.float(-depth / 2 + margin, depth / 2 - margin);
-    // Keep spawn clear
-    if (Math.hypot(x, z) < 1.8) {
-      x += Math.sign(x || 1) * 2.4;
-      z += Math.sign(z || 1) * 2.4;
-    }
-
+    const pos = layoutPosition(rng, layout, i, count, width, depth, asset.defaultScale.x * scaleMul);
     placements.push({
       assetId,
-      x,
-      z,
-      rotY: rng.float(0, Math.PI * 2),
+      x: pos.x,
+      z: pos.z,
+      rotY: pos.rotY ?? rng.float(0, Math.PI * 2),
       scaleMul,
-      linksOnTouch: asset.linksByDefault ?? asset.category === 'portal',
-      solid: asset.solidDefault !== false && asset.category !== 'npc' && asset.category !== 'creature' && asset.category !== 'anomaly',
+      linksOnTouch: false,
+      solid:
+        asset.solidDefault !== false &&
+        asset.category !== 'npc' &&
+        asset.category !== 'creature' &&
+        asset.category !== 'anomaly',
       behavior: asset.defaultBehavior,
-      labelOverride: scaleMul >= 2 && asset.id === 'anomaly_giant_baby' ? 'impossibly large baby' : undefined,
+      labelOverride:
+        scaleMul >= 2.2 && asset.id === 'anomaly_giant_baby' ? 'impossibly large baby' : undefined,
     });
   }
 
-  // Force door-only links; clear accidental linksOnTouch from props/npcs.
+  // Door-only links
   for (const p of placements) {
     const a = getAsset(p.assetId);
-    p.linksOnTouch = a?.category === 'portal' || p.assetId === 'door_fake';
+    p.linksOnTouch = a?.category === 'portal';
   }
   if (!placements.some((p) => p.linksOnTouch)) {
     placements.push({
@@ -94,30 +132,27 @@ export function generateOfflineDirection(ctx: GenerationContext): RoomDirection 
     });
   }
 
-  // Vary size more aggressively offline so rooms don't feel cloned.
-  const sizeJitter = rng.float(0.75, 1.35);
-  const finalW = clamp(width * sizeJitter, 8, 28);
-  const finalD = clamp(depth * rng.float(0.75, 1.35), 8, 28);
-  const finalH = clamp(height * rng.float(0.85, 1.35), 2.5, 9);
+  const title = cleanSteerText(steer?.title) || varyTitle(rng, theme.title, mood);
+  const blurb = cleanSteerText(steer?.blurb) || varyBlurb(rng, theme.blurb, mood, layout);
 
   return {
     seed: ctx.seed,
     themeId: theme.id,
-    title: theme.title,
-    blurb: theme.blurb,
+    title,
+    blurb,
     mood,
-    tags: [...theme.tags, mood],
-    width: finalW,
-    depth: finalD,
-    height: finalH,
-    fogNear: mood === 'downer' ? 8 : mood === 'upper' ? 16 : 12,
-    fogFar: mood === 'downer' ? 28 : mood === 'upper' ? 60 : 45,
+    tags: [...theme.tags, mood, layout],
+    width,
+    depth,
+    height,
+    fogNear: mood === 'downer' ? 7 : mood === 'upper' ? 16 : 11,
+    fogFar: mood === 'downer' ? 26 : mood === 'upper' ? 62 : 44,
     linkColor: moodLinkColor(mood),
     openSides: [],
-    palette: theme.palette,
+    palette: tintPalette(rng, theme.palette, mood),
     physics: physicsForMood(rng, mood),
     placements,
-    offline: true,
+    offline: !steer,
   };
 }
 
@@ -136,7 +171,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     };
     const isActor =
       asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly';
-    const isPortal = asset.category === 'portal' || asset.id === 'door_fake';
+    const isPortal = asset.category === 'portal';
 
     if (isActor) {
       entities.push({
@@ -148,7 +183,6 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         color: dir.palette?.accent || '#cccccc',
         behavior: (p.behavior || asset.defaultBehavior || 'idle') as EntityBehavior,
         speed: 0.45 + (i % 3) * 0.2,
-        // Atmosphere only — never teleport via NPCs/creatures.
         linksOnTouch: false,
         kind: asset.kind,
       });
@@ -161,7 +195,6 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         rotationY: p.rotY ?? 0,
         scale,
         color: dir.palette?.accent || '#888888',
-        // ONLY portal/door assets may link rooms.
         linksOnTouch: isPortal,
         solid: p.solid ?? asset.solidDefault ?? true,
         kind: asset.kind,
@@ -169,7 +202,6 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     }
   });
 
-  // Guarantee at least one prop for renderer assumptions.
   if (props.length === 0) {
     props.push({
       id: 'p_fallback',
@@ -217,7 +249,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     linkColor: dir.linkColor ?? moodLinkColor(dir.mood),
     props,
     entities,
-    openSides: dir.openSides,
+    openSides: dir.openSides ?? [],
     offline: Boolean(dir.offline),
   };
 }
@@ -227,219 +259,305 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
 
-  // Support both new direction format and legacy full RoomSpec-ish payloads.
   const themeId = typeof o.themeId === 'string' ? o.themeId : typeof o.theme === 'string' ? o.theme : undefined;
   const theme = themeId ? getTheme(themeId) : undefined;
-
   const title = str(o.title, theme?.title || 'Unnamed Room');
   const blurb = str(o.blurb, theme?.blurb || 'The room waits.');
   const mood = moodOf(o.mood, theme?.mood || 'static');
-  const tags = arrStr(o.tags ?? o.themeTags, theme?.tags || ['liminal']);
 
-  const placementsRaw = Array.isArray(o.placements)
-    ? o.placements
-    : Array.isArray(o.assets)
-      ? o.assets
-      : null;
-
-  let placements: DirectedPlacement[] = [];
+  // Prefer converting LLM output into a steer and rebuilding with the rich director.
+  const preferAssets: string[] = [];
+  const placementsRaw = Array.isArray(o.placements) ? o.placements : Array.isArray(o.assets) ? o.assets : null;
   if (placementsRaw) {
-    placements = placementsRaw
-      .map((p) => parsePlacement(p))
-      .filter((p): p is DirectedPlacement => Boolean(p))
-      .slice(0, 16);
-  } else if (typeof o.AssetIds === 'string' || typeof o.assetIds === 'string' || Array.isArray(o.AssetIds) || Array.isArray(o.assetIds)) {
-    // Tiny models sometimes emit: { mood, AssetIds: "a,b,c" } with no placements.
-    const rawList = o.AssetIds ?? o.assetIds;
-    const ids = Array.isArray(rawList)
-      ? rawList.filter((x): x is string => typeof x === 'string')
-      : String(rawList)
-          .split(/[,\s]+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-    const fromIds: DirectedPlacement[] = [];
-    ids.forEach((id, i) => {
-      const asset = getAsset(id) || matchAssetByLabel(id);
-      if (!asset) return;
-      fromIds.push({
-        assetId: asset.id,
-        x: ((i % 4) - 1.5) * 2.4,
-        z: (Math.floor(i / 4) - 0.5) * 3,
-        scaleMul: asset.id === 'anomaly_giant_baby' ? 3 : 1,
-        linksOnTouch: asset.linksByDefault,
-      });
-    });
-    placements = fromIds.slice(0, 16);
-  } else if (Array.isArray(o.props) || Array.isArray(o.entities)) {
-    // Legacy: map props/entities labels to nearest assets.
-    const legacy = [...(Array.isArray(o.props) ? o.props : []), ...(Array.isArray(o.entities) ? o.entities : [])];
-    placements = legacy
-      .map((item, i) => legacyToPlacement(item, i))
-      .filter((p): p is DirectedPlacement => Boolean(p))
-      .slice(0, 16);
+    for (const p of placementsRaw) {
+      if (!p || typeof p !== 'object') continue;
+      const po = p as Record<string, unknown>;
+      const id = typeof po.assetId === 'string' ? po.assetId : typeof po.id === 'string' ? po.id : '';
+      if (id && getAsset(id)) preferAssets.push(id);
+    }
   }
 
-  if (placements.length < 1 && theme) {
-    // Minimal: use theme preferred list if LLM only sent themeId/title.
-    placements = theme.preferredAssets.slice(0, 8).map((assetId, i) => ({
-      assetId,
-      x: ((i % 4) - 1.5) * 2.5,
-      z: (Math.floor(i / 4) - 0.5) * 3,
-      scaleMul: assetId === 'anomaly_giant_baby' ? 2.8 : 1,
-      linksOnTouch: getAsset(assetId)?.linksByDefault,
-    }));
+  const steer: DirectorSteer = {
+    themeId: theme?.id,
+    mood,
+    title,
+    blurb,
+    preferAssets,
+    giant: preferAssets.includes('anomaly_giant_baby'),
+    width: typeof o.width === 'number' ? o.width : undefined,
+    depth: typeof o.depth === 'number' ? o.depth : undefined,
+    height: typeof o.height === 'number' ? o.height : undefined,
+  };
+
+  return generateOfflineDirection(
+    {
+      seed,
+      previousTitles: [],
+      moodBias: mood,
+      allowGore: false,
+      linkIndex: 0,
+    },
+    steer,
+  );
+}
+
+function buildAssetList(
+  rng: SeededRng,
+  theme: ThemePreset,
+  mood: MoodAxis,
+  steer?: DirectorSteer,
+): string[] {
+  const ids: string[] = [];
+  const add = (id: string) => {
+    if (!getAsset(id) || ids.includes(id)) return;
+    ids.push(id);
+  };
+
+  for (const id of steer?.preferAssets ?? []) add(id);
+  for (const id of theme.preferredAssets) add(id);
+
+  // Pull more from catalog by shared tags / mood so rooms fill up.
+  const tagSet = new Set(theme.tags);
+  const extras = ASSETS.filter(
+    (a) =>
+      a.category !== 'portal' &&
+      (a.moods.includes(mood) || a.tags.some((t) => tagSet.has(t))),
+  );
+  // shuffle
+  for (let i = extras.length - 1; i > 0; i -= 1) {
+    const j = rng.int(0, i);
+    const tmp = extras[i]!;
+    extras[i] = extras[j]!;
+    extras[j] = tmp;
+  }
+  for (const a of extras) {
+    add(a.id);
+    if (ids.length >= 18) break;
   }
 
-  if (placements.length < 1) return null;
+  if (steer?.giant) add('anomaly_giant_baby');
+  if (rng.chance(0.18)) add('anomaly_giant_baby');
 
-  // Door-only policy for all LLM/offline directions.
-  for (const p of placements) {
-    const a = getAsset(p.assetId);
-    p.linksOnTouch = a?.category === 'portal' || p.assetId === 'door_fake' || p.assetId === 'door_service' || p.assetId === 'door_glass' || p.assetId === 'arch_portal';
+  // Always have at least one portal id available for placeDoors
+  add('door_fake');
+  if (rng.chance(0.5)) add('door_service');
+  if (rng.chance(0.35)) add('door_glass');
+  if (rng.chance(0.25)) add('arch_portal');
+
+  return ids;
+}
+
+function placeDoors(
+  rng: SeededRng,
+  placements: DirectedPlacement[],
+  width: number,
+  depth: number,
+  count: number,
+): void {
+  const order: Array<'n' | 's' | 'e' | 'w'> = ['n', 's', 'e', 'w'];
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = rng.int(0, i);
+    const t = order[i]!;
+    order[i] = order[j]!;
+    order[j] = t;
   }
-  if (!placements.some((p) => p.linksOnTouch)) {
+  const doorIds = ['door_fake', 'door_service', 'door_glass', 'arch_portal'] as const;
+  for (let i = 0; i < count; i += 1) {
+    const side = order[i % order.length]!;
+    const doorId = doorIds[i % doorIds.length]!;
+    let x = 0;
+    let z = 0;
+    let rotY = 0;
+    const along = rng.float(-0.35, 0.35);
+    if (side === 'w') {
+      x = -width / 2 + 0.4;
+      z = depth * along;
+      rotY = Math.PI / 2;
+    } else if (side === 'e') {
+      x = width / 2 - 0.4;
+      z = depth * along;
+      rotY = -Math.PI / 2;
+    } else if (side === 'n') {
+      z = -depth / 2 + 0.4;
+      x = width * along;
+      rotY = 0;
+    } else {
+      z = depth / 2 - 0.4;
+      x = width * along;
+      rotY = Math.PI;
+    }
     placements.push({
-      assetId: 'door_fake',
-      x: -num(o.width, theme?.width ?? 14, 8, 28) / 2 + 0.45,
-      z: 0,
-      rotY: Math.PI / 2,
-      scaleMul: 1,
+      assetId: getAsset(doorId) ? doorId : 'door_fake',
+      x,
+      z,
+      rotY,
+      scaleMul: doorId === 'arch_portal' ? rng.float(1.0, 1.35) : 1,
       linksOnTouch: true,
       solid: true,
     });
   }
-
-  return {
-    seed,
-    themeId: theme?.id,
-    title,
-    blurb,
-    mood,
-    tags,
-    width: num(o.width, theme?.width ?? 14, 8, 28),
-    depth: num(o.depth, theme?.depth ?? 14, 8, 28),
-    height: num(o.height, theme?.height ?? 3.5, 2.4, 10),
-    fogNear: num(o.fogNear, 12, 2, 40),
-    fogFar: num(o.fogFar, 40, 10, 80),
-    linkColor: typeof o.linkColor === 'string' ? o.linkColor : moodLinkColor(mood),
-    // Never open-wall teleports.
-    openSides: [],
-    palette: parsePalette(o.palette) || theme?.palette,
-    physics: parsePhysics(o.physics),
-    placements,
-    offline: false,
-  };
 }
 
-function parsePlacement(raw: unknown): DirectedPlacement | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
-  const assetIdRaw =
-    typeof o.assetId === 'string'
-      ? o.assetId
-      : typeof o.id === 'string'
-        ? o.id
-        : typeof o.asset === 'string'
-          ? o.asset
-          : '';
-  const assetId = assetIdRaw.trim();
-  const asset = getAsset(assetId) || matchAssetByLabel(assetId);
-  if (!asset) return null;
-  const scaleMul = clamp(
-    parseLooseNumber(o.scaleMul ?? o.scale, 1),
-    asset.scaleRange.min,
-    asset.scaleRange.max,
-  );
-  return {
-    assetId: asset.id,
-    x: clamp(parseLooseNumber(o.x ?? (o.position as { x?: unknown } | undefined)?.x, 0), -40, 40),
-    z: clamp(parseLooseNumber(o.z ?? (o.position as { z?: unknown } | undefined)?.z, 0), -40, 40),
-    y: clamp(parseLooseNumber(o.y ?? (o.position as { y?: unknown } | undefined)?.y, 0), 0, 10),
-    rotY: parseLooseNumber(o.rotY ?? o.rotationY, 0),
-    scaleMul,
-    linksOnTouch: o.linksOnTouch === undefined ? asset.linksByDefault : Boolean(o.linksOnTouch),
-    solid: o.solid === undefined ? asset.solidDefault : Boolean(o.solid),
-    behavior: typeof o.behavior === 'string' ? (o.behavior as EntityBehavior) : asset.defaultBehavior,
-    labelOverride: typeof o.label === 'string' ? o.label : undefined,
-  };
-}
+function layoutPosition(
+  rng: SeededRng,
+  layout: LayoutKind,
+  i: number,
+  n: number,
+  width: number,
+  depth: number,
+  footprint: number,
+): { x: number; z: number; rotY?: number } {
+  const margin = 1.5 + footprint * 0.35;
+  const hw = width / 2 - margin;
+  const hd = depth / 2 - margin;
+  const t = n <= 1 ? 0 : i / (n - 1);
 
-/** Accept numbers, numeric strings, and ranges like "2.5-3.5". */
-function parseLooseNumber(v: unknown, fallback: number): number {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  if (typeof v === 'string') {
-    const t = v.trim();
-    if (!t) return fallback;
-    const range = t.match(/^(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)$/);
-    if (range) {
-      const a = Number(range[1]);
-      const b = Number(range[2]);
-      if (Number.isFinite(a) && Number.isFinite(b)) return (a + b) / 2;
+  let x = 0;
+  let z = 0;
+  let rotY: number | undefined;
+
+  switch (layout) {
+    case 'perimeter': {
+      const edge = i % 4;
+      const u = rng.float(-0.85, 0.85);
+      if (edge === 0) {
+        x = -hw;
+        z = hd * u;
+        rotY = Math.PI / 2;
+      } else if (edge === 1) {
+        x = hw;
+        z = hd * u;
+        rotY = -Math.PI / 2;
+      } else if (edge === 2) {
+        z = -hd;
+        x = hw * u;
+        rotY = 0;
+      } else {
+        z = hd;
+        x = hw * u;
+        rotY = Math.PI;
+      }
+      break;
     }
-    const n = Number(t);
-    if (Number.isFinite(n)) return n;
+    case 'spine': {
+      x = rng.float(-hw * 0.25, hw * 0.25);
+      z = -hd + t * 2 * hd;
+      rotY = rng.chance(0.5) ? 0 : Math.PI;
+      break;
+    }
+    case 'corners': {
+      const cx = i % 2 === 0 ? -hw * 0.75 : hw * 0.75;
+      const cz = i % 4 < 2 ? -hd * 0.75 : hd * 0.75;
+      x = cx + rng.float(-1, 1);
+      z = cz + rng.float(-1, 1);
+      break;
+    }
+    case 'centerpiece': {
+      if (i === 0) {
+        x = rng.float(-1.2, 1.2);
+        z = rng.float(-1.2, 1.2);
+      } else {
+        const ang = (i / Math.max(1, n - 1)) * Math.PI * 2 + rng.float(-0.2, 0.2);
+        const r = Math.min(hw, hd) * rng.float(0.45, 0.9);
+        x = Math.cos(ang) * r;
+        z = Math.sin(ang) * r;
+      }
+      break;
+    }
+    case 'pairs': {
+      const pair = Math.floor(i / 2);
+      const side = i % 2 === 0 ? -1 : 1;
+      x = side * hw * 0.55 + rng.float(-0.8, 0.8);
+      z = -hd + ((pair + 0.5) / Math.ceil(n / 2)) * 2 * hd;
+      rotY = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+      break;
+    }
+    default: {
+      x = rng.float(-hw, hw);
+      z = rng.float(-hd, hd);
+      break;
+    }
   }
-  return fallback;
+
+  if (Math.hypot(x, z) < 1.7) {
+    x += Math.sign(x || 1) * 2.2;
+    z += Math.sign(z || 1) * 2.2;
+  }
+  x = clamp(x, -hw, hw);
+  z = clamp(z, -hd, hd);
+  return { x, z, rotY };
 }
 
-function legacyToPlacement(raw: unknown, index: number): DirectedPlacement | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
-  const label = typeof o.label === 'string' ? o.label : typeof o.kind === 'string' ? o.kind : '';
-  const asset = matchAssetByLabel(label) || ASSETS[index % ASSETS.length]!;
-  const pos = (o.position && typeof o.position === 'object' ? o.position : {}) as Record<string, unknown>;
-  let scaleMul = 1;
-  if (o.scale && typeof o.scale === 'object') {
-    const s = o.scale as Record<string, unknown>;
-    const sy = Number(s.y);
-    if (Number.isFinite(sy) && asset.defaultScale.y > 0) scaleMul = sy / asset.defaultScale.y;
-  }
-  scaleMul = clamp(scaleMul, asset.scaleRange.min, asset.scaleRange.max);
+function tintPalette(
+  rng: SeededRng,
+  base: ThemePreset['palette'],
+  mood: MoodAxis,
+): ThemePreset['palette'] {
+  // Small per-room shifts so two rooms of same theme don't look identical.
+  const shift = rng.float(-8, 8);
+  const moodShift =
+    mood === 'downer' ? -10 : mood === 'upper' ? 8 : mood === 'dynamic' ? rng.float(-6, 12) : 0;
+  const tweak = (hex: string, amt: number) => shiftHex(hex, amt + shift * 0.15 + moodShift * 0.1);
   return {
-    assetId: asset.id,
-    x: num(pos.x, ((index % 5) - 2) * 2, -40, 40),
-    z: num(pos.z, (Math.floor(index / 5) - 1) * 2.5, -40, 40),
-    rotY: num(o.rotationY, 0, -10, 10),
-    scaleMul,
-    linksOnTouch: Boolean(o.linksOnTouch) || asset.linksByDefault,
-    solid: o.solid === undefined ? asset.solidDefault : Boolean(o.solid),
-    behavior: typeof o.behavior === 'string' ? (o.behavior as EntityBehavior) : asset.defaultBehavior,
-    labelOverride: label || asset.label,
+    floor: tweak(base.floor, rng.float(-6, 6)),
+    ceiling: tweak(base.ceiling, rng.float(-4, 4)),
+    walls: tweak(base.walls, rng.float(-8, 8)),
+    accent: tweak(base.accent, rng.float(-10, 10)),
+    fog: tweak(base.fog, rng.float(-5, 5)),
+    light: tweak(base.light, rng.float(-4, 4)),
+    ambient: tweak(base.ambient, rng.float(-5, 5)),
   };
 }
 
-function matchAssetByLabel(label: string) {
-  const l = label.toLowerCase();
-  return (
-    ASSETS.find((a) => a.id === l) ||
-    ASSETS.find((a) => a.label.toLowerCase() === l) ||
-    ASSETS.find((a) => l.includes(a.label.toLowerCase()) || a.label.toLowerCase().includes(l)) ||
-    ASSETS.find((a) => a.kind === l || l.includes(a.kind))
-  );
+function shiftHex(hex: string, delta: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const r = clamp(((n >> 16) & 255) + delta, 0, 255);
+  const g = clamp(((n >> 8) & 255) + delta * 0.85, 0, 255);
+  const b = clamp((n & 255) + delta * 0.7, 0, 255);
+  return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
-function parsePalette(raw: unknown): RoomDirection['palette'] | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
-  const o = raw as Record<string, unknown>;
-  const need = ['floor', 'ceiling', 'walls', 'accent', 'fog', 'light', 'ambient'] as const;
-  const out: Record<string, string> = {};
-  for (const k of need) {
-    if (typeof o[k] !== 'string') return undefined;
-    out[k] = o[k] as string;
+function varyTitle(rng: SeededRng, base: string, mood: MoodAxis): string {
+  const prefixes = {
+    upper: ['Bright', 'Airy', 'Open', 'Soft'],
+    downer: ['Wrong', 'Sour', 'Closed', 'Dim'],
+    static: ['Still', 'Quiet', 'Held', 'Paused'],
+    dynamic: ['Shifting', 'Unsteady', 'Moving', 'Flicker'],
+  } as const;
+  if (rng.chance(0.55)) return `${rng.pick(prefixes[mood])} ${base}`;
+  if (rng.chance(0.35)) return `${base} ${rng.pick(['Again', 'Annex', 'B', 'North', 'After'])}`;
+  return base;
+}
+
+function varyBlurb(rng: SeededRng, base: string, mood: MoodAxis, layout: LayoutKind): string {
+  const tails = [
+    'Something left recently.',
+    'The lights remember a different hour.',
+    'Footsteps do not echo the way they should.',
+    'You have been here, or somewhere like it.',
+    'The air tastes like dust and old coffee.',
+  ];
+  if (rng.chance(0.5)) return `${base} ${rng.pick(tails)}`;
+  if (rng.chance(0.3)) return `${base} (${mood}, ${layout})`.replace(` (${mood}, ${layout})`, ` ${rng.pick(tails)}`);
+  return base;
+}
+
+function cleanSteerText(v?: string): string | undefined {
+  if (!v) return undefined;
+  const t = v.replace(/\s+/g, ' ').trim();
+  if (t.length < 2) return undefined;
+  const low = t.toLowerCase();
+  if (
+    low.startsWith('okay') ||
+    low.includes('step by step') ||
+    low.startsWith('the title is') ||
+    low.includes("let's tackle")
+  ) {
+    return undefined;
   }
-  return out as RoomDirection['palette'];
-}
-
-function parsePhysics(raw: unknown): RoomDirection['physics'] | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
-  const o = raw as Record<string, unknown>;
-  return {
-    gravity: num(o.gravity, 1, 0.2, 2.2),
-    moveSpeed: num(o.moveSpeed, 1, 0.4, 2),
-    friction: num(o.friction, 1, 0.2, 2),
-    bounce: num(o.bounce, 0, 0, 0.8),
-    sway: num(o.sway, 0.3, 0, 2),
-  };
+  return t.slice(0, 80);
 }
 
 function biasMood(rng: SeededRng, bias: MoodAxis): MoodAxis {
@@ -475,18 +593,6 @@ function moodOf(v: unknown, fallback: MoodAxis): MoodAxis {
 
 function str(v: unknown, fallback: string): string {
   return typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : fallback;
-}
-
-function arrStr(v: unknown, fallback: string[]): string[] {
-  if (!Array.isArray(v)) return fallback;
-  const out = v.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 32));
-  return out.length ? out.slice(0, 8) : fallback;
-}
-
-function num(v: unknown, fallback: number, min: number, max: number): number {
-  const n = typeof v === 'number' ? v : Number(v);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
 }
 
 function clamp(n: number, min: number, max: number): number {
