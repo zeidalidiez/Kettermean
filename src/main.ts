@@ -3,6 +3,8 @@ import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_OPENAI_BASE,
   DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENROUTER_BASE,
+  DEFAULT_OPENROUTER_MODEL,
 } from './config';
 import { clearApiKey, loadSettings, modelForProvider, saveSettings } from './core/settings';
 import { DreamGame } from './game/DreamGame';
@@ -62,19 +64,38 @@ function syncProviderUi(): void {
   baseUrlInput.disabled = offline;
   modelInput.disabled = offline;
 
-  if (provider === 'openai' && !baseUrlInput.value) {
-    baseUrlInput.value = DEFAULT_OPENAI_BASE;
+  if (provider === 'openai') {
+    // Prefer OpenRouter as the practical browser-friendly default.
+    if (
+      !baseUrlInput.value ||
+      baseUrlInput.value.includes('api.openai.com') ||
+      baseUrlInput.value.includes('anthropic.com')
+    ) {
+      baseUrlInput.value = DEFAULT_OPENROUTER_BASE;
+    }
+    if (
+      !modelInput.value ||
+      modelInput.value.includes('claude') ||
+      modelInput.value === DEFAULT_OPENAI_MODEL
+    ) {
+      modelInput.value = DEFAULT_OPENROUTER_MODEL;
+    }
+    baseUrlInput.placeholder = DEFAULT_OPENROUTER_BASE;
+    modelInput.placeholder = DEFAULT_OPENROUTER_MODEL;
   }
   if (provider === 'anthropic') {
-    if (!baseUrlInput.value || baseUrlInput.value.includes('openai.com')) {
+    if (!baseUrlInput.value || baseUrlInput.value.includes('openai') || baseUrlInput.value.includes('openrouter')) {
       baseUrlInput.value = DEFAULT_ANTHROPIC_BASE;
     }
     if (!modelInput.value.includes('claude')) {
       modelInput.value = DEFAULT_ANTHROPIC_MODEL;
     }
+    baseUrlInput.placeholder = DEFAULT_ANTHROPIC_BASE;
+    modelInput.placeholder = DEFAULT_ANTHROPIC_MODEL;
   }
-  if (provider === 'openai' && modelInput.value.includes('claude')) {
-    modelInput.value = DEFAULT_OPENAI_MODEL;
+  if (provider === 'offline') {
+    baseUrlInput.placeholder = DEFAULT_OPENAI_BASE;
+    modelInput.placeholder = DEFAULT_OPENAI_MODEL;
   }
   modelInput.value = modelForProvider(provider, modelInput.value);
 }

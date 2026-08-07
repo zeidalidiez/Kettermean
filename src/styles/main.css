@@ -91,6 +91,15 @@ body,
   margin-bottom: 12px;
 }
 
+.help code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  color: #d8d4ff;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+}
+
 .panel-section {
   margin-top: 22px;
   padding-top: 18px;
@@ -127,9 +136,22 @@ button {
   width: 100%;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  background: #161622;
   color: var(--text);
   padding: 12px 14px;
+  color-scheme: dark;
+}
+
+.field select option,
+.field select optgroup {
+  background: #161622;
+  color: #e8e6f2;
+}
+
+.field select:disabled,
+.field input:disabled {
+  opacity: 0.55;
+  color: #b8b4c8;
 }
 
 .field input:focus,

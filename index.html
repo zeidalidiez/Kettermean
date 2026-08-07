@@ -86,14 +86,23 @@
               <input
                 id="base-url-input"
                 type="url"
-                placeholder="https://api.openai.com/v1 or your proxy"
+                placeholder="https://openrouter.ai/api/v1"
                 autocomplete="off"
               />
             </label>
             <label class="field">
               <span>Model</span>
-              <input id="model-input" type="text" placeholder="gpt-4o-mini / claude-sonnet-4-5" autocomplete="off" />
+              <input
+                id="model-input"
+                type="text"
+                placeholder="inclusionai/ling-3.0-tiny:free"
+                autocomplete="off"
+              />
             </label>
+            <p class="help">
+              OpenAI-compatible works with OpenRouter. Example base
+              <code>https://openrouter.ai/api/v1</code> and a free model id.
+            </p>
           </section>
 
           <section class="panel-section">

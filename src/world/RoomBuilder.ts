@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PLAYER } from '../config';
 import type { BuiltRoom, ColliderBox, RoomEntity, RoomProp, RoomSpec, Vec3 } from '../types';
+import { boundsForKind, buildModel, kindFromLabel, type PropKind } from './models';
 
 interface LiveEntity {
   mesh: THREE.Object3D;
@@ -89,30 +90,37 @@ export class RoomWorld {
       this.addEntity(ent);
     }
 
-    // Decorative strip lights
+    // Ceiling fluorescents — visible anchors + real light sources
+    const span = Math.max(spec.width, spec.depth);
     for (let i = 0; i < 3; i += 1) {
       const strip = new THREE.Mesh(
-        new THREE.BoxGeometry(Math.min(3.5, spec.width * 0.25), 0.05, 0.35),
+        new THREE.BoxGeometry(Math.min(4.2, spec.width * 0.28), 0.06, 0.4),
         new THREE.MeshStandardMaterial({
           color: '#ffffff',
           emissive: new THREE.Color(spec.palette.light),
-          emissiveIntensity: 1.2,
-          roughness: 0.4,
+          emissiveIntensity: 2.2,
+          roughness: 0.35,
         }),
       );
-      strip.position.set((i - 1) * Math.min(4, halfW * 0.5), h - 0.15, 0);
+      const x = (i - 1) * Math.min(5, halfW * 0.55);
+      strip.position.set(x, h - 0.12, 0);
       this.group.add(strip);
+
+      const bulb = new THREE.PointLight(spec.palette.light, 1.1, span * 1.35, 1.6);
+      bulb.position.set(x, h - 0.35, 0);
+      this.lights.push(bulb);
     }
 
-    const ambient = new THREE.AmbientLight(spec.palette.ambient, 0.55);
-    const hemi = new THREE.HemisphereLight(spec.palette.light, spec.palette.floor, 0.55);
-    const key = new THREE.PointLight(spec.palette.light, 1.35, Math.max(spec.width, spec.depth) * 1.8, 2);
-    key.position.set(0, h * 0.75, 0);
-    key.castShadow = false;
-    this.lights.push(ambient, hemi, key);
+    const ambient = new THREE.AmbientLight(spec.palette.ambient, 0.95);
+    const hemi = new THREE.HemisphereLight(spec.palette.light, spec.palette.floor, 0.85);
+    const key = new THREE.DirectionalLight(spec.palette.light, 0.75);
+    key.position.set(halfW * 0.35, h * 0.9, halfD * 0.25);
+    const fill = new THREE.DirectionalLight(spec.palette.ambient, 0.35);
+    fill.position.set(-halfW * 0.5, h * 0.6, -halfD * 0.3);
+    this.lights.push(ambient, hemi, key, fill);
     for (const l of this.lights) scene.add(l);
 
-    this.fog = new THREE.Fog(spec.palette.fog, spec.fogNear, spec.fogFar);
+    this.fog = new THREE.Fog(spec.palette.fog, Math.max(8, spec.fogNear), Math.max(spec.fogFar, spec.fogNear + 18));
     scene.fog = this.fog;
     scene.background = new THREE.Color(spec.palette.fog);
 
@@ -156,18 +164,18 @@ export class RoomWorld {
         }
       }
 
-      // Keep link trigger roughly aligned for moving entities
+      // Keep link trigger roughly aligned for moving entities (feet-origin models).
       if (ent.data.linksOnTouch) {
         const idx = this.linkTriggers.findIndex((t) => t.label === `entity:${ent.data.id}`);
         if (idx >= 0) {
           const s = ent.data.scale;
           this.linkTriggers[idx] = {
-            minX: m.position.x - s.x * 0.55,
-            maxX: m.position.x + s.x * 0.55,
-            minY: m.position.y - s.y * 0.55,
-            maxY: m.position.y + s.y * 0.55,
-            minZ: m.position.z - s.z * 0.55,
-            maxZ: m.position.z + s.z * 0.55,
+            minX: m.position.x - s.x * 0.5,
+            maxX: m.position.x + s.x * 0.5,
+            minY: m.position.y,
+            maxY: m.position.y + s.y,
+            minZ: m.position.z - s.z * 0.5,
+            maxZ: m.position.z + s.z * 0.5,
             linksOnTouch: true,
             label: `entity:${ent.data.id}`,
           };
@@ -198,11 +206,8 @@ export class RoomWorld {
     scene.remove(this.group);
     this.group.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
+      // Dispose geometries only. Model materials are shared via a kit cache.
       if (mesh.geometry) mesh.geometry.dispose();
-      if (mesh.material) {
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const m of materials) m.dispose();
-      }
     });
     this.group.clear();
     for (const l of this.lights) {
@@ -219,29 +224,25 @@ export class RoomWorld {
   }
 
   private addProp(prop: RoomProp): void {
-    const mesh = makeShape(prop.shape, prop.scale, prop.color, prop.emissive, prop.metalness, prop.roughness);
-    mesh.position.set(prop.position.x, prop.position.y, prop.position.z);
+    const kind = resolveKind(prop.kind, prop.label);
+    const mesh = buildModel(kind, prop.color || '#6a7a8a', prop.color || '#c4b59a');
+    // Models are feet-origin; keep y at floor unless explicitly elevated.
+    mesh.position.set(prop.position.x, Math.max(0, prop.position.y), prop.position.z);
     mesh.rotation.y = prop.rotationY ?? 0;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
     this.group.add(mesh);
 
-    const box = meshBounds(prop.position, prop.scale);
+    const box = feetBounds(mesh.position, prop.scale);
     if (prop.solid !== false) {
       this.addCollider({ ...box, linksOnTouch: prop.linksOnTouch, label: prop.label });
     } else if (prop.linksOnTouch) {
       this.addLinkTrigger({ ...box, linksOnTouch: true }, `ghost:${prop.label}`);
-    } else if (prop.linksOnTouch) {
-      this.addCollider({ ...box, linksOnTouch: true, label: prop.label });
-    }
-    if (prop.linksOnTouch && prop.solid !== false) {
-      // wall-like props already in colliders with linksOnTouch
     }
   }
 
   private addEntity(ent: RoomEntity): void {
-    const mesh = makeShape(ent.shape, ent.scale, ent.color, ent.emissive, 0.1, 0.7);
-    mesh.position.set(ent.position.x, ent.position.y, ent.position.z);
+    const kind = resolveKind(ent.kind, ent.label);
+    const mesh = buildModel(kind, ent.color || '#6a7a8a', ent.color || '#c4b59a');
+    mesh.position.set(ent.position.x, Math.max(0, ent.position.y), ent.position.z);
     this.group.add(mesh);
     this.liveEntities.push({
       mesh,
@@ -249,10 +250,11 @@ export class RoomWorld {
       origin: mesh.position.clone(),
       phase: Math.random() * Math.PI * 2,
     });
+    const box = feetBounds(mesh.position, ent.scale);
     if (ent.linksOnTouch) {
-      this.addLinkTrigger(meshBounds(ent.position, ent.scale), `entity:${ent.id}`);
+      this.addLinkTrigger(box, `entity:${ent.id}`);
     } else {
-      this.addCollider({ ...meshBounds(ent.position, ent.scale), label: ent.label });
+      this.addCollider({ ...box, label: ent.label });
     }
   }
 
@@ -271,55 +273,31 @@ function mat(color: string, roughness: number, metalness: number): THREE.MeshSta
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
 
-function makeShape(
-  shape: RoomProp['shape'],
-  scale: Vec3,
-  color: string,
-  emissive?: string,
-  metalness = 0.1,
-  roughness = 0.8,
-): THREE.Mesh {
-  let geom: THREE.BufferGeometry;
-  switch (shape) {
-    case 'sphere':
-      geom = new THREE.SphereGeometry(0.5, 18, 14);
-      break;
-    case 'cylinder':
-      geom = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
-      break;
-    case 'cone':
-      geom = new THREE.ConeGeometry(0.5, 1, 16);
-      break;
-    case 'torus':
-      geom = new THREE.TorusGeometry(0.4, 0.18, 10, 20);
-      break;
-    case 'plane':
-      geom = new THREE.BoxGeometry(1, 0.05, 1);
-      break;
-    default:
-      geom = new THREE.BoxGeometry(1, 1, 1);
-  }
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    roughness,
-    metalness,
-    emissive: emissive ? new THREE.Color(emissive) : new THREE.Color(0x000000),
-    emissiveIntensity: emissive ? 0.55 : 0,
-  });
-  const mesh = new THREE.Mesh(geom, material);
-  mesh.scale.set(scale.x, scale.y, scale.z);
-  return mesh;
-}
-
-function meshBounds(pos: Vec3, scale: Vec3): ColliderBox {
+function feetBounds(pos: { x: number; y: number; z: number }, scale: Vec3): ColliderBox {
   return {
     minX: pos.x - scale.x * 0.5,
     maxX: pos.x + scale.x * 0.5,
-    minY: pos.y - scale.y * 0.5,
-    maxY: pos.y + scale.y * 0.5,
+    minY: pos.y,
+    maxY: pos.y + scale.y,
     minZ: pos.z - scale.z * 0.5,
     maxZ: pos.z + scale.z * 0.5,
   };
+}
+
+function resolveKind(kind: string | undefined, label: string): PropKind {
+  if (kind) {
+    try {
+      // Prefer explicit kit ids from offline themes / LLM.
+      boundsForKind(kind as PropKind);
+      return kind as PropKind;
+    } catch {
+      // fall through
+    }
+    // boundsForKind never throws — validate via known labels mapping
+    const mapped = kindFromLabel(kind);
+    if (mapped) return mapped;
+  }
+  return kindFromLabel(label);
 }
 
 function placeWall(

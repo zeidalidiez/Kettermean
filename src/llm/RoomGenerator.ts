@@ -127,13 +127,19 @@ export class RoomGenerator {
   private async callOpenAI(system: string, user: string, signal: AbortSignal): Promise<string> {
     const base = (this.settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
     const model = this.settings.model || DEFAULT_OPENAI_MODEL;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.settings.apiKey}`,
+    };
+    // OpenRouter asks for these; harmless for other OpenAI-compatible proxies.
+    if (base.includes('openrouter.ai')) {
+      headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'https://kettermean.local';
+      headers['X-Title'] = 'Kettermean';
+    }
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.settings.apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         temperature: LLM_BUDGET.temperature,

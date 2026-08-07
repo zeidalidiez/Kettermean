@@ -7,6 +7,7 @@ import type {
   RoomSpec,
   Vec3,
 } from '../types';
+import { boundsForKind, kindFromLabel } from '../world/models';
 
 const SHAPES = new Set<PropShape>(['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane']);
 const BEHAVIORS = new Set<EntityBehavior>(['idle', 'wander', 'orbit', 'stare']);
@@ -54,19 +55,37 @@ function parseProp(raw: unknown, index: number): RoomProp | null {
   scale.x = num(scale.x, 1, 0.05, 12);
   scale.y = num(scale.y, 1, 0.05, 12);
   scale.z = num(scale.z, 1, 0.05, 12);
+  const kind = kindFromLabel(typeof o.kind === 'string' ? o.kind : label);
+  const b = boundsForKind(kind);
+  // Prefer kit bounds so composed models fit colliders.
+  const finalScale = {
+    x: num(scale.x, b.w, 0.2, 12) || b.w,
+    y: num(scale.y, b.h, 0.2, 12) || b.h,
+    z: num(scale.z, b.d, 0.2, 12) || b.d,
+  };
+  // If LLM sent tiny/default cubes, replace with kit size.
+  if (finalScale.x < 0.35 && finalScale.y < 0.35) {
+    finalScale.x = b.w;
+    finalScale.y = b.h;
+    finalScale.z = b.d;
+  }
+  const pos = vec3(o.position, { x: 0, y: 0, z: 0 });
+  // Force feet on floor for kit models.
+  pos.y = 0;
   return {
     id: str(o.id, `p${index}`),
     label,
     shape: shape(o.shape),
-    position: vec3(o.position, { x: 0, y: scale.y / 2, z: 0 }),
+    position: pos,
     rotationY: num(o.rotationY, 0, -Math.PI * 4, Math.PI * 4),
-    scale,
+    scale: finalScale,
     color: str(o.color, '#888888'),
     emissive: typeof o.emissive === 'string' ? o.emissive : undefined,
     metalness: num(o.metalness, 0.1, 0, 1),
     roughness: num(o.roughness, 0.8, 0, 1),
     linksOnTouch: Boolean(o.linksOnTouch),
     solid: o.solid === undefined ? true : Boolean(o.solid),
+    kind,
   };
 }
 
@@ -79,17 +98,27 @@ function parseEntity(raw: unknown, index: number): RoomEntity | null {
     typeof o.behavior === 'string' && BEHAVIORS.has(o.behavior as EntityBehavior)
       ? (o.behavior as EntityBehavior)
       : 'idle';
+  const kind = kindFromLabel(typeof o.kind === 'string' ? o.kind : label);
+  const b = boundsForKind(kind);
+  const finalScale = {
+    x: Math.max(scale.x, b.w * 0.8),
+    y: Math.max(scale.y, b.h * 0.8),
+    z: Math.max(scale.z, b.d * 0.8),
+  };
+  const pos = vec3(o.position, { x: 2, y: 0, z: 2 });
+  pos.y = 0;
   return {
     id: str(o.id, `e${index}`),
     label,
     shape: shape(o.shape, 'cylinder'),
-    position: vec3(o.position, { x: 2, y: scale.y / 2, z: 2 }),
-    scale,
+    position: pos,
+    scale: finalScale,
     color: str(o.color, '#cccccc'),
     emissive: typeof o.emissive === 'string' ? o.emissive : undefined,
     behavior,
     speed: num(o.speed, 0.8, 0, 4),
     linksOnTouch: o.linksOnTouch === undefined ? true : Boolean(o.linksOnTouch),
+    kind,
   };
 }
 

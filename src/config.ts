@@ -3,12 +3,14 @@ export const APP_VERSION = '0.1.0';
 
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
-  roomCache: 'kettermean.roomCache.v1',
+  roomCache: 'kettermean.roomCache.v2',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
+export const DEFAULT_OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 export const DEFAULT_ANTHROPIC_BASE = 'https://api.anthropic.com';
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
+export const DEFAULT_OPENROUTER_MODEL = 'inclusionai/ling-3.0-tiny:free';
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 
 export const PLAYER = {

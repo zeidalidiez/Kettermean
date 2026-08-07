@@ -41,6 +41,8 @@ export interface RoomProp {
   roughness?: number;
   linksOnTouch?: boolean;
   solid?: boolean;
+  /** Composed kit id used by the model library. */
+  kind?: string;
 }
 
 export interface RoomEntity {
@@ -54,6 +56,8 @@ export interface RoomEntity {
   behavior: EntityBehavior;
   speed?: number;
   linksOnTouch?: boolean;
+  /** Composed kit id used by the model library. */
+  kind?: string;
 }
 
 export interface PhysicsModifiers {
