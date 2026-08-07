@@ -99,7 +99,7 @@ function syncProviderUi(): void {
     modelInput.placeholder = DEFAULT_BROWSER_MODEL;
     if (help) {
       help.textContent = isWebGpuAvailable()
-        ? 'Local WebLLM model via WebGPU. First run downloads ~0.5–1GB weights, then caches.'
+        ? 'Local WebLLM prebuilts via WebGPU (no API key). Pick any listed id, or type another prebuilt model_id. Smaller = faster first download.'
         : 'WebGPU not detected. Use Chrome/Edge, or pick another provider.';
     }
   }

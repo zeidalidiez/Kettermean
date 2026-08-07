@@ -63,13 +63,13 @@ export function modelForProvider(provider: AppSettings['provider'], current: str
     return current;
   }
   if (provider === 'browser') {
+    // Only replace empty / clearly cloud model ids. Keep any WebLLM id the user chose.
     if (
       !current.trim() ||
       current.includes('openrouter') ||
       current.includes('claude') ||
       current.includes('gpt-') ||
-      // Migrate older default away from Qwen2.5 if user never customized.
-      current === 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC'
+      current.includes('/')
     ) {
       return DEFAULT_BROWSER_MODEL;
     }
