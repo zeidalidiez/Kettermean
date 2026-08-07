@@ -208,8 +208,9 @@ export class RoomGenerator {
       modelId: model,
       system: compact.system,
       user: compact.user,
-      maxTokens: 450,
-      temperature: 0.5,
+      maxTokens: 380,
+      // Tiny models need low temp or they invent invalid JSON syntax.
+      temperature: 0.2,
       onProgress: (msg) => this.onStatus?.(msg),
     });
     return text;
@@ -436,28 +437,38 @@ function buildBrowserPrompt(
   previousText = '',
 ): { system: string; user: string } {
   const gore = allowGore ? 'mild gore ok' : 'no gore';
+  // Keep this extremely small — 0.3–0.6B models collapse on long schemas.
   const system = [
-    'JSON only. No markdown. No thinking.',
-    'Art-direct a room by selecting catalog assetIds and scaleMul.',
-    'Keys: themeId,title,blurb,mood,tags,width,depth,height,placements.',
-    'placements:[{assetId,x,z,rotY,scaleMul,linksOnTouch}].',
-    'Use anomaly_giant_baby with scaleMul 2.5-3.5 sometimes.',
-    'Include door_fake as a link. 6-10 placements.',
+    'Reply with ONE valid JSON object only.',
+    'Double-quote every key and string. No trailing commas. No comments. No markdown. No thinking.',
+    'Exact shape:',
+    '{"themeId":"fluorescent_lobby","title":"Lobby","blurb":"Humming lights.","mood":"static","width":14,"depth":14,"height":3.5,"placements":[{"assetId":"door_fake","x":-5,"z":0,"rotY":1.57,"scaleMul":1,"linksOnTouch":true},{"assetId":"chair_office","x":2,"z":-2,"rotY":0,"scaleMul":1,"linksOnTouch":false},{"assetId":"lamp_floor","x":-2,"z":3,"rotY":0,"scaleMul":1,"linksOnTouch":false}]}',
+    'mood must be upper|downer|static|dynamic.',
+    'scaleMul must be a single number like 1 or 3, never a range.',
+    'Use 5 to 8 placements. Always include door_fake with linksOnTouch true.',
     gore,
   ].join(' ');
+
   if (mode === 'repair') {
     return {
       system,
-      user: `Fix to pure director JSON. seed=${ctx.seed}. bad=${JSON.stringify(previousText.slice(0, 280))}`,
+      user: [
+        'Previous text was invalid JSON. Output corrected JSON only.',
+        `seed=${ctx.seed}`,
+        `moodBias=${ctx.moodBias}`,
+        `broken=${JSON.stringify(previousText.slice(0, 220))}`,
+      ].join('\n'),
     };
   }
+
   return {
     system,
     user: [
-      `seed=${ctx.seed}; moodBias=${ctx.moodBias}`,
-      'assetIds: chair_office,desk_security,vending_blue,crib_empty,door_fake,plant_fern,lamp_floor,anomaly_giant_baby,npc_clerk,npc_shadow,creature_deer,mirror_tall,bottle_giant,bench_wait',
-      'themeIds: fluorescent_lobby,wrong_nursery,backrooms_annex,dry_pool,soft_clinic',
-      'Make director JSON now.',
+      `seed=${ctx.seed}`,
+      `moodBias=${ctx.moodBias}`,
+      'themeId one of: fluorescent_lobby, wrong_nursery, backrooms_annex, dry_pool, soft_clinic',
+      'assetId only from: chair_office, desk_security, vending_blue, crib_empty, door_fake, plant_fern, lamp_floor, anomaly_giant_baby, npc_clerk, npc_shadow, creature_deer, mirror_tall, bottle_giant, bench_wait',
+      'Write the JSON object now.',
     ].join('\n'),
   };
 }

@@ -201,20 +201,150 @@ export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
 
 export function extractJsonObject(text: string): unknown | null {
   if (!text) return null;
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  let candidate = (fenced?.[1] ?? text).trim();
+  let candidate = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
+    .replace(/```(?:json)?/gi, ' ')
+    .replace(/```/g, ' ')
+    .trim();
 
   // Common junk prefixes from instruction-following failures.
   candidate = candidate
     .replace(/^[^\{\[]+/, (prefix) => (prefix.includes('{') ? prefix : ''))
     .trim();
 
-  const attempts = [candidate, stripTrailingCommas(candidate)];
-  for (const attempt of attempts) {
+  const variants = [
+    candidate,
+    stripTrailingCommas(candidate),
+    loosenJson(candidate),
+    stripTrailingCommas(loosenJson(candidate)),
+  ];
+
+  for (const attempt of variants) {
     const parsed = tryParseBalancedObject(attempt);
-    if (parsed !== null) return parsed;
+    if (parsed !== null) return unwrapDirectorPayload(parsed);
   }
-  return null;
+
+  // Last resort: build a minimal object from free-form asset mentions.
+  return heuristicDirectorFromText(text);
+}
+
+/** Tiny models often emit JS-ish objects: unquoted keys, ranges, barewords. */
+export function loosenJson(input: string): string {
+  let s = input.trim();
+
+  // Prefer inner object if model wraps as {json:{...}} / {bad:{...}} / {data:{...}}
+  const wrapped = s.match(
+    /\{\s*(?:json|bad|data|result|room|direction)\s*:\s*(\{[\s\S]*\})\s*\}\s*$/i,
+  );
+  if (wrapped?.[1]) s = wrapped[1];
+
+  // Numeric ranges -> midpoint (scaleMul: 2.5-3.5)
+  s = s.replace(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/g, (_, a: string, b: string) => {
+    const mid = (Number(a) + Number(b)) / 2;
+    return Number.isFinite(mid) ? String(Number(mid.toFixed(3))) : a;
+  });
+
+  // Quote unquoted keys
+  s = s.replace(/([{,]\s*)([A-Za-z_][\w]*)\s*:/g, '$1"$2":');
+
+  // Quote bareword / path-like values (not true/false/null/numbers)
+  s = s.replace(
+    /:\s*([A-Za-z_][\w./:-]*)\s*(?=[,}\]])/g,
+    (_m, value: string) => {
+      if (/^(true|false|null)$/i.test(value)) return `: ${value.toLowerCase()}`;
+      if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value)) return `: ${value}`;
+      return `: "${value}"`;
+    },
+  );
+
+  // Single-quoted strings -> double quotes
+  s = s.replace(/'([^']*)'/g, (_, inner: string) => JSON.stringify(inner));
+
+  // Newlines inside likely string regions are rare; collapse bare newlines to space
+  s = s.replace(/\n+/g, ' ');
+
+  return s;
+}
+
+function unwrapDirectorPayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw;
+  const o = raw as Record<string, unknown>;
+  for (const key of ['json', 'bad', 'data', 'result', 'room', 'direction', 'output']) {
+    const inner = o[key];
+    if (inner && typeof inner === 'object') {
+      const io = inner as Record<string, unknown>;
+      if (
+        'placements' in io ||
+        'themeId' in io ||
+        'props' in io ||
+        'title' in io ||
+        'assets' in io
+      ) {
+        return inner;
+      }
+    }
+  }
+  return raw;
+}
+
+/**
+ * If the model only lists asset ids / a theme, synthesize a director object
+ * the rest of the pipeline can assemble.
+ */
+function heuristicDirectorFromText(text: string): unknown | null {
+  const assetIds = [
+    'chair_office',
+    'desk_security',
+    'vending_blue',
+    'crib_empty',
+    'door_fake',
+    'plant_fern',
+    'lamp_floor',
+    'anomaly_giant_baby',
+    'npc_clerk',
+    'npc_shadow',
+    'creature_deer',
+    'mirror_tall',
+    'bottle_giant',
+    'bench_wait',
+  ];
+  const themeIds = [
+    'fluorescent_lobby',
+    'wrong_nursery',
+    'backrooms_annex',
+    'dry_pool',
+    'soft_clinic',
+  ];
+  const lower = text.toLowerCase();
+  const foundAssets = assetIds.filter((id) => lower.includes(id.toLowerCase()));
+  const foundTheme = themeIds.find((id) => lower.includes(id.toLowerCase()));
+  const moodMatch = lower.match(/\b(upper|downer|static|dynamic)\b/);
+  if (foundAssets.length < 2 && !foundTheme) return null;
+
+  const picks = (foundAssets.length ? foundAssets : ['door_fake', 'chair_office', 'lamp_floor']).slice(
+    0,
+    8,
+  );
+  if (!picks.includes('door_fake')) picks.push('door_fake');
+
+  return {
+    themeId: foundTheme || 'fluorescent_lobby',
+    title: foundTheme ? foundTheme.replace(/_/g, ' ') : 'Drift Room',
+    blurb: 'The dream reassembled from fragments.',
+    mood: moodMatch?.[1] || 'static',
+    tags: ['liminal'],
+    width: 14,
+    depth: 14,
+    height: 3.5,
+    placements: picks.map((assetId, i) => ({
+      assetId,
+      x: ((i % 4) - 1.5) * 2.4,
+      z: (Math.floor(i / 4) - 0.5) * 3,
+      rotY: 0,
+      scaleMul: assetId === 'anomaly_giant_baby' ? 3 : 1,
+      linksOnTouch: assetId === 'door_fake' || assetId.startsWith('npc_') || assetId === 'anomaly_giant_baby',
+    })),
+  };
 }
 
 function stripTrailingCommas(s: string): string {

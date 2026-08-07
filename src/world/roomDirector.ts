@@ -235,6 +235,28 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
       .map((p) => parsePlacement(p))
       .filter((p): p is DirectedPlacement => Boolean(p))
       .slice(0, 16);
+  } else if (typeof o.AssetIds === 'string' || typeof o.assetIds === 'string' || Array.isArray(o.AssetIds) || Array.isArray(o.assetIds)) {
+    // Tiny models sometimes emit: { mood, AssetIds: "a,b,c" } with no placements.
+    const rawList = o.AssetIds ?? o.assetIds;
+    const ids = Array.isArray(rawList)
+      ? rawList.filter((x): x is string => typeof x === 'string')
+      : String(rawList)
+          .split(/[,\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+    const fromIds: DirectedPlacement[] = [];
+    ids.forEach((id, i) => {
+      const asset = getAsset(id) || matchAssetByLabel(id);
+      if (!asset) return;
+      fromIds.push({
+        assetId: asset.id,
+        x: ((i % 4) - 1.5) * 2.4,
+        z: (Math.floor(i / 4) - 0.5) * 3,
+        scaleMul: asset.id === 'anomaly_giant_baby' ? 3 : 1,
+        linksOnTouch: asset.linksByDefault,
+      });
+    });
+    placements = fromIds.slice(0, 16);
   } else if (Array.isArray(o.props) || Array.isArray(o.entities)) {
     // Legacy: map props/entities labels to nearest assets.
     const legacy = [...(Array.isArray(o.props) ? o.props : []), ...(Array.isArray(o.entities) ? o.entities : [])];
@@ -285,22 +307,52 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
 function parsePlacement(raw: unknown): DirectedPlacement | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
-  const assetId = typeof o.assetId === 'string' ? o.assetId : typeof o.id === 'string' ? o.id : '';
-  if (!assetId || !getAsset(assetId)) return null;
-  const asset = getAsset(assetId)!;
-  const scaleMul = clamp(num(o.scaleMul ?? o.scale, 1, asset.scaleRange.min, asset.scaleRange.max), asset.scaleRange.min, asset.scaleRange.max);
+  const assetIdRaw =
+    typeof o.assetId === 'string'
+      ? o.assetId
+      : typeof o.id === 'string'
+        ? o.id
+        : typeof o.asset === 'string'
+          ? o.asset
+          : '';
+  const assetId = assetIdRaw.trim();
+  const asset = getAsset(assetId) || matchAssetByLabel(assetId);
+  if (!asset) return null;
+  const scaleMul = clamp(
+    parseLooseNumber(o.scaleMul ?? o.scale, 1),
+    asset.scaleRange.min,
+    asset.scaleRange.max,
+  );
   return {
-    assetId,
-    x: num(o.x ?? (o.position as { x?: number } | undefined)?.x, 0, -40, 40),
-    z: num(o.z ?? (o.position as { z?: number } | undefined)?.z, 0, -40, 40),
-    y: num(o.y ?? (o.position as { y?: number } | undefined)?.y, 0, 0, 10),
-    rotY: num(o.rotY ?? o.rotationY, 0, -10, 10),
+    assetId: asset.id,
+    x: clamp(parseLooseNumber(o.x ?? (o.position as { x?: unknown } | undefined)?.x, 0), -40, 40),
+    z: clamp(parseLooseNumber(o.z ?? (o.position as { z?: unknown } | undefined)?.z, 0), -40, 40),
+    y: clamp(parseLooseNumber(o.y ?? (o.position as { y?: unknown } | undefined)?.y, 0), 0, 10),
+    rotY: parseLooseNumber(o.rotY ?? o.rotationY, 0),
     scaleMul,
     linksOnTouch: o.linksOnTouch === undefined ? asset.linksByDefault : Boolean(o.linksOnTouch),
     solid: o.solid === undefined ? asset.solidDefault : Boolean(o.solid),
     behavior: typeof o.behavior === 'string' ? (o.behavior as EntityBehavior) : asset.defaultBehavior,
     labelOverride: typeof o.label === 'string' ? o.label : undefined,
   };
+}
+
+/** Accept numbers, numeric strings, and ranges like "2.5-3.5". */
+function parseLooseNumber(v: unknown, fallback: number): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (!t) return fallback;
+    const range = t.match(/^(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)$/);
+    if (range) {
+      const a = Number(range[1]);
+      const b = Number(range[2]);
+      if (Number.isFinite(a) && Number.isFinite(b)) return (a + b) / 2;
+    }
+    const n = Number(t);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
 }
 
 function legacyToPlacement(raw: unknown, index: number): DirectedPlacement | null {
