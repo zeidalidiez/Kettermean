@@ -77,6 +77,11 @@ export const LLM_BUDGET = {
   cacheLimit: 48,
   /** Free routers can be slow; do not abort quickly. */
   requestTimeoutMs: 90000,
+  /**
+   * Browser WebLLM first run downloads weights + compiles shaders.
+   * Keep this long so load+generate is not killed mid-download.
+   */
+  browserRequestTimeoutMs: 600000,
   /** Kept for compatibility; start no longer blocks on the LLM. */
   startWaitMs: 0,
   /** Only stop calling the API after this many consecutive failures. */

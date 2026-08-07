@@ -164,6 +164,11 @@ export class RoomGenerator {
           ? this.callAnthropic(system, user, true)
           : this.callOpenAI(system, user, true);
 
+    const timeoutMs =
+      this.settings.provider === 'browser'
+        ? LLM_BUDGET.browserRequestTimeoutMs
+        : LLM_BUDGET.requestTimeoutMs;
+
     let timer: number | undefined;
     try {
       return await Promise.race([
@@ -172,15 +177,23 @@ export class RoomGenerator {
           timer = window.setTimeout(() => {
             reject(
               new Error(
-                `LLM timed out after ${LLM_BUDGET.requestTimeoutMs}ms (request may still complete server-side)`,
+                `LLM timed out after ${timeoutMs}ms (request may still complete server-side)`,
               ),
             );
-          }, LLM_BUDGET.requestTimeoutMs);
+          }, timeoutMs);
         }),
       ]);
     } finally {
       if (timer !== undefined) window.clearTimeout(timer);
     }
+  }
+
+  /** Kick off WebLLM weight download before the first room race. */
+  async preloadBrowserModel(): Promise<void> {
+    if (this.settings.provider !== 'browser') return;
+    const model = this.settings.model.trim() || DEFAULT_BROWSER_MODEL;
+    const { ensureBrowserEngine } = await import('./browserEngine');
+    await ensureBrowserEngine(model, (msg) => this.onStatus?.(msg));
   }
 
   private async callBrowser(

@@ -1,5 +1,4 @@
 import {
-  BROWSER_MODEL_OPTIONS,
   DEFAULT_ANTHROPIC_BASE,
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_BROWSER_MODEL,
@@ -31,8 +30,6 @@ const startBtn = qs<HTMLButtonElement>('start-btn');
 const clearKeyBtn = qs<HTMLButtonElement>('clear-key-btn');
 const resumeBtn = qs<HTMLButtonElement>('resume-btn');
 const quitBtn = qs<HTMLButtonElement>('quit-btn');
-
-fillBrowserModelSelect();
 
 function applyForm(s: AppSettings): void {
   modeSelect.value = s.mode;
@@ -70,6 +67,16 @@ function syncModeUi(): void {
   seedInput.disabled = !seeded;
 }
 
+function setModelFieldsVisible(provider: LlmProvider): void {
+  const browser = provider === 'browser';
+  const cloud = provider === 'openai' || provider === 'anthropic';
+  // Explicit show/hide — avoid toggle races if class state drifts.
+  if (browser) modelFieldBrowser.classList.remove('hidden');
+  else modelFieldBrowser.classList.add('hidden');
+  if (cloud) modelFieldCloud.classList.remove('hidden');
+  else modelFieldCloud.classList.add('hidden');
+}
+
 function syncProviderUi(): void {
   const provider = providerSelect.value as LlmProvider;
   const offline = provider === 'offline';
@@ -77,11 +84,8 @@ function syncProviderUi(): void {
   apiKeyInput.disabled = offline || browser;
   baseUrlInput.disabled = offline || browser;
   modelInput.disabled = offline;
-  browserModelSelect.disabled = offline;
-
-  modelFieldBrowser.classList.toggle('hidden', !browser);
-  modelFieldCloud.classList.toggle('hidden', browser || offline);
-  if (offline) modelFieldCloud.classList.add('hidden');
+  browserModelSelect.disabled = !browser;
+  setModelFieldsVisible(provider);
 
   const help = document.getElementById('provider-help');
 
@@ -111,12 +115,15 @@ function syncProviderUi(): void {
     if (help) help.textContent = 'Anthropic browser calls often need a CORS proxy.';
   }
   if (provider === 'browser') {
-    const chosen = modelForProvider('browser', browserModelSelect.value || modelInput.value);
+    const chosen = modelForProvider(
+      'browser',
+      browserModelSelect.value || modelInput.value || settings.model,
+    );
     setBrowserModelValue(chosen);
     if (help) {
       const gpu = getWebGpuStatus();
       help.textContent = gpu.available
-        ? 'Local WebLLM via WebGPU (no API key). Use the dropdown — first run downloads weights, then caches.'
+        ? 'Local WebLLM via WebGPU (no API key). First run downloads model weights (can take several minutes), then caches.'
         : gpu.reason || 'WebGPU not available.';
     }
   }
@@ -152,57 +159,10 @@ startBtn.addEventListener('click', () => {
   void game.start();
 });
 
-function fillBrowserModelSelect(): void {
-  // Keep config order; assign each id to exactly one group.
-  const groupDefs: Array<{ label: string; test: (id: string) => boolean }> = [
-    {
-      label: 'Tiny / fast',
-      test: (id) => /360M|0\.5B|0\.6B|TinyLlama/i.test(id),
-    },
-    {
-      label: '~1B class',
-      test: (id) => /1\.5B|1\.7B|gemma3-1b|Llama-3\.2-1B|OLMo-2.*1B|SmolLM2-1\.7B/i.test(id),
-    },
-    {
-      label: 'Stronger small (more VRAM)',
-      test: () => true,
-    },
-  ];
-
-  const buckets = new Map<string, string[]>();
-  for (const g of groupDefs) buckets.set(g.label, []);
-
-  const fallback = groupDefs[groupDefs.length - 1]!;
-  for (const id of BROWSER_MODEL_OPTIONS) {
-    const group = groupDefs.find((g) => g.test(id)) ?? fallback;
-    buckets.get(group.label)!.push(id);
-  }
-
-  browserModelSelect.replaceChildren();
-  for (const g of groupDefs) {
-    const ids = buckets.get(g.label) ?? [];
-    if (!ids.length) continue;
-    const og = document.createElement('optgroup');
-    og.label = g.label;
-    for (const id of ids) {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = prettyModelLabel(id);
-      og.appendChild(opt);
-    }
-    browserModelSelect.appendChild(og);
-  }
-  setBrowserModelValue(DEFAULT_BROWSER_MODEL);
-}
-
 function setBrowserModelValue(modelId: string): void {
   const id = modelId.trim() || DEFAULT_BROWSER_MODEL;
   const match = [...browserModelSelect.options].some((o) => o.value === id);
   browserModelSelect.value = match ? id : DEFAULT_BROWSER_MODEL;
-}
-
-function prettyModelLabel(id: string): string {
-  return id.replace(/-q4f16_1-MLC$/i, '').replace(/-MLC$/i, '');
 }
 
 clearKeyBtn.addEventListener('click', () => {

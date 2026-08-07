@@ -107,27 +107,44 @@ export class DreamGame {
     // Always enter a playable offline room immediately. Never block controls on the API.
     const boot = this.generator.getOrOffline(ctx);
     this.applyRoom(boot);
-    this.schedulePrefetch();
+    // Prefetch after browser model is ready — concurrent WebLLM jobs thrash VRAM.
+    if (this.settings.provider !== 'browser') this.schedulePrefetch();
 
     if (!useLlm) {
       this.showToast('Offline room');
       return;
     }
 
-    this.showToast('Generating LLM room…');
-    // Background upgrade: keep the request alive; swap in when ready.
-    void this.generator.get(ctx).then((late) => {
-      if (this.state === 'menu') return;
-      if (this.currentSeed !== ctx.seed) return;
-      if (late.offline) {
-        this.showToast('LLM unavailable · offline room');
-        return;
+    this.showToast(
+      this.settings.provider === 'browser'
+        ? 'Loading browser model…'
+        : 'Generating LLM room…',
+    );
+
+    // Background upgrade: preload WebLLM first (download can take minutes),
+    // then generate. Keep the request alive; swap in when ready.
+    void (async () => {
+      try {
+        if (this.settings.provider === 'browser') {
+          await this.generator.preloadBrowserModel();
+          if (this.state === 'menu') return;
+          this.showToast('Generating LLM room…');
+        }
+        const late = await this.generator.get(ctx);
+        if (this.state === 'menu') return;
+        if (this.currentSeed !== ctx.seed) return;
+        if (late.offline) {
+          this.showToast('LLM unavailable · offline room');
+          return;
+        }
+        this.applyRoom(late);
+        this.showToast('LLM room ready');
+        this.schedulePrefetch();
+      } catch (err) {
+        console.warn('[Kettermean] background LLM upgrade failed', err);
+        if (this.state !== 'menu') this.showToast('LLM unavailable · offline room');
       }
-      // Preserve look direction roughly by re-applying room at spawn.
-      this.applyRoom(late);
-      this.showToast('LLM room ready');
-      this.schedulePrefetch();
-    });
+    })();
   }
 
   pause(): void {

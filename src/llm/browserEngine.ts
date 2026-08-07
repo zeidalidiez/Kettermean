@@ -139,27 +139,26 @@ Return ONLY one JSON object. Start with { and end with }. No markdown. No thinki
     choices?: Array<{ message?: { content?: string | null }; text?: string }>;
   };
 
-  const requestBase: Record<string, unknown> = {
+  // Do NOT use response_format/json_object here: WebLLM's grammar compiler can throw
+  // BindingError "Cannot pass non-string to std::string" on some builds/models.
+  const request: Record<string, unknown> = {
     messages,
     temperature: params.temperature,
     max_tokens: params.maxTokens,
     stream: false,
   };
 
-  // Qwen3 defaults to thinking mode; disable for faster/cleaner JSON.
+  // Qwen3 thinking burns tokens; disable when the runtime accepts it.
   if (/qwen3/i.test(params.modelId)) {
-    requestBase.extra_body = { enable_thinking: false };
+    request.enable_thinking = false;
   }
 
-  // Prefer JSON mode when supported; fall back cleanly if the runtime rejects it.
   let completion: NonStream;
   try {
-    completion = (await eng.chat.completions.create({
-      ...requestBase,
-      response_format: { type: 'json_object' },
-    } as never)) as NonStream;
+    completion = (await eng.chat.completions.create(request as never)) as NonStream;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Retry without enable_thinking if rejected.
     try {
       completion = (await eng.chat.completions.create({
         messages,
