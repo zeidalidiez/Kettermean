@@ -14,6 +14,7 @@ import {
   generateOfflineRoom,
   parseRoomDirection,
 } from '../world/offlineGenerator';
+import { browserQaPrompt, parseQaDirection } from '../world/qaDirector';
 import { browserChatCompletion } from './browserEngine';
 import { extractJsonObject, normalizeRoomSpec } from './schema';
 
@@ -127,17 +128,23 @@ export class RoomGenerator {
     try {
       let text = await this.callProvider(ctx, 'initial');
       this.apiCallsThisSession += 1;
-      let normalized = parseDirectedOrLegacy(text, ctx.seed);
+      let normalized =
+        this.settings.provider === 'browser'
+          ? parseBrowserDirection(text, ctx.seed)
+          : parseDirectedOrLegacy(text, ctx.seed);
 
-      // One cheap repair pass if the model reasoned in prose instead of JSON.
+      // One cheap repair pass if the first reply was unusable.
       if (!normalized) {
         text = await this.callProvider(ctx, 'repair', text);
         this.apiCallsThisSession += 1;
-        normalized = parseDirectedOrLegacy(text, ctx.seed);
+        normalized =
+          this.settings.provider === 'browser'
+            ? parseBrowserDirection(text, ctx.seed)
+            : parseDirectedOrLegacy(text, ctx.seed);
       }
 
       if (!normalized) {
-        throw new Error(`LLM room JSON unusable. Preview: ${text.slice(0, 220)}`);
+        throw new Error(`LLM room direction unusable. Preview: ${text.slice(0, 220)}`);
       }
       normalized.offline = false;
       this.sessionFailures = 0;
@@ -202,15 +209,26 @@ export class RoomGenerator {
     previousText = '',
   ): Promise<string> {
     const model = this.settings.model.trim() || DEFAULT_BROWSER_MODEL;
-    // Tiny on-device models get a shorter director JSON brief; client kits build geometry.
-    const compact = buildBrowserPrompt(ctx, this.settings.allowGore, mode, previousText);
+    // Tiny models answer numbered questions; client builds RoomDirection/JSON.
+    const qa = browserQaPrompt({
+      seed: ctx.seed,
+      moodBias: ctx.moodBias,
+      previousTitles: ctx.previousTitles,
+      allowGore: this.settings.allowGore,
+    });
+    const user =
+      mode === 'repair'
+        ? `${qa.user}
+
+Previous answers were incomplete. Answer all 9 questions again, one per line.
+bad=${JSON.stringify(previousText.slice(0, 240))}`
+        : qa.user;
     const text = await browserChatCompletion({
       modelId: model,
-      system: compact.system,
-      user: compact.user,
-      maxTokens: 380,
-      // Tiny models need low temp or they invent invalid JSON syntax.
-      temperature: 0.2,
+      system: qa.system,
+      user,
+      maxTokens: 280,
+      temperature: 0.45,
       onProgress: (msg) => this.onStatus?.(msg),
     });
     return text;
@@ -430,47 +448,11 @@ function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
   return normalizeRoomSpec(json, seed);
 }
 
-function buildBrowserPrompt(
-  ctx: GenerationContext,
-  allowGore: boolean,
-  mode: 'initial' | 'repair' = 'initial',
-  previousText = '',
-): { system: string; user: string } {
-  const gore = allowGore ? 'mild gore ok' : 'no gore';
-  // Keep this extremely small — 0.3–0.6B models collapse on long schemas.
-  const system = [
-    'Reply with ONE valid JSON object only.',
-    'Double-quote every key and string. No trailing commas. No comments. No markdown. No thinking.',
-    'Exact shape:',
-    '{"themeId":"fluorescent_lobby","title":"Lobby","blurb":"Humming lights.","mood":"static","width":14,"depth":14,"height":3.5,"placements":[{"assetId":"door_fake","x":-5,"z":0,"rotY":1.57,"scaleMul":1,"linksOnTouch":true},{"assetId":"chair_office","x":2,"z":-2,"rotY":0,"scaleMul":1,"linksOnTouch":false},{"assetId":"lamp_floor","x":-2,"z":3,"rotY":0,"scaleMul":1,"linksOnTouch":false}]}',
-    'mood must be upper|downer|static|dynamic.',
-    'scaleMul must be a single number like 1 or 3, never a range.',
-    'Use 5 to 8 placements. Always include door_fake with linksOnTouch true.',
-    gore,
-  ].join(' ');
-
-  if (mode === 'repair') {
-    return {
-      system,
-      user: [
-        'Previous text was invalid JSON. Output corrected JSON only.',
-        `seed=${ctx.seed}`,
-        `moodBias=${ctx.moodBias}`,
-        `broken=${JSON.stringify(previousText.slice(0, 220))}`,
-      ].join('\n'),
-    };
-  }
-
-  return {
-    system,
-    user: [
-      `seed=${ctx.seed}`,
-      `moodBias=${ctx.moodBias}`,
-      'themeId one of: fluorescent_lobby, wrong_nursery, backrooms_annex, dry_pool, soft_clinic',
-      'assetId only from: chair_office, desk_security, vending_blue, crib_empty, door_fake, plant_fern, lamp_floor, anomaly_giant_baby, npc_clerk, npc_shadow, creature_deer, mirror_tall, bottle_giant, bench_wait',
-      'Write the JSON object now.',
-    ].join('\n'),
-  };
+function parseBrowserDirection(text: string, seed: string): RoomSpec | null {
+  // Prefer Q&A parse; fall back to JSON salvage if the model still emits braces.
+  const qa = parseQaDirection(text, seed);
+  if (qa) return assembleRoomSpec(qa);
+  return parseDirectedOrLegacy(text, seed);
 }
 
 function ensureLeadingBrace(text: string): string {

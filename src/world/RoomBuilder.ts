@@ -88,6 +88,7 @@ export class RoomWorld {
 
     for (const w of walls) {
       if (w.open) {
+        // Visual opening only — do NOT teleport on open walls. Use doors.
         const curb = new THREE.Mesh(
           new THREE.BoxGeometry(
             w.side === 'east' || w.side === 'west' ? wallT : spec.width * 0.45,
@@ -98,7 +99,6 @@ export class RoomWorld {
         );
         placeWall(curb, w.side, halfW, halfD, 0.14);
         this.group.add(curb);
-        this.addLinkTrigger(edgeTrigger(w.side, halfW, halfD, h), `open:${w.side}`);
         continue;
       }
 
@@ -110,7 +110,8 @@ export class RoomWorld {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.group.add(mesh);
-      this.addCollider(wallCollider(w.side, halfW, halfD, h, wallT, true), `wall:${w.side}`);
+      // Walls are solid only — never room links. Doors are the only teleports.
+      this.addCollider(wallCollider(w.side, halfW, halfD, h, wallT, false), `wall:${w.side}`);
 
       // Fake window / panel insets so walls aren't flat slabs
       const panel = new THREE.Mesh(
@@ -206,30 +207,13 @@ export class RoomWorld {
         }
       }
 
-      // Keep link trigger roughly aligned for moving entities (feet-origin models).
-      if (ent.data.linksOnTouch) {
-        const idx = this.linkTriggers.findIndex((t) => t.label === `entity:${ent.data.id}`);
-        if (idx >= 0) {
-          const s = ent.data.scale;
-          this.linkTriggers[idx] = {
-            minX: m.position.x - s.x * 0.5,
-            maxX: m.position.x + s.x * 0.5,
-            minY: m.position.y,
-            maxY: m.position.y + s.y,
-            minZ: m.position.z - s.z * 0.5,
-            maxZ: m.position.z + s.z * 0.5,
-            linksOnTouch: true,
-            label: `entity:${ent.data.id}`,
-          };
-        }
-      }
+      // Entities never act as room links.
     }
   }
 
   getColliders(): ColliderBox[] {
-    // Merge static colliders with live entity link triggers
-    const staticOnly = this.colliders.filter((c) => !c.label?.startsWith('entity:'));
-    return [...staticOnly, ...this.linkTriggers.filter((t) => t.label?.startsWith('entity:'))];
+    // colliders includes solids + door link triggers
+    return this.colliders;
   }
 
   getAllLinkables(): ColliderBox[] {
@@ -274,10 +258,14 @@ export class RoomWorld {
     this.group.add(mesh);
 
     const box = feetBounds(mesh.position, prop.scale);
-    if (prop.solid !== false) {
-      this.addCollider({ ...box, linksOnTouch: prop.linksOnTouch, label: prop.label });
-    } else if (prop.linksOnTouch) {
-      this.addLinkTrigger({ ...box, linksOnTouch: true }, `ghost:${prop.label}`);
+    const isPortal = kind === 'door_fake' || Boolean(prop.linksOnTouch && /door|portal|exit/i.test(prop.label));
+    if (isPortal) {
+      // Slightly generous door trigger so players can walk through painted exits.
+      const doorBox = expandBox(box, 0.25, 0.1, 0.35);
+      this.addLinkTrigger(doorBox, `door:${prop.id || prop.label}`);
+      if (prop.solid !== false) this.addCollider({ ...box, linksOnTouch: false, label: prop.label });
+    } else if (prop.solid !== false) {
+      this.addCollider({ ...box, linksOnTouch: false, label: prop.label });
     }
   }
 
@@ -288,16 +276,13 @@ export class RoomWorld {
     this.group.add(mesh);
     this.liveEntities.push({
       mesh,
-      data: ent,
+      data: { ...ent, linksOnTouch: false },
       origin: mesh.position.clone(),
       phase: Math.random() * Math.PI * 2,
     });
     const box = feetBounds(mesh.position, ent.scale);
-    if (ent.linksOnTouch) {
-      this.addLinkTrigger(box, `entity:${ent.id}`);
-    } else {
-      this.addCollider({ ...box, label: ent.label });
-    }
+    // NPCs/creatures are atmosphere only — never room links.
+    this.addCollider({ ...box, linksOnTouch: false, label: ent.label });
   }
 
   private addCollider(box: ColliderBox, label?: string): void {
@@ -375,11 +360,14 @@ function wallCollider(
   return { ...base, minX: -halfW - t / 2, maxX: -halfW + t / 2 };
 }
 
-function edgeTrigger(
-  side: 'north' | 'south' | 'east' | 'west',
-  halfW: number,
-  halfD: number,
-  h: number,
-): ColliderBox {
-  return wallCollider(side, halfW, halfD, h, 0.8, true);
+function expandBox(box: ColliderBox, x: number, y: number, z: number): ColliderBox {
+  return {
+    ...box,
+    minX: box.minX - x,
+    maxX: box.maxX + x,
+    minY: box.minY,
+    maxY: box.maxY + y,
+    minZ: box.minZ - z,
+    maxZ: box.maxZ + z,
+  };
 }

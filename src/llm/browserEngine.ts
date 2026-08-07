@@ -122,17 +122,19 @@ export async function browserChatCompletion(params: {
   maxTokens: number;
   temperature: number;
   onProgress?: ProgressCb;
+  /** When true, append a JSON-only reminder (cloud-style). Browser Q&A leaves this false. */
+  forceJson?: boolean;
 }): Promise<string> {
   const eng = await ensureBrowserEngine(params.modelId, params.onProgress);
   // WebLLM requires the last message to be from user/tool — do NOT prefill assistant.
+  const userContent = params.forceJson
+    ? `${params.user}
+
+Return ONLY one JSON object. Start with { and end with }. No markdown. No thinking.`
+    : params.user;
   const messages = [
     { role: 'system' as const, content: params.system },
-    {
-      role: 'user' as const,
-      content: `${params.user}
-
-Return ONLY one JSON object. Start with { and end with }. No markdown. No thinking.`,
-    },
+    { role: 'user' as const, content: userContent },
   ];
 
   type NonStream = {

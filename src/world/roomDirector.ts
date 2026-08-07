@@ -77,11 +77,15 @@ export function generateOfflineDirection(ctx: GenerationContext): RoomDirection 
     });
   }
 
-  // Ensure a portal-ish link exists.
+  // Force door-only links; clear accidental linksOnTouch from props/npcs.
+  for (const p of placements) {
+    const a = getAsset(p.assetId);
+    p.linksOnTouch = a?.category === 'portal' || p.assetId === 'door_fake';
+  }
   if (!placements.some((p) => p.linksOnTouch)) {
     placements.push({
       assetId: 'door_fake',
-      x: -width / 2 + 1.2,
+      x: -width / 2 + 0.45,
       z: 0,
       rotY: Math.PI / 2,
       scaleMul: 1,
@@ -90,6 +94,12 @@ export function generateOfflineDirection(ctx: GenerationContext): RoomDirection 
     });
   }
 
+  // Vary size more aggressively offline so rooms don't feel cloned.
+  const sizeJitter = rng.float(0.75, 1.35);
+  const finalW = clamp(width * sizeJitter, 8, 28);
+  const finalD = clamp(depth * rng.float(0.75, 1.35), 8, 28);
+  const finalH = clamp(height * rng.float(0.85, 1.35), 2.5, 9);
+
   return {
     seed: ctx.seed,
     themeId: theme.id,
@@ -97,13 +107,13 @@ export function generateOfflineDirection(ctx: GenerationContext): RoomDirection 
     blurb: theme.blurb,
     mood,
     tags: [...theme.tags, mood],
-    width,
-    depth,
-    height,
-    fogNear: mood === 'downer' ? 10 : 14,
-    fogFar: mood === 'downer' ? 36 : 55,
+    width: finalW,
+    depth: finalD,
+    height: finalH,
+    fogNear: mood === 'downer' ? 8 : mood === 'upper' ? 16 : 12,
+    fogFar: mood === 'downer' ? 28 : mood === 'upper' ? 60 : 45,
     linkColor: moodLinkColor(mood),
-    openSides: theme.openSides,
+    openSides: [],
     palette: theme.palette,
     physics: physicsForMood(rng, mood),
     placements,
@@ -126,6 +136,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     };
     const isActor =
       asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly';
+    const isPortal = asset.category === 'portal' || asset.id === 'door_fake';
 
     if (isActor) {
       entities.push({
@@ -137,7 +148,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         color: dir.palette?.accent || '#cccccc',
         behavior: (p.behavior || asset.defaultBehavior || 'idle') as EntityBehavior,
         speed: 0.45 + (i % 3) * 0.2,
-        linksOnTouch: p.linksOnTouch ?? asset.linksByDefault ?? true,
+        // Atmosphere only — never teleport via NPCs/creatures.
+        linksOnTouch: false,
         kind: asset.kind,
       });
     } else {
@@ -149,7 +161,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         rotationY: p.rotY ?? 0,
         scale,
         color: dir.palette?.accent || '#888888',
-        linksOnTouch: p.linksOnTouch ?? asset.linksByDefault ?? false,
+        // ONLY portal/door assets may link rooms.
+        linksOnTouch: isPortal,
         solid: p.solid ?? asset.solidDefault ?? true,
         kind: asset.kind,
       });
@@ -279,6 +292,23 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
 
   if (placements.length < 1) return null;
 
+  // Door-only policy for all LLM/offline directions.
+  for (const p of placements) {
+    const a = getAsset(p.assetId);
+    p.linksOnTouch = a?.category === 'portal' || p.assetId === 'door_fake' || p.assetId === 'door_service' || p.assetId === 'door_glass' || p.assetId === 'arch_portal';
+  }
+  if (!placements.some((p) => p.linksOnTouch)) {
+    placements.push({
+      assetId: 'door_fake',
+      x: -num(o.width, theme?.width ?? 14, 8, 28) / 2 + 0.45,
+      z: 0,
+      rotY: Math.PI / 2,
+      scaleMul: 1,
+      linksOnTouch: true,
+      solid: true,
+    });
+  }
+
   return {
     seed,
     themeId: theme?.id,
@@ -292,11 +322,8 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
     fogNear: num(o.fogNear, 12, 2, 40),
     fogFar: num(o.fogFar, 40, 10, 80),
     linkColor: typeof o.linkColor === 'string' ? o.linkColor : moodLinkColor(mood),
-    openSides: Array.isArray(o.openSides)
-      ? o.openSides.filter((s): s is 'north' | 'south' | 'east' | 'west' =>
-          typeof s === 'string' && ['north', 'south', 'east', 'west'].includes(s),
-        )
-      : theme?.openSides,
+    // Never open-wall teleports.
+    openSides: [],
     palette: parsePalette(o.palette) || theme?.palette,
     physics: parsePhysics(o.physics),
     placements,
