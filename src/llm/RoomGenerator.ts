@@ -144,7 +144,9 @@ export class RoomGenerator {
       }
 
       if (!normalized) {
-        throw new Error(`LLM room direction unusable. Preview: ${text.slice(0, 220)}`);
+        throw new Error(
+          `LLM room direction unusable (need numbered 1-9 answers). Preview: ${text.slice(0, 220)}`,
+        );
       }
       normalized.offline = false;
       this.sessionFailures = 0;
@@ -227,8 +229,8 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
       modelId: model,
       system: qa.system,
       user,
-      maxTokens: 280,
-      temperature: 0.45,
+      maxTokens: 220,
+      temperature: 0.25,
       onProgress: (msg) => this.onStatus?.(msg),
     });
     return text;
@@ -449,10 +451,29 @@ function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
 }
 
 function parseBrowserDirection(text: string, seed: string): RoomSpec | null {
-  // Prefer Q&A parse; fall back to JSON salvage if the model still emits braces.
+  // Prefer strict numbered Q&A. Never accept chat preamble as a title.
   const qa = parseQaDirection(text, seed);
   if (qa) return assembleRoomSpec(qa);
-  return parseDirectedOrLegacy(text, seed);
+
+  // JSON salvage only if it still yields a sane title.
+  const legacy = parseDirectedOrLegacy(text, seed);
+  if (!legacy) return null;
+  if (isBadDisplayText(legacy.title) || isBadDisplayText(legacy.blurb)) return null;
+  return legacy;
+}
+
+function isBadDisplayText(s: string): boolean {
+  const t = (s || '').toLowerCase().trim();
+  if (!t || t.length < 2) return true;
+  // Only quotes/punctuation left
+  if (!/[a-z0-9]/i.test(t)) return true;
+  return (
+    t.includes('step by step') ||
+    t.includes("let's tackle") ||
+    t.includes('let’s tackle') ||
+    t.startsWith('okay') ||
+    t.startsWith('the title is')
+  );
 }
 
 function ensureLeadingBrace(text: string): string {
