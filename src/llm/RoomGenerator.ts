@@ -484,8 +484,10 @@ function parseBrowserDirection(text: string, ctx: GenerationContext): RoomSpec |
   // Model fields only steer; the procedural director fills any invalid fields and
   // always owns the full room structure (density/layouts/doors).
   const qa = parseQaDirection(text, ctx.seed, ctx, (fields) => {
+    const preview = text.replace(/\s+/g, ' ').trim().slice(0, 220);
     console.warn(
       `[Kettermean] Browser model used procedural fallback for fields: ${fields.join(', ')}.`,
+      `Preview: ${preview}`,
     );
   });
   if (qa) return assembleRoomSpec(qa);
