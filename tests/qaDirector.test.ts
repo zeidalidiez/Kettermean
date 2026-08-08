@@ -136,6 +136,35 @@ Allowed THEME_ID values: fluorescent_lobby, wrong_nursery, dry_pool, violet_serv
     expect(fallbackFields).toEqual([]);
   });
 
+  it('salvages values beneath Markdown-style field headings', () => {
+    const fallbackFields: string[] = [];
+    const direction = parseQaDirection(
+      `\`\`\`markdown
+= THEME_ID =
+= TITLE =
+Parking Lot, Overcast Day
+
+= MOOD =
+Downer
+
+= GIANT =
+No
+
+= BLURB =
+The parking lot is a vast expanse of concrete and metal, each car a silent sentinel.
+\`\`\``,
+      'markdown-headings',
+      undefined,
+      (fields) => fallbackFields.push(...fields),
+    );
+
+    expect(direction?.title).toBe('Parking Lot, Overcast Day');
+    expect(direction?.mood).toBe('downer');
+    expect(direction?.blurb).toContain('The parking lot is a vast expanse');
+    expect(direction?.offline).toBe(false);
+    expect(fallbackFields).toEqual(['THEME_ID']);
+  });
+
   it('asks for one delimited record without providing a copyable answer skeleton', () => {
     const prompt = browserQaPrompt({
       seed: 'prompt-format',

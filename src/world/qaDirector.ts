@@ -132,6 +132,9 @@ function looksStructured(text: string): boolean {
   return (
     /^\s*(?:theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]/im.test(text) ||
     /(?:^|[\s;])(?:q\s*)?[1-5]\s*[:.)\-\]](?=\s|$)/i.test(text) ||
+    /^\s*=+\s*(?:theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*=+/im.test(
+      text,
+    ) ||
     /^\s*\|?\s*theme_id\s*\|\s*title\s*\|\s*mood\s*\|\s*giant\s*\|\s*blurb\s*\|?\s*$/im.test(
       text,
     )
@@ -172,15 +175,47 @@ export function extractNumberedAnswers(text: string): Map<number, string> {
 
 function extractKeyedAnswers(text: string): Map<number, string> {
   const byKey = new Map<number, string>();
-  const fields = text.matchAll(
-    /^\s*(theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]\s*(.*?)\s*$/gim,
-  );
-  for (const match of fields) {
-    const number = FIELD_NUMBERS[(match[1] || '').toLowerCase()];
-    const answer = sanitizeAnswer(match[2] || '');
-    if (number && answer && !byKey.has(number)) byKey.set(number, answer);
+  const lines = text.split(/\r?\n/);
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const marker = keyedFieldMarker(lines[lineIndex] || '');
+    if (!marker || byKey.has(marker.number)) continue;
+
+    let raw = marker.inline;
+    if (!sanitizeAnswer(raw)) {
+      const following: string[] = [];
+      for (let valueIndex = lineIndex + 1; valueIndex < lines.length; valueIndex += 1) {
+        const line = lines[valueIndex] || '';
+        if (keyedFieldMarker(line)) break;
+        const value = line.trim();
+        if (value && !/^[-=]{3,}$/.test(value)) following.push(value);
+      }
+      raw = following.join(' ');
+    }
+
+    const answer = sanitizeAnswer(raw);
+    if (answer) byKey.set(marker.number, answer);
   }
   return byKey;
+}
+
+function keyedFieldMarker(line: string): { number: number; inline: string } | null {
+  const cleaned = line
+    .trim()
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/^[-*]\s+/, '')
+    .replace(/\*\*/g, '')
+    .trim();
+  const heading =
+    /^=+\s*(theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*=+\s*(.*?)\s*$/i.exec(
+      cleaned,
+    );
+  const keyed =
+    /^(theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]\s*(.*?)\s*$/i.exec(
+      cleaned,
+    );
+  const match = heading || keyed;
+  const number = FIELD_NUMBERS[(match?.[1] || '').toLowerCase()];
+  return match && number ? { number, inline: match[2] || '' } : null;
 }
 
 const FIELD_NUMBERS: Record<string, number> = {
