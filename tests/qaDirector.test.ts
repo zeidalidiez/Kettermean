@@ -94,6 +94,7 @@ BLURB=one short blurb sentence
 
     expect(prompt.system).toContain('```kettermean');
     expect(prompt.system).toContain('THEME_ID=');
+    expect(prompt.system).not.toContain('Quiet Lobby');
     expect(prompt.user).not.toMatch(/^\s*2[.:)]\s*short title/gm);
   });
 });
