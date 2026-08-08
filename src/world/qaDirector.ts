@@ -28,20 +28,25 @@ export function parseQaDirection(
   const cleaned = stripModelNoise(extractBestPayload(text));
   const byNum = extractNumberedAnswers(cleaned);
   const byKey = extractKeyedAnswers(cleaned);
-  const answerCount = new Set([...byNum.keys(), ...byKey.keys()]).size;
+  const byTable = extractTableAnswers(cleaned);
+  const answerCount = new Set([
+    ...byNum.keys(),
+    ...byKey.keys(),
+    ...byTable.keys(),
+  ]).size;
 
-  // Prefer the fenced keyed record, retain numbered replies for compatibility,
-  // and only soft-salvage prose when no structured fields were found.
-  const soft = answerCount < 1 ? softExtractSteer(cleaned, seed) : null;
-  if (answerCount < 1 && !soft) return null;
+  // Only structured records are data. Treating arbitrary prose as a partial
+  // answer lets a model's echoed prompt masquerade as a generated room.
+  if (answerCount < 1) return null;
 
-  const get = (n: number): string => sanitizeAnswer(byKey.get(n) ?? byNum.get(n) ?? '');
+  const get = (n: number): string =>
+    sanitizeAnswer(byKey.get(n) ?? byTable.get(n) ?? byNum.get(n) ?? '');
 
   const themeRaw = get(1);
-  const titleRaw = get(2) || soft?.title || '';
+  const titleRaw = get(2);
   const moodRaw = get(3);
-  const blurbRaw = get(5) || get(9) || soft?.blurb || '';
-  const recognizedTheme = findTheme(themeRaw || soft?.themeId || '');
+  const blurbRaw = get(5) || get(9);
+  const recognizedTheme = findTheme(themeRaw);
   const validTitle = isUsableTitle(titleRaw);
   const parsedMood = parseMoodAnswer(moodRaw);
   const validBlurb = isUsableBlurb(blurbRaw);
@@ -69,7 +74,7 @@ export function parseQaDirection(
   }
 
   const theme = recognizedTheme ?? resolveTheme('', seed);
-  const mood = parsedMood ?? soft?.mood ?? theme.mood;
+  const mood = parsedMood ?? theme.mood;
   const giant = parsedGiant === true || giantFromAsset;
 
   const fallbackFields: QaFallbackField[] = [];
@@ -126,7 +131,10 @@ function extractBestPayload(text: string): string {
 function looksStructured(text: string): boolean {
   return (
     /^\s*(?:theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]/im.test(text) ||
-    /(?:^|[\s;])(?:q\s*)?[1-5]\s*[:.)\-\]](?=\s|$)/i.test(text)
+    /(?:^|[\s;])(?:q\s*)?[1-5]\s*[:.)\-\]](?=\s|$)/i.test(text) ||
+    /^\s*\|?\s*theme_id\s*\|\s*title\s*\|\s*mood\s*\|\s*giant\s*\|\s*blurb\s*\|?\s*$/im.test(
+      text,
+    )
   );
 }
 
@@ -140,26 +148,6 @@ function stripModelNoise(text: string): string {
     // Drop a leading brace we used to wrongly inject for Q&A.
     .replace(/^\{\s*/, '')
     .trim();
-}
-
-/** Last-resort: pull a known themeId / mood out of rambling prose. */
-function softExtractSteer(
-  text: string,
-  seed: string,
-): { themeId?: string; mood?: MoodAxis; title?: string; blurb?: string } | null {
-  const lower = text.toLowerCase();
-  const theme =
-    THEME_PRESETS.find((t) => lower.includes(t.id.toLowerCase())) ||
-    THEME_PRESETS.find((t) => lower.includes(t.title.toLowerCase()));
-  const mood = moodOf(lower);
-  if (!theme && mood === 'static' && !/\b(upper|downer|dynamic|static)\b/.test(lower)) {
-    // Truly nothing useful — let caller fail/repair.
-    return null;
-  }
-  return {
-    themeId: theme?.id || resolveTheme('', seed).id,
-    mood: /\b(upper|downer|dynamic|static)\b/.test(lower) ? mood : theme?.mood,
-  };
 }
 
 /** Pull only `N. answer` / `N) answer` / `N: answer` lines into a map keyed by N. */
@@ -183,25 +171,68 @@ export function extractNumberedAnswers(text: string): Map<number, string> {
 }
 
 function extractKeyedAnswers(text: string): Map<number, string> {
-  const fieldNumbers: Record<string, number> = {
-    theme: 1,
-    theme_id: 1,
-    title: 2,
-    mood: 3,
-    giant: 4,
-    giant_baby: 4,
-    blurb: 5,
-  };
   const byKey = new Map<number, string>();
   const fields = text.matchAll(
     /^\s*(theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]\s*(.*?)\s*$/gim,
   );
   for (const match of fields) {
-    const number = fieldNumbers[(match[1] || '').toLowerCase()];
+    const number = FIELD_NUMBERS[(match[1] || '').toLowerCase()];
     const answer = sanitizeAnswer(match[2] || '');
     if (number && answer && !byKey.has(number)) byKey.set(number, answer);
   }
   return byKey;
+}
+
+const FIELD_NUMBERS: Record<string, number> = {
+  theme: 1,
+  theme_id: 1,
+  title: 2,
+  mood: 3,
+  giant: 4,
+  giant_baby: 4,
+  blurb: 5,
+};
+
+/** Accept the compact Markdown table that some instruct models prefer to emit. */
+function extractTableAnswers(text: string): Map<number, string> {
+  const lines = text.split(/\r?\n/);
+  for (let headerIndex = 0; headerIndex < lines.length; headerIndex += 1) {
+    const headers = tableCells(lines[headerIndex] || '');
+    const columns = headers.map((header) => FIELD_NUMBERS[normalizeFieldName(header)]);
+    if (![1, 2, 3, 4, 5].every((field) => columns.includes(field))) continue;
+
+    for (let rowIndex = headerIndex + 1; rowIndex < lines.length; rowIndex += 1) {
+      const cells = tableCells(lines[rowIndex] || '');
+      if (!cells.length || cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+      if (cells.length < headers.length) break;
+
+      const byTable = new Map<number, string>();
+      columns.forEach((field, columnIndex) => {
+        const answer = sanitizeAnswer(cells[columnIndex] || '');
+        if (field && answer && !byTable.has(field)) byTable.set(field, answer);
+      });
+      return byTable;
+    }
+  }
+  return new Map();
+}
+
+function tableCells(line: string): string[] {
+  const trimmed = line.trim();
+  if (!trimmed.includes('|')) return [];
+  return trimmed
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
+}
+
+function normalizeFieldName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[*`]/g, '')
+    .trim()
+    .replace(/[\s-]+/g, '_');
 }
 
 export function browserQaPrompt(ctx: {
@@ -210,46 +241,51 @@ export function browserQaPrompt(ctx: {
   previousTitles: string[];
   allowGore: boolean;
 }): { system: string; user: string } {
-  const themes = listThemeIds().join(', ');
+  const themes = selectThemeIds(ctx.seed, 5).join(', ');
   const system = [
-    'You generate one tiny room record, not conversation or analysis.',
-    'Return one Markdown fenced block whose language label is kettermean, with no text outside it.',
-    'Inside the block, write exactly five name-value lines joined by equals signs.',
-    'Use these names once and in this order: THEME_ID, TITLE, MOOD, GIANT, BLURB.',
-    'Invent every value yourself. Do not repeat instructions, rules, examples, or field descriptions.',
+    'Generate one tiny room record.',
+    'Return only one Markdown block labeled kettermean.',
+    'Inside it, write five equals-sign lines named THEME_ID, TITLE, MOOD, GIANT, and BLURB, in that order.',
+    'Choose a supplied theme. Invent a two-to-five-word title and one short atmospheric sentence.',
+    'MOOD is upper, downer, static, or dynamic. GIANT is yes or no.',
+    'Do not repeat the request or explain your answer.',
     'No JSON. No thinking. No okay. No extra fields.',
     ctx.allowGore ? 'Mild gore ok.' : 'No gore.',
   ].join('\n');
 
   const user = [
-    `Create a different room record for seed ${ctx.seed}.`,
-    `Mood preference: ${ctx.moodBias}.`,
-    `Titles to avoid: ${ctx.previousTitles.slice(-5).join(' | ') || 'none'}.`,
-    `Allowed THEME_ID values: ${themes}.`,
-    'TITLE rule: invent an atmospheric title of two to five words.',
-    'MOOD rule: use exactly upper, downer, static, or dynamic.',
-    'GIANT rule: use exactly yes or no.',
-    'BLURB rule: invent one short atmospheric sentence.',
-    'Return the completed kettermean block now.',
+    `Seed: ${ctx.seed}. Preferred mood: ${ctx.moodBias}.`,
+    `Theme options: ${themes}.`,
+    `Avoid title: ${ctx.previousTitles.at(-1) || 'none'}.`,
+    'Complete the five-field room block now.',
   ].join('\n');
 
   return { system, user };
 }
 
-function findTheme(raw: string) {
-  const t = raw.toLowerCase().trim().replace(/\s+/g, '_');
-  if (t && !isInstructionEcho(raw)) {
-    const direct = getTheme(t) || getTheme(raw.trim());
-    if (direct) return direct;
-    const fuzzy = THEME_PRESETS.find(
-      (theme) =>
-        t.includes(theme.id) ||
-        (t.length >= 4 && theme.id.includes(t.slice(0, 8))) ||
-        t.includes(theme.title.toLowerCase().replace(/\s+/g, '_')),
-    );
-    if (fuzzy) return fuzzy;
+function selectThemeIds(seed: string, count: number): string[] {
+  const pool = listThemeIds();
+  const rng = new SeededRng(`${seed}:browser-theme-options`);
+  for (let index = pool.length - 1; index > 0; index -= 1) {
+    const swapIndex = rng.int(0, index);
+    [pool[index], pool[swapIndex]] = [pool[swapIndex]!, pool[index]!];
   }
-  return undefined;
+  return pool.slice(0, count);
+}
+
+function findTheme(raw: string) {
+  const value = raw.trim();
+  if (!value || isInstructionEcho(value)) return undefined;
+
+  const direct = getTheme(value);
+  if (direct) return direct;
+
+  const normalized = value.toLowerCase().replace(/[\s-]+/g, '_');
+  return THEME_PRESETS.find(
+    (theme) =>
+      normalized === theme.id.toLowerCase() ||
+      normalized === theme.title.toLowerCase().replace(/[\s-]+/g, '_'),
+  );
 }
 
 function resolveTheme(raw: string, seed: string) {
@@ -363,15 +399,6 @@ function tokenizeAssets(line: string): string[] {
       return byLabel?.id || s;
     })
     .filter((id) => Boolean(getAsset(id)));
-}
-
-function moodOf(v: string): MoodAxis {
-  const t = v.toLowerCase();
-  if (/\bupper\b/.test(t)) return 'upper';
-  if (/\bdowner\b/.test(t)) return 'downer';
-  if (/\bdynamic\b/.test(t)) return 'dynamic';
-  if (/\bstatic\b/.test(t)) return 'static';
-  return 'static';
 }
 
 function clip(s: string, n: number): string {
