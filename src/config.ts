@@ -3,7 +3,7 @@ export const APP_VERSION = '0.1.0';
 
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
-  roomCache: 'kettermean.roomCache.v5',
+  roomCache: 'kettermean.roomCache.v6',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';

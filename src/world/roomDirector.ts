@@ -9,14 +9,13 @@ import type {
   RoomSpec,
 } from '../types';
 import {
-  ASSETS,
   THEME_PRESETS,
-  type DirectedPlacement,
   type RoomDirection,
   type ThemePreset,
   getAsset,
   getTheme,
 } from './assetCatalog';
+import { stampRoomPacks } from './layoutPacks';
 
 /** Optional high-level steer from an LLM. Layout/placement always done here. */
 export interface DirectorSteer {
@@ -24,7 +23,6 @@ export interface DirectorSteer {
   mood?: MoodAxis;
   title?: string;
   blurb?: string;
-  /** Extra asset ids the LLM wants present. */
   preferAssets?: string[];
   giant?: boolean;
   width?: number;
@@ -32,90 +30,47 @@ export interface DirectorSteer {
   height?: number;
 }
 
-type LayoutKind = 'scatter' | 'perimeter' | 'spine' | 'corners' | 'centerpiece' | 'pairs';
-
 /**
- * Offline / hybrid director: pick theme + place many catalog assets with layout patterns.
- * This is the source of room variety — LLM only optionally steers theme/mood/title.
+ * Offline / hybrid director.
+ * Rooms are composed from many small layout packs (10-30), scored by tags/mood
+ * with intentional liminal clash — not a handful of whole-room layouts.
  */
 export function generateOfflineDirection(ctx: GenerationContext, steer?: DirectorSteer): RoomDirection {
   const rng = new SeededRng(ctx.seed);
   const recent = new Set(ctx.previousTitles.slice(-8));
-  const pool = THEME_PRESETS.filter((t) => !recent.has(t.title) && t.id !== steer?.themeId);
+  const pool = THEME_PRESETS.filter((t) => !recent.has(t.title));
   let theme =
     (steer?.themeId ? getTheme(steer.themeId) : undefined) ||
     rng.pick(pool.length ? pool : THEME_PRESETS);
 
-  // If LLM keeps picking the same theme, force rotation every other room.
-  if (steer?.themeId && recent.has(theme.title) && pool.length) {
+  // Avoid repeating the same theme title when possible.
+  if (recent.has(theme.title) && pool.length) {
     theme = rng.pick(pool);
   }
 
   const mood = steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
-  const layout = rng.pick(['scatter', 'perimeter', 'spine', 'corners', 'centerpiece', 'pairs'] as const);
 
-  const sizeJitterW = rng.float(0.72, 1.38);
-  const sizeJitterD = rng.float(0.72, 1.38);
-  const sizeJitterH = rng.float(0.82, 1.4);
+  const sizeJitterW = rng.float(0.72, 1.4);
+  const sizeJitterD = rng.float(0.72, 1.4);
+  const sizeJitterH = rng.float(0.82, 1.45);
   const width = clamp(steer?.width ?? theme.width * sizeJitterW, 8, 28);
   const depth = clamp(steer?.depth ?? theme.depth * sizeJitterD, 8, 28);
   const height = clamp(steer?.height ?? theme.height * sizeJitterH, 2.5, 9);
 
-  const pickIds = buildAssetList(rng, theme, mood, steer);
-  const placements: DirectedPlacement[] = [];
+  const area = width * depth;
+  const targetPacks = clamp(Math.round(12 + area / 22 + rng.float(-2, 3)), 12, 30);
 
-  // 1–3 doors depending on room size
-  const doorCount = width * depth > 220 ? 3 : width * depth > 120 ? 2 : 1;
-  placeDoors(rng, placements, width, depth, doorCount);
-
-  const propsOnly = pickIds.filter((id) => {
-    const a = getAsset(id);
-    return a && a.category !== 'portal';
+  const placements = stampRoomPacks(rng, {
+    width,
+    depth,
+    themeTags: theme.tags,
+    mood,
+    preferAssets: steer?.preferAssets,
+    giant: steer?.giant,
+    targetPacks,
   });
 
-  const count = clamp(
-    rng.int(Math.min(7, propsOnly.length), Math.min(14, Math.max(7, propsOnly.length))),
-    5,
-    14,
-  );
-
-  for (let i = 0; i < count; i += 1) {
-    const assetId = propsOnly[i % propsOnly.length]!;
-    const asset = getAsset(assetId);
-    if (!asset) continue;
-
-    let scaleMul = rng.float(0.9, 1.2);
-    if (asset.id === 'anomaly_giant_baby' || (steer?.giant && asset.category === 'anomaly' && i === 0)) {
-      scaleMul = rng.float(2.3, 3.8);
-    } else if (asset.category === 'anomaly') {
-      scaleMul = rng.float(1.15, Math.min(asset.scaleRange.max, 2.5));
-    } else if (asset.category === 'npc' && rng.chance(0.25)) {
-      scaleMul = rng.float(1.25, 1.85);
-    } else if (rng.chance(0.08)) {
-      scaleMul = rng.float(1.4, Math.min(asset.scaleRange.max, 2.2));
-    }
-    scaleMul = clamp(scaleMul, asset.scaleRange.min, asset.scaleRange.max);
-
-    const pos = layoutPosition(rng, layout, i, count, width, depth, asset.defaultScale.x * scaleMul);
-    placements.push({
-      assetId,
-      x: pos.x,
-      z: pos.z,
-      rotY: pos.rotY ?? rng.float(0, Math.PI * 2),
-      scaleMul,
-      linksOnTouch: false,
-      solid:
-        asset.solidDefault !== false &&
-        asset.category !== 'npc' &&
-        asset.category !== 'creature' &&
-        asset.category !== 'anomaly',
-      behavior: asset.defaultBehavior,
-      labelOverride:
-        scaleMul >= 2.2 && asset.id === 'anomaly_giant_baby' ? 'impossibly large baby' : undefined,
-    });
-  }
-
-  // Door-only links
+  // Door-only safety net
   for (const p of placements) {
     const a = getAsset(p.assetId);
     p.linksOnTouch = a?.category === 'portal';
@@ -133,7 +88,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
   }
 
   const title = cleanSteerText(steer?.title) || varyTitle(rng, theme.title, mood);
-  const blurb = cleanSteerText(steer?.blurb) || varyBlurb(rng, theme.blurb, mood, layout);
+  const blurb = cleanSteerText(steer?.blurb) || varyBlurb(rng, theme.blurb, mood);
 
   return {
     seed: ctx.seed,
@@ -141,7 +96,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     title,
     blurb,
     mood,
-    tags: [...theme.tags, mood, layout],
+    tags: [...theme.tags, mood, 'packs'],
     width,
     depth,
     height,
@@ -254,7 +209,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   };
 }
 
-/** Parse LLM JSON into a RoomDirection (catalog-aware). Falls back fields safely. */
+/** Convert LLM JSON into a steer, then rebuild with pack director. */
 export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -265,7 +220,6 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
   const blurb = str(o.blurb, theme?.blurb || 'The room waits.');
   const mood = moodOf(o.mood, theme?.mood || 'static');
 
-  // Prefer converting LLM output into a steer and rebuilding with the rich director.
   const preferAssets: string[] = [];
   const placementsRaw = Array.isArray(o.placements) ? o.placements : Array.isArray(o.assets) ? o.assets : null;
   if (placementsRaw) {
@@ -301,199 +255,11 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
   );
 }
 
-function buildAssetList(
-  rng: SeededRng,
-  theme: ThemePreset,
-  mood: MoodAxis,
-  steer?: DirectorSteer,
-): string[] {
-  const ids: string[] = [];
-  const add = (id: string) => {
-    if (!getAsset(id) || ids.includes(id)) return;
-    ids.push(id);
-  };
-
-  for (const id of steer?.preferAssets ?? []) add(id);
-  for (const id of theme.preferredAssets) add(id);
-
-  // Pull more from catalog by shared tags / mood so rooms fill up.
-  const tagSet = new Set(theme.tags);
-  const extras = ASSETS.filter(
-    (a) =>
-      a.category !== 'portal' &&
-      (a.moods.includes(mood) || a.tags.some((t) => tagSet.has(t))),
-  );
-  // shuffle
-  for (let i = extras.length - 1; i > 0; i -= 1) {
-    const j = rng.int(0, i);
-    const tmp = extras[i]!;
-    extras[i] = extras[j]!;
-    extras[j] = tmp;
-  }
-  for (const a of extras) {
-    add(a.id);
-    if (ids.length >= 18) break;
-  }
-
-  if (steer?.giant) add('anomaly_giant_baby');
-  if (rng.chance(0.18)) add('anomaly_giant_baby');
-
-  // Always have at least one portal id available for placeDoors
-  add('door_fake');
-  if (rng.chance(0.5)) add('door_service');
-  if (rng.chance(0.35)) add('door_glass');
-  if (rng.chance(0.25)) add('arch_portal');
-
-  return ids;
-}
-
-function placeDoors(
-  rng: SeededRng,
-  placements: DirectedPlacement[],
-  width: number,
-  depth: number,
-  count: number,
-): void {
-  const order: Array<'n' | 's' | 'e' | 'w'> = ['n', 's', 'e', 'w'];
-  for (let i = order.length - 1; i > 0; i -= 1) {
-    const j = rng.int(0, i);
-    const t = order[i]!;
-    order[i] = order[j]!;
-    order[j] = t;
-  }
-  const doorIds = ['door_fake', 'door_service', 'door_glass', 'arch_portal'] as const;
-  for (let i = 0; i < count; i += 1) {
-    const side = order[i % order.length]!;
-    const doorId = doorIds[i % doorIds.length]!;
-    let x = 0;
-    let z = 0;
-    let rotY = 0;
-    const along = rng.float(-0.35, 0.35);
-    if (side === 'w') {
-      x = -width / 2 + 0.4;
-      z = depth * along;
-      rotY = Math.PI / 2;
-    } else if (side === 'e') {
-      x = width / 2 - 0.4;
-      z = depth * along;
-      rotY = -Math.PI / 2;
-    } else if (side === 'n') {
-      z = -depth / 2 + 0.4;
-      x = width * along;
-      rotY = 0;
-    } else {
-      z = depth / 2 - 0.4;
-      x = width * along;
-      rotY = Math.PI;
-    }
-    placements.push({
-      assetId: getAsset(doorId) ? doorId : 'door_fake',
-      x,
-      z,
-      rotY,
-      scaleMul: doorId === 'arch_portal' ? rng.float(1.0, 1.35) : 1,
-      linksOnTouch: true,
-      solid: true,
-    });
-  }
-}
-
-function layoutPosition(
-  rng: SeededRng,
-  layout: LayoutKind,
-  i: number,
-  n: number,
-  width: number,
-  depth: number,
-  footprint: number,
-): { x: number; z: number; rotY?: number } {
-  const margin = 1.5 + footprint * 0.35;
-  const hw = width / 2 - margin;
-  const hd = depth / 2 - margin;
-  const t = n <= 1 ? 0 : i / (n - 1);
-
-  let x = 0;
-  let z = 0;
-  let rotY: number | undefined;
-
-  switch (layout) {
-    case 'perimeter': {
-      const edge = i % 4;
-      const u = rng.float(-0.85, 0.85);
-      if (edge === 0) {
-        x = -hw;
-        z = hd * u;
-        rotY = Math.PI / 2;
-      } else if (edge === 1) {
-        x = hw;
-        z = hd * u;
-        rotY = -Math.PI / 2;
-      } else if (edge === 2) {
-        z = -hd;
-        x = hw * u;
-        rotY = 0;
-      } else {
-        z = hd;
-        x = hw * u;
-        rotY = Math.PI;
-      }
-      break;
-    }
-    case 'spine': {
-      x = rng.float(-hw * 0.25, hw * 0.25);
-      z = -hd + t * 2 * hd;
-      rotY = rng.chance(0.5) ? 0 : Math.PI;
-      break;
-    }
-    case 'corners': {
-      const cx = i % 2 === 0 ? -hw * 0.75 : hw * 0.75;
-      const cz = i % 4 < 2 ? -hd * 0.75 : hd * 0.75;
-      x = cx + rng.float(-1, 1);
-      z = cz + rng.float(-1, 1);
-      break;
-    }
-    case 'centerpiece': {
-      if (i === 0) {
-        x = rng.float(-1.2, 1.2);
-        z = rng.float(-1.2, 1.2);
-      } else {
-        const ang = (i / Math.max(1, n - 1)) * Math.PI * 2 + rng.float(-0.2, 0.2);
-        const r = Math.min(hw, hd) * rng.float(0.45, 0.9);
-        x = Math.cos(ang) * r;
-        z = Math.sin(ang) * r;
-      }
-      break;
-    }
-    case 'pairs': {
-      const pair = Math.floor(i / 2);
-      const side = i % 2 === 0 ? -1 : 1;
-      x = side * hw * 0.55 + rng.float(-0.8, 0.8);
-      z = -hd + ((pair + 0.5) / Math.ceil(n / 2)) * 2 * hd;
-      rotY = side < 0 ? Math.PI / 2 : -Math.PI / 2;
-      break;
-    }
-    default: {
-      x = rng.float(-hw, hw);
-      z = rng.float(-hd, hd);
-      break;
-    }
-  }
-
-  if (Math.hypot(x, z) < 1.7) {
-    x += Math.sign(x || 1) * 2.2;
-    z += Math.sign(z || 1) * 2.2;
-  }
-  x = clamp(x, -hw, hw);
-  z = clamp(z, -hd, hd);
-  return { x, z, rotY };
-}
-
 function tintPalette(
   rng: SeededRng,
   base: ThemePreset['palette'],
   mood: MoodAxis,
 ): ThemePreset['palette'] {
-  // Small per-room shifts so two rooms of same theme don't look identical.
   const shift = rng.float(-8, 8);
   const moodShift =
     mood === 'downer' ? -10 : mood === 'upper' ? 8 : mood === 'dynamic' ? rng.float(-6, 12) : 0;
@@ -531,16 +297,17 @@ function varyTitle(rng: SeededRng, base: string, mood: MoodAxis): string {
   return base;
 }
 
-function varyBlurb(rng: SeededRng, base: string, mood: MoodAxis, layout: LayoutKind): string {
+function varyBlurb(rng: SeededRng, base: string, mood: MoodAxis): string {
   const tails = [
     'Something left recently.',
     'The lights remember a different hour.',
     'Footsteps do not echo the way they should.',
     'You have been here, or somewhere like it.',
     'The air tastes like dust and old coffee.',
+    'A chair faces nothing on purpose.',
   ];
-  if (rng.chance(0.5)) return `${base} ${rng.pick(tails)}`;
-  if (rng.chance(0.3)) return `${base} (${mood}, ${layout})`.replace(` (${mood}, ${layout})`, ` ${rng.pick(tails)}`);
+  if (rng.chance(0.55)) return `${base} ${rng.pick(tails)}`;
+  void mood;
   return base;
 }
 
