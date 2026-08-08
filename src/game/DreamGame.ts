@@ -9,6 +9,13 @@ import { RoomWorld } from '../world/RoomBuilder';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'linking';
 
+interface NextRoomPlan {
+  seed: string;
+  rootSeed: string;
+  linkIndex: number;
+  context: GenerationContext;
+}
+
 export class DreamGame {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -28,7 +35,9 @@ export class DreamGame {
   private linking = false;
   private raf = 0;
   private lastT = 0;
-  private nextPrefetchSeed: string | null = null;
+  private runEpoch = 0;
+  private nextRoomPlan: NextRoomPlan | null = null;
+  private toastTimer: number | null = null;
 
   private readonly canvas: HTMLCanvasElement;
   private readonly fade: HTMLElement;
@@ -60,16 +69,18 @@ export class DreamGame {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.player = new PlayerController(window.innerWidth / window.innerHeight);
-    this.input = new InputManager(this.canvas);
+    // Touch pause should be immediate even when a mobile browser throttles RAF.
+    this.input = new InputManager(this.canvas, () => this.pause());
     this.generator = new RoomGenerator(settings);
-    this.generator.setStatusHandler((msg) => this.showToast(msg));
+    this.generator.setStatusHandler((msg) => {
+      if (this.state !== 'menu') this.showToast(msg);
+    });
 
     window.addEventListener('resize', this.onResize);
     this.canvas.addEventListener('click', this.onCanvasClick);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
     this.loop = this.loop.bind(this);
-    this.raf = requestAnimationFrame(this.loop);
   }
 
   updateSettings(settings: AppSettings): void {
@@ -77,7 +88,9 @@ export class DreamGame {
     this.generator.updateSettings(settings);
   }
 
-  async start(): Promise<void> {
+  start(): void {
+    const runEpoch = ++this.runEpoch;
+    this.generator.beginSession();
     this.rootSeed =
       this.settings.mode === 'seeded' && this.settings.seed.trim()
         ? this.settings.seed.trim()
@@ -86,7 +99,9 @@ export class DreamGame {
     this.linkIndex = 0;
     this.previousTitles = [];
     this.moodBias = 'static';
-    this.nextPrefetchSeed = null;
+    this.nextRoomPlan = null;
+    this.linking = false;
+    this.fade.classList.remove('active');
 
     this.menu.classList.add('hidden');
     this.pauseMenu.classList.add('hidden');
@@ -107,42 +122,33 @@ export class DreamGame {
     // Always enter a playable offline room immediately. Never block controls on the API.
     const boot = this.generator.getOrOffline(ctx);
     this.applyRoom(boot);
-    // Prefetch after browser model is ready — concurrent WebLLM jobs thrash VRAM.
-    if (this.settings.provider !== 'browser') this.schedulePrefetch();
-
+    this.renderer.render(this.scene, this.player.camera);
+    this.startLoop();
     if (!useLlm) {
       this.showToast('Offline room');
       return;
     }
 
-    this.showToast(
-      this.settings.provider === 'browser'
-        ? 'Loading browser model…'
-        : 'Generating LLM room…',
-    );
+    if (this.settings.provider !== 'browser') {
+      this.showToast('Warming the next LLM room…', false);
+      this.schedulePrefetch();
+      return;
+    }
 
-    // Background upgrade: preload WebLLM first (download can take minutes),
-    // then generate. Keep the request alive; swap in when ready.
-    void (async () => {
+    // WebLLM download/compilation happens in a worker. The current room stays
+    // untouched; the model only authors future rooms at deliberate link boundaries.
+    this.showToast('Loading browser model…', true);
+    void (async (): Promise<void> => {
       try {
-        if (this.settings.provider === 'browser') {
-          await this.generator.preloadBrowserModel();
-          if (this.state === 'menu') return;
-          this.showToast('Generating LLM room…');
-        }
-        const late = await this.generator.get(ctx);
-        if (this.state === 'menu') return;
-        if (this.currentSeed !== ctx.seed) return;
-        if (late.offline) {
-          this.showToast('LLM unavailable · offline room');
-          return;
-        }
-        this.applyRoom(late);
-        this.showToast('LLM room ready');
+        await this.generator.preloadBrowserModel();
+        if (runEpoch !== this.runEpoch || this.state === 'menu') return;
+        this.showToast('Browser model ready · warming next room', false);
         this.schedulePrefetch();
       } catch (err) {
-        console.warn('[Kettermean] background LLM upgrade failed', err);
-        if (this.state !== 'menu') this.showToast('LLM unavailable · offline room');
+        console.warn('[Kettermean] browser model preload failed', err);
+        if (runEpoch === this.runEpoch && this.state !== 'menu') {
+          this.showToast('Browser model unavailable · continuing offline');
+        }
       }
     })();
   }
@@ -150,6 +156,7 @@ export class DreamGame {
   pause(): void {
     if (this.state !== 'playing') return;
     this.state = 'paused';
+    this.stopLoop();
     this.input.setEnabled(false);
     this.pauseMenu.classList.remove('hidden');
   }
@@ -160,19 +167,29 @@ export class DreamGame {
     this.pauseMenu.classList.add('hidden');
     this.input.setEnabled(true);
     this.input.requestPointerLock();
+    this.startLoop();
   }
 
   quitToMenu(): void {
+    this.runEpoch += 1;
+    this.generator.endSession();
     this.state = 'menu';
+    this.stopLoop();
+    this.linking = false;
+    this.nextRoomPlan = null;
+    this.fade.classList.remove('active');
     this.input.setEnabled(false);
     this.pauseMenu.classList.add('hidden');
     this.hud.classList.add('hidden');
     this.menu.classList.remove('hidden');
     this.roomWorld.dispose(this.scene);
+    this.hideToast();
   }
 
   dispose(): void {
-    cancelAnimationFrame(this.raf);
+    this.runEpoch += 1;
+    this.generator.endSession();
+    this.stopLoop();
     window.removeEventListener('resize', this.onResize);
     this.canvas.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
@@ -193,46 +210,48 @@ export class DreamGame {
     must('hud-hint').textContent = spec.blurb;
   }
 
-  private makeCtx(seed: string, parent?: string): GenerationContext {
+  private makeCtx(
+    seed: string,
+    parent?: string,
+    linkIndex = this.linkIndex,
+  ): GenerationContext {
     return {
       seed,
       parentSeed: parent,
       previousTitles: [...this.previousTitles],
       moodBias: this.moodBias,
       allowGore: this.settings.allowGore,
-      linkIndex: this.linkIndex,
+      linkIndex,
     };
   }
 
-  private nextSeed(): string {
-    // Always advance with linkIndex so doors never re-enter the same seed.
-    if (this.settings.mode === 'random' && this.linkIndex > 0 && this.linkIndex % RANDOM_RESEED_EVERY === 0) {
-      this.rootSeed = randomSeed();
-      return childSeed(this.rootSeed, `link-${this.linkIndex}`);
-    }
-    if (this.settings.mode === 'seeded') {
-      return childSeed(this.rootSeed, `link-${this.linkIndex}:${this.moodBias}`);
-    }
-    // random: branch from current room, always unique per link
-    return childSeed(this.currentSeed, `link-${this.linkIndex}-${this.moodBias}`);
-  }
-
   private schedulePrefetch(): void {
-    // Cost control: only one next room, generated once while player explores.
-    const seed = this.nextSeedPreview();
-    this.nextPrefetchSeed = seed;
-    this.generator.prefetch(this.makeCtx(seed, this.currentSeed));
+    const plan = this.ensureNextRoomPlan();
+    this.generator.prefetch(plan.context);
   }
 
-  private nextSeedPreview(): string {
+  private ensureNextRoomPlan(): NextRoomPlan {
+    if (this.nextRoomPlan) return this.nextRoomPlan;
     const linkIndex = this.linkIndex + 1;
+    let nextRoot = this.rootSeed;
+    let seed: string;
+
     if (this.settings.mode === 'random' && linkIndex > 0 && linkIndex % RANDOM_RESEED_EVERY === 0) {
-      return childSeed(this.currentSeed, `reseed-preview-${linkIndex}`);
+      nextRoot = randomSeed();
+      seed = childSeed(nextRoot, `link-${linkIndex}`);
+    } else if (this.settings.mode === 'seeded') {
+      seed = childSeed(nextRoot, `link-${linkIndex}:${this.moodBias}`);
+    } else {
+      seed = childSeed(this.currentSeed, `link-${linkIndex}-${this.moodBias}`);
     }
-    if (this.settings.mode === 'seeded') {
-      return childSeed(this.rootSeed, `link-${linkIndex}:${this.moodBias}`);
-    }
-    return childSeed(this.currentSeed, `link-${linkIndex}-${this.moodBias}`);
+
+    this.nextRoomPlan = {
+      seed,
+      rootSeed: nextRoot,
+      linkIndex,
+      context: this.makeCtx(seed, this.currentSeed, linkIndex),
+    };
+    return this.nextRoomPlan;
   }
 
   private async performLink(): Promise<void> {
@@ -243,37 +262,46 @@ export class DreamGame {
     this.linking = true;
     this.state = 'linking';
     this.lastLinkAt = now;
-    this.linkIndex += 1;
+    const runEpoch = this.runEpoch;
 
     const color = this.roomWorld.getSpec()?.linkColor ?? '#ffffff';
     this.fade.style.background = color;
     this.fade.classList.add('active');
 
-    const parent = this.currentSeed;
-    // Prefer prefetch only if it matches the seed we would generate now.
-    const expected = this.nextSeed();
-    const finalSeed =
-      this.nextPrefetchSeed && this.nextPrefetchSeed === expected
-        ? this.nextPrefetchSeed
-        : expected;
-    this.nextPrefetchSeed = null;
+    try {
+      const plan = this.ensureNextRoomPlan();
+      this.nextRoomPlan = null;
+      this.linkIndex = plan.linkIndex;
+      this.rootSeed = plan.rootSeed;
+      this.currentSeed = plan.seed;
 
-    this.currentSeed = finalSeed;
-    const ctx = this.makeCtx(finalSeed, parent);
-
-    // Use prefetched/cached room if available; offline fallback is free.
-    let spec = await this.generator.get(ctx);
-
-    await sleep(LINK.fadeMs);
-    this.applyRoom(spec);
-    this.fade.classList.remove('active');
-    this.state = 'playing';
-    this.linking = false;
-    this.schedulePrefetch();
+      // Linking must never wait on a network request or model download. Use a
+      // completed prefetch when available and deterministic offline output otherwise.
+      const spec = this.generator.getOrOffline(plan.context);
+      await sleep(LINK.fadeMs);
+      if (runEpoch !== this.runEpoch) return;
+      this.applyRoom(spec);
+      this.state = 'playing';
+      this.renderer.render(this.scene, this.player.camera);
+      this.startLoop();
+      this.schedulePrefetch();
+    } catch (err) {
+      console.error('[Kettermean] room link failed', err);
+      if (runEpoch === this.runEpoch) {
+        this.state = 'playing';
+        this.startLoop();
+        this.showToast('Could not link rooms · try another door');
+      }
+    } finally {
+      if (runEpoch === this.runEpoch) {
+        this.fade.classList.remove('active');
+        this.linking = false;
+      }
+    }
   }
 
   private loop(t: number): void {
-    this.raf = requestAnimationFrame(this.loop);
+    this.raf = 0;
     const dt = Math.min(0.05, (t - (this.lastT || t)) / 1000);
     this.lastT = t;
 
@@ -296,6 +324,19 @@ export class DreamGame {
     }
 
     this.renderer.render(this.scene, this.player.camera);
+    if (this.state === 'playing') this.raf = requestAnimationFrame(this.loop);
+  }
+
+  private startLoop(): void {
+    if (this.raf !== 0 || this.state !== 'playing') return;
+    this.lastT = 0;
+    this.raf = requestAnimationFrame(this.loop);
+  }
+
+  private stopLoop(): void {
+    if (this.raf !== 0) cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    this.lastT = 0;
   }
 
   private onResize = (): void => {
@@ -303,6 +344,9 @@ export class DreamGame {
     const h = window.innerHeight;
     this.renderer.setSize(w, h);
     this.player.setAspect(w / h);
+    if (this.state !== 'playing' && this.roomWorld.getSpec()) {
+      this.renderer.render(this.scene, this.player.camera);
+    }
   };
 
   private onCanvasClick = (): void => {
@@ -320,10 +364,22 @@ export class DreamGame {
     }
   };
 
-  private showToast(msg: string): void {
+  private showToast(msg: string, persistent = isProgressMessage(msg)): void {
+    if (this.toastTimer !== null) {
+      window.clearTimeout(this.toastTimer);
+      this.toastTimer = null;
+    }
     this.toast.textContent = msg;
     this.toast.classList.remove('hidden');
-    window.setTimeout(() => this.toast.classList.add('hidden'), 2200);
+    if (!persistent) {
+      this.toastTimer = window.setTimeout(() => this.hideToast(), 2600);
+    }
+  }
+
+  private hideToast(): void {
+    if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
+    this.toastTimer = null;
+    this.toast.classList.add('hidden');
   }
 }
 
@@ -335,4 +391,8 @@ function must(id: string): HTMLElement {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => window.setTimeout(r, ms));
+}
+
+function isProgressMessage(message: string): boolean {
+  return /loading|downloading|fetching|warming|compiling|shader|model url|cache/i.test(message);
 }

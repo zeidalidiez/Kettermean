@@ -1,9 +1,7 @@
-export const APP_NAME = 'Kettermean';
-export const APP_VERSION = '0.1.0';
-
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
-  roomCache: 'kettermean.roomCache.v6',
+  sessionApiKey: 'kettermean.apiKey.session.v1',
+  roomCache: 'kettermean.roomCache.v7',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
@@ -56,7 +54,6 @@ export const PLAYER = {
 export const LINK = {
   cooldownMs: 900,
   fadeMs: 420,
-  contactGraceMs: 80,
 } as const;
 
 /** After this many links in random mode, force a fresh root seed. */
@@ -70,20 +67,12 @@ export const RANDOM_RESEED_EVERY = 7;
  * - compact JSON, low max_tokens
  */
 export const LLM_BUDGET = {
-  maxInFlight: 1,
-  prefetchDepth: 1,
   maxTokens: 1100,
+  browserMaxTokens: 300,
   temperature: 0.8,
   cacheLimit: 48,
   /** Free routers can be slow; do not abort quickly. */
   requestTimeoutMs: 90000,
-  /**
-   * Browser WebLLM first run downloads weights + compiles shaders.
-   * Keep this long so load+generate is not killed mid-download.
-   */
-  browserRequestTimeoutMs: 600000,
-  /** Kept for compatibility; start no longer blocks on the LLM. */
-  startWaitMs: 0,
   /** Only stop calling the API after this many consecutive failures. */
   maxConsecutiveFailures: 3,
   failOpenToOffline: true,
@@ -95,7 +84,8 @@ export const ROOM = {
   wallHeightMin: 2.4,
   wallHeightMax: 8,
   propCountMin: 2,
-  propCountMax: 12,
+  /** Logical-object budgets; composed models may contain several meshes each. */
+  propCountMax: 36,
   entityCountMin: 0,
-  entityCountMax: 4,
+  entityCountMax: 6,
 } as const;

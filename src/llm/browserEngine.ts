@@ -1,19 +1,21 @@
 import { DEFAULT_BROWSER_MODEL } from '../config';
+import {
+  createBrowserWorkerClient,
+  type BrowserWorkerClient,
+} from './browserWorkerClient';
 
 type ProgressCb = (msg: string) => void;
+type EngineState = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
 
-// Keep WebLLM out of the main bundle until browser provider is chosen.
-type MLCEngineLike = {
-  chat: {
-    completions: {
-      create: (req: unknown) => Promise<unknown>;
-    };
-  };
-};
-
-let engine: MLCEngineLike | null = null;
+let engine: BrowserWorkerClient | null = null;
+let loadingClient: BrowserWorkerClient | null = null;
 let loadedModelId = '';
-let loadPromise: Promise<MLCEngineLike> | null = null;
+let loadingModelId = '';
+let state: EngineState = 'idle';
+let lastError = '';
+let operationTail: Promise<void> = Promise.resolve();
+let cancelActiveLoad: ((reason: Error) => void) | null = null;
+const pendingLoads = new Map<string, Promise<BrowserWorkerClient>>();
 
 export type WebGpuStatus = {
   available: boolean;
@@ -24,11 +26,6 @@ export type WebGpuStatus = {
   reason?: string;
 };
 
-/**
- * WebGPU only exists in secure contexts (https or localhost).
- * Opening Vite via a LAN IP (http://192.168.x.x:5173) makes navigator.gpu undefined
- * even in Chrome — that is the usual false "not detected" report.
- */
 export function getWebGpuStatus(): WebGpuStatus {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
@@ -55,7 +52,7 @@ export function getWebGpuStatus(): WebGpuStatus {
       host,
       href,
       reason:
-        `Not a secure context (${href}). Open http://localhost:${window.location.port || '5173'}/ — LAN IPs like http://192.168.x.x disable WebGPU in Chrome.`,
+        `WebGPU needs HTTPS or localhost. Open http://localhost:${window.location.port || '5173'}/ instead of a LAN-IP URL.`,
     };
   }
 
@@ -67,7 +64,7 @@ export function getWebGpuStatus(): WebGpuStatus {
       host,
       href,
       reason:
-        'navigator.gpu is missing. Use up-to-date Chrome/Edge, check chrome://gpu, and ensure WebGPU is not disabled in chrome://flags.',
+        'WebGPU is unavailable. Use a current Chrome/Edge build and confirm WebGPU is enabled in the browser GPU diagnostics.',
     };
   }
 
@@ -78,41 +75,35 @@ export function isWebGpuAvailable(): boolean {
   return getWebGpuStatus().available;
 }
 
-export async function ensureBrowserEngine(
+export function ensureBrowserEngine(
   modelId: string,
   onProgress?: ProgressCb,
-): Promise<MLCEngineLike> {
+): Promise<BrowserWorkerClient> {
   const gpu = getWebGpuStatus();
   if (!gpu.available) {
-    throw new Error(gpu.reason || 'WebGPU is required for browser models.');
+    return Promise.reject(new Error(gpu.reason || 'WebGPU is required for browser models.'));
   }
 
   const id = modelId.trim() || DEFAULT_BROWSER_MODEL;
-  if (engine && loadedModelId === id) return engine;
-  if (loadPromise && loadedModelId === id) return loadPromise;
-
-  loadedModelId = id;
-  onProgress?.(`Downloading ${id} (first run only)…`);
-
-  loadPromise = (async () => {
-    const webllm = await import('@mlc-ai/web-llm');
-    const e = await webllm.CreateMLCEngine(id, {
-      initProgressCallback: (report) => {
-        const text = report?.text || `Loading ${id}…`;
-        onProgress?.(text);
-      },
-    });
-    engine = e as unknown as MLCEngineLike;
+  if (engine && loadedModelId === id && state !== 'error') {
     onProgress?.('Browser model ready');
-    return engine;
-  })().catch((err) => {
-    engine = null;
-    loadedModelId = '';
-    loadPromise = null;
-    throw err;
-  });
+    return Promise.resolve(engine);
+  }
 
-  return loadPromise;
+  const pending = pendingLoads.get(id);
+  if (pending) return pending;
+
+  const load = enqueueOperation(() => loadModelNow(id, onProgress));
+  pendingLoads.set(id, load);
+  void load.then(
+    () => {
+      if (pendingLoads.get(id) === load) pendingLoads.delete(id);
+    },
+    () => {
+      if (pendingLoads.get(id) === load) pendingLoads.delete(id);
+    },
+  );
+  return load;
 }
 
 export async function browserChatCompletion(params: {
@@ -122,84 +113,197 @@ export async function browserChatCompletion(params: {
   maxTokens: number;
   temperature: number;
   onProgress?: ProgressCb;
-  /** When true, append a JSON-only reminder (cloud-style). Browser Q&A leaves this false. */
   forceJson?: boolean;
 }): Promise<string> {
-  const eng = await ensureBrowserEngine(params.modelId, params.onProgress);
-  // WebLLM requires the last message to be from user/tool — do NOT prefill assistant.
-  const userContent = params.forceJson
-    ? `${params.user}
+  const id = params.modelId.trim() || DEFAULT_BROWSER_MODEL;
+  return enqueueOperation(async () => {
+    const activeEngine = await loadModelNow(id, params.onProgress);
+    state = 'generating';
+    lastError = '';
+    params.onProgress?.('Dreaming the next room locally…');
 
-Return ONLY one JSON object. Start with { and end with }. No markdown. No thinking.`
-    : params.user;
-  const messages = [
-    { role: 'system' as const, content: params.system },
-    { role: 'user' as const, content: userContent },
-  ];
+    const forceJson = Boolean(params.forceJson);
+    let userContent = forceJson
+      ? `${params.user}\n\nReturn only one JSON object. No markdown or reasoning.`
+      : params.user;
+    if (/qwen3/i.test(id)) userContent += '\n/no_think';
 
-  type NonStream = {
-    choices?: Array<{ message?: { content?: string | null }; text?: string }>;
-  };
+    type NonStream = {
+      choices?: Array<{
+        finish_reason?: string | null;
+        message?: { content?: string | null };
+        text?: string;
+      }>;
+    };
 
-  // Do NOT use response_format/json_object here: WebLLM's grammar compiler can throw
-  // BindingError "Cannot pass non-string to std::string" on some builds/models.
-  const request: Record<string, unknown> = {
-    messages,
-    temperature: params.temperature,
-    max_tokens: params.maxTokens,
-    stream: false,
-  };
-
-  // Qwen3 defaults to thinking; try several knobs WebLLM builds accept.
-  if (/qwen3/i.test(params.modelId)) {
-    request.enable_thinking = false;
-    request.chat_template_kwargs = { enable_thinking: false };
-    request.extra_body = { enable_thinking: false };
-  }
-
-  let completion: NonStream;
-  try {
-    completion = (await eng.chat.completions.create(request as never)) as NonStream;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // Retry bare request if thinking flags are rejected.
     try {
-      completion = (await eng.chat.completions.create({
-        messages,
+      const completion = (await activeEngine.generate({
+        messages: [
+          { role: 'system', content: params.system },
+          { role: 'user', content: userContent },
+        ],
         temperature: params.temperature,
         max_tokens: params.maxTokens,
         stream: false,
-      } as never)) as NonStream;
-    } catch (err2) {
-      const msg2 = err2 instanceof Error ? err2.message : String(err2);
-      throw new Error(`Browser model failed: ${msg2 || msg}`);
+      })) as NonStream;
+
+      const choice = completion.choices?.[0];
+      const content = choice?.message?.content;
+      const text =
+        typeof content === 'string' && content.trim()
+          ? content.trim()
+          : choice?.text?.trim() || '';
+      if (!text) throw new Error('Browser model returned empty content.');
+
+      if (engine === activeEngine) state = 'ready';
+      params.onProgress?.(
+        choice?.finish_reason === 'length'
+          ? 'Browser model response reached its token limit'
+          : 'Browser room direction ready',
+      );
+      return normalizeModelText(text, forceJson);
+    } catch (err) {
+      const message = errorMessage(err);
+      if (engine === activeEngine) {
+        lastError = message;
+        state = isFatalEngineError(message) ? 'error' : 'ready';
+      }
+      throw new Error(`Browser model failed: ${message}`);
+    }
+  });
+}
+
+/** Cancel active work immediately and release the worker/GPU. */
+export function disposeBrowserEngine(): Promise<void> {
+  pendingLoads.clear();
+  cancelActiveLoad?.(new Error('Browser model load cancelled.'));
+  cancelActiveLoad = null;
+  loadingClient?.terminate('Browser model load cancelled.');
+  loadingClient = null;
+  engine?.interruptGenerate();
+  engine?.terminate('Browser model session ended.');
+  engine = null;
+  loadedModelId = '';
+  loadingModelId = '';
+  lastError = '';
+  state = 'idle';
+  return enqueueOperation(async () => undefined);
+}
+
+export function getBrowserEngineStatus(): {
+  loaded: boolean;
+  modelId: string;
+  loadingModelId: string;
+  state: EngineState;
+  error?: string;
+} {
+  return {
+    loaded: Boolean(engine && loadedModelId),
+    modelId: loadedModelId,
+    loadingModelId,
+    state,
+    ...(lastError ? { error: lastError } : {}),
+  };
+}
+
+async function loadModelNow(
+  id: string,
+  onProgress?: ProgressCb,
+): Promise<BrowserWorkerClient> {
+  const gpu = getWebGpuStatus();
+  if (!gpu.available) throw new Error(gpu.reason || 'WebGPU is required for browser models.');
+  if (engine && loadedModelId === id && state !== 'error') return engine;
+
+  await unloadNow();
+  state = 'loading';
+  loadingModelId = id;
+  lastError = '';
+  onProgress?.(`Loading ${id} (first run downloads model weights)…`);
+
+  const nextWorker = new Worker(new URL('./webllm.worker.ts', import.meta.url), {
+    type: 'module',
+    name: 'kettermean-webllm',
+  });
+  const nextClient = createBrowserWorkerClient(nextWorker);
+  loadingClient = nextClient;
+
+  let cancelLoad!: (reason: Error) => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    cancelLoad = reject;
+  });
+  cancelActiveLoad = cancelLoad;
+
+  try {
+    await Promise.race([
+      nextClient.load(id, (text) => onProgress?.(text)),
+      cancelled,
+    ]);
+    if (loadingClient !== nextClient) {
+      nextClient.terminate('Browser model load cancelled.');
+      throw new Error('Browser model load cancelled.');
+    }
+    loadingClient = null;
+    engine = nextClient;
+    loadedModelId = id;
+    loadingModelId = '';
+    state = 'ready';
+    onProgress?.('Browser model ready');
+    return nextClient;
+  } catch (err) {
+    const ownsLoad = loadingClient === nextClient;
+    nextClient.terminate('Browser model failed to load.');
+    if (ownsLoad) {
+      loadingClient = null;
+      loadingModelId = '';
+      state = 'error';
+      lastError = errorMessage(err);
+    }
+    throw err;
+  } finally {
+    if (cancelActiveLoad === cancelLoad) cancelActiveLoad = null;
+  }
+}
+
+async function unloadNow(): Promise<void> {
+  const previous = engine;
+  engine = null;
+  loadedModelId = '';
+  loadingModelId = '';
+  if (previous) {
+    try {
+      await previous.unload();
+    } catch (err) {
+      console.warn('[Kettermean] WebLLM unload failed; terminating worker.', err);
+    } finally {
+      previous.terminate();
     }
   }
+  state = 'idle';
+}
 
-  const choice = completion.choices?.[0];
-  const content = choice?.message?.content;
-  if (typeof content === 'string' && content.trim()) {
-    return normalizeModelText(content.trim(), Boolean(params.forceJson));
-  }
-  if (choice?.text?.trim()) {
-    return normalizeModelText(choice.text.trim(), Boolean(params.forceJson));
-  }
-  throw new Error('Browser model returned empty content');
+function enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const task = operationTail.then(operation, operation);
+  operationTail = task.then(
+    () => undefined,
+    () => undefined,
+  );
+  return task;
 }
 
 function normalizeModelText(text: string, forceJson: boolean): string {
-  // Strip Qwen thinking blocks (closed or dangling).
-  let t = text
+  let normalized = text
     .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
     .replace(/<think>[\s\S]*$/gi, ' ')
     .replace(/<\/think>/gi, ' ')
     .trim();
-
-  // Only force JSON brace for explicit JSON mode — never for Q&A forms.
-  if (forceJson && t && !t.startsWith('{')) t = `{${t}`;
-  return t;
+  if (forceJson && normalized && !normalized.startsWith('{')) normalized = `{${normalized}`;
+  return normalized;
 }
 
-export function getBrowserEngineStatus(): { loaded: boolean; modelId: string } {
-  return { loaded: Boolean(engine), modelId: loadedModelId };
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function isFatalEngineError(message: string): boolean {
+  return /device\s*lost|out of memory|\boom\b|webgpu.*lost|worker.*crash/i.test(message);
 }

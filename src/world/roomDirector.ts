@@ -1,5 +1,6 @@
-﻿import { PLAYER } from '../config';
+import { PLAYER, ROOM } from '../config';
 import { SeededRng } from '../core/rng';
+import { sanitizeDisplayText } from '../core/contentSafety';
 import type {
   EntityBehavior,
   GenerationContext,
@@ -65,7 +66,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     depth,
     themeTags: theme.tags,
     mood,
-    preferAssets: steer?.preferAssets,
+    preferAssets: [...new Set([...theme.preferredAssets, ...(steer?.preferAssets ?? [])])],
     giant: steer?.giant,
     targetPacks,
   });
@@ -87,8 +88,16 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     });
   }
 
-  const title = cleanSteerText(steer?.title) || varyTitle(rng, theme.title, mood);
-  const blurb = cleanSteerText(steer?.blurb) || varyBlurb(rng, theme.blurb, mood);
+  const title = sanitizeDisplayText(
+    cleanSteerText(steer?.title) || varyTitle(rng, theme.title, mood),
+    theme.title,
+    80,
+  );
+  const blurb = sanitizeDisplayText(
+    cleanSteerText(steer?.blurb) || varyBlurb(rng, theme.blurb, mood),
+    theme.blurb,
+    160,
+  );
 
   return {
     seed: ctx.seed,
@@ -103,7 +112,6 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     fogNear: mood === 'downer' ? 7 : mood === 'upper' ? 16 : 11,
     fogFar: mood === 'downer' ? 26 : mood === 'upper' ? 62 : 44,
     linkColor: moodLinkColor(mood),
-    openSides: [],
     palette: tintPalette(rng, theme.palette, mood),
     physics: physicsForMood(rng, mood),
     placements,
@@ -114,6 +122,12 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
 export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   const props: RoomProp[] = [];
   const entities: RoomEntity[] = [];
+  const portalReserve = Math.min(
+    ROOM.propCountMax,
+    dir.placements.filter((placement) => getAsset(placement.assetId)?.category === 'portal').length,
+  );
+  const nonPortalBudget = ROOM.propCountMax - portalReserve;
+  let nonPortalProps = 0;
 
   dir.placements.forEach((p, i) => {
     const asset = getAsset(p.assetId);
@@ -127,24 +141,26 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     const isActor =
       asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly';
     const isPortal = asset.category === 'portal';
+    const label = sanitizeDisplayText(p.labelOverride || asset.label, asset.label, 64);
 
     if (isActor) {
+      if (entities.length >= ROOM.entityCountMax) return;
       entities.push({
         id: `e${i}`,
-        label: p.labelOverride || asset.label,
+        label,
         shape: 'box',
         position: { x: p.x, y: p.y ?? 0, z: p.z },
         scale,
         color: dir.palette?.accent || '#cccccc',
         behavior: (p.behavior || asset.defaultBehavior || 'idle') as EntityBehavior,
         speed: 0.45 + (i % 3) * 0.2,
-        linksOnTouch: false,
         kind: asset.kind,
       });
     } else {
+      if (isPortal ? props.length >= ROOM.propCountMax : nonPortalProps >= nonPortalBudget) return;
       props.push({
         id: `p${i}`,
-        label: p.labelOverride || asset.label,
+        label,
         shape: 'box',
         position: { x: p.x, y: p.y ?? 0, z: p.z },
         rotationY: p.rotY ?? 0,
@@ -154,6 +170,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         solid: p.solid ?? asset.solidDefault ?? true,
         kind: asset.kind,
       });
+      if (!isPortal) nonPortalProps += 1;
     }
   });
 
@@ -184,9 +201,9 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   return {
     id: `room-${dir.seed}`,
     seed: dir.seed,
-    title: dir.title,
-    blurb: dir.blurb,
-    themeTags: dir.tags,
+    title: sanitizeDisplayText(dir.title, theme?.title || 'Unnamed Room', 80),
+    blurb: sanitizeDisplayText(dir.blurb, theme?.blurb || 'The room waits.', 160),
+    themeTags: dir.tags.map((tag) => sanitizeDisplayText(tag, 'liminal', 32)),
     mood: dir.mood,
     width: dir.width,
     depth: dir.depth,
@@ -204,7 +221,6 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     linkColor: dir.linkColor ?? moodLinkColor(dir.mood),
     props,
     entities,
-    openSides: dir.openSides ?? [],
     offline: Boolean(dir.offline),
   };
 }
@@ -216,8 +232,16 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
 
   const themeId = typeof o.themeId === 'string' ? o.themeId : typeof o.theme === 'string' ? o.theme : undefined;
   const theme = themeId ? getTheme(themeId) : undefined;
-  const title = str(o.title, theme?.title || 'Unnamed Room');
-  const blurb = str(o.blurb, theme?.blurb || 'The room waits.');
+  const title = sanitizeDisplayText(
+    str(o.title, theme?.title || 'Unnamed Room'),
+    theme?.title || 'Unnamed Room',
+    80,
+  );
+  const blurb = sanitizeDisplayText(
+    str(o.blurb, theme?.blurb || 'The room waits.'),
+    theme?.blurb || 'The room waits.',
+    160,
+  );
   const mood = moodOf(o.mood, theme?.mood || 'static');
 
   const preferAssets: string[] = [];

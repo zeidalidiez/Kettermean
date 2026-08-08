@@ -551,8 +551,7 @@ function stampPack(
     const z = anchor.z + lx * sin + lz * cos;
     const rotY = (slot.rotY ?? 0) + anchor.rot + rng.float(-0.08, 0.08);
 
-    // Keep spawn island clear
-    if (Math.hypot(x, z) < 1.65) continue;
+    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul)) continue;
 
     out.push({
       assetId,
@@ -705,7 +704,6 @@ function scatterFill(
     const asset = rng.pick(candidates);
     const x = rng.float(-hw, hw);
     const z = rng.float(-hd, hd);
-    if (Math.hypot(x, z) < 1.7) continue;
     let blocked = false;
     for (const o of occupied) {
       if (Math.hypot(x - o.x, z - o.z) < o.r + 0.7) {
@@ -719,11 +717,13 @@ function scatterFill(
       scaleMul = rng.float(2.3, 3.5);
     }
     scaleMul = clamp(scaleMul, asset.scaleRange.min, asset.scaleRange.max);
+    const rotY = rng.float(0, Math.PI * 2);
+    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul)) continue;
     placements.push({
       assetId: asset.id,
       x,
       z,
-      rotY: rng.float(0, Math.PI * 2),
+      rotY,
       scaleMul,
       linksOnTouch: false,
       solid:
@@ -797,8 +797,25 @@ function roleForCategory(cat: string): PackRole {
 function weightedShuffle<T extends { score: number }>(rng: SeededRng, items: T[]): T[] {
   return items
     .map((it) => ({ it, k: rng.float(0.0001, 1) ** (1 / Math.max(0.15, it.score)) }))
-    .sort((a, b) => a.k - b.k)
+    .sort((a, b) => b.k - a.k)
     .map((x) => x.it);
+}
+
+function overlapsSpawnIsland(
+  x: number,
+  z: number,
+  rotationY: number,
+  scale: { x: number; y: number; z: number },
+  scaleMul: number,
+): boolean {
+  const halfX = Math.max(0.1, scale.x * scaleMul * 0.5);
+  const halfZ = Math.max(0.1, scale.z * scaleMul * 0.5);
+  const cos = Math.abs(Math.cos(rotationY));
+  const sin = Math.abs(Math.sin(rotationY));
+  const worldHalfX = halfX * cos + halfZ * sin;
+  const worldHalfZ = halfX * sin + halfZ * cos;
+  const clearance = 1.15;
+  return Math.abs(x) < worldHalfX + clearance && Math.abs(z) < worldHalfZ + clearance;
 }
 
 function clamp(n: number, min: number, max: number): number {

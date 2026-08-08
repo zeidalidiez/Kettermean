@@ -1,6 +1,7 @@
 import {
   DEFAULT_ANTHROPIC_BASE,
   DEFAULT_ANTHROPIC_MODEL,
+  BROWSER_MODEL_OPTIONS,
   DEFAULT_BROWSER_MODEL,
   DEFAULT_OPENAI_BASE,
   DEFAULT_OPENAI_MODEL,
@@ -30,6 +31,8 @@ const startBtn = qs<HTMLButtonElement>('start-btn');
 const clearKeyBtn = qs<HTMLButtonElement>('clear-key-btn');
 const resumeBtn = qs<HTMLButtonElement>('resume-btn');
 const quitBtn = qs<HTMLButtonElement>('quit-btn');
+
+populateBrowserModelOptions();
 
 function applyForm(s: AppSettings): void {
   modeSelect.value = s.mode;
@@ -148,6 +151,7 @@ startBtn.addEventListener('click', () => {
     if (!ok) return;
     next.provider = 'offline';
     providerSelect.value = 'offline';
+    syncProviderUi();
   }
   if (next.provider === 'browser' && !isWebGpuAvailable()) {
     const gpu = getWebGpuStatus();
@@ -163,6 +167,26 @@ function setBrowserModelValue(modelId: string): void {
   const id = modelId.trim() || DEFAULT_BROWSER_MODEL;
   const match = [...browserModelSelect.options].some((o) => o.value === id);
   browserModelSelect.value = match ? id : DEFAULT_BROWSER_MODEL;
+}
+
+function populateBrowserModelOptions(): void {
+  const groups = [
+    { label: 'Tiny / fast', models: BROWSER_MODEL_OPTIONS.slice(0, 5) },
+    { label: '~1B class', models: BROWSER_MODEL_OPTIONS.slice(5, 12) },
+    { label: 'Stronger small (more VRAM)', models: BROWSER_MODEL_OPTIONS.slice(12) },
+  ];
+  browserModelSelect.replaceChildren();
+  for (const group of groups) {
+    const element = document.createElement('optgroup');
+    element.label = group.label;
+    for (const modelId of group.models) {
+      const option = document.createElement('option');
+      option.value = modelId;
+      option.textContent = modelId.replace(/-q4f16(?:_1)?-MLC$/i, '');
+      element.append(option);
+    }
+    browserModelSelect.append(element);
+  }
 }
 
 clearKeyBtn.addEventListener('click', () => {

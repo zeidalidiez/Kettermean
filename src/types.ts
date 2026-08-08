@@ -55,7 +55,6 @@ export interface RoomEntity {
   emissive?: string;
   behavior: EntityBehavior;
   speed?: number;
-  linksOnTouch?: boolean;
   /** Composed kit id used by the model library. */
   kind?: string;
 }
@@ -95,7 +94,6 @@ export interface RoomSpec {
   linkColor: string;
   props: RoomProp[];
   entities: RoomEntity[];
-  openSides?: Array<'north' | 'south' | 'east' | 'west'>;
   /** true when produced without an LLM call */
   offline?: boolean;
 }

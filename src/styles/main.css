@@ -25,9 +25,6 @@ body,
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 #game-canvas {
@@ -36,6 +33,9 @@ body,
   height: 100%;
   outline: none;
   background: #000;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .hidden {
@@ -55,6 +55,9 @@ body,
   backdrop-filter: blur(8px);
   z-index: 20;
   overflow: auto;
+  touch-action: pan-y;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .panel {
@@ -283,6 +286,9 @@ button.ghost {
   inset: 0;
   z-index: 12;
   pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .stick-zone {
@@ -327,6 +333,49 @@ button.ghost {
   background: rgba(155, 140, 255, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.25);
   transform: translate(0px, 0px);
+}
+
+.touch-actions {
+  position: absolute;
+  right: 22px;
+  bottom: min(46vw, 238px);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.touch-action {
+  min-width: 64px;
+  min-height: 54px;
+  padding: 10px 14px;
+  pointer-events: auto;
+  touch-action: none;
+  background: rgba(20, 20, 34, 0.78);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.touch-action.is-active {
+  background: rgba(155, 140, 255, 0.72);
+  color: #080810;
+}
+
+.touch-pause {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  min-width: 52px;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+@media (max-height: 520px) {
+  .touch-actions {
+    right: 50%;
+    bottom: 14px;
+    transform: translateX(50%);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

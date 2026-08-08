@@ -60,7 +60,7 @@ export class PlayerController {
     if (!this.onGround) {
       this.velocity.y -= gravity * dt;
     } else if (input.jump) {
-      this.velocity.y = PLAYER.jumpVelocity * Math.max(0.55, Math.min(1.4, 2 - this.physics.gravity * 0.35));
+      this.velocity.y = PLAYER.jumpVelocity;
       this.onGround = false;
     } else {
       this.velocity.y = 0;
@@ -69,9 +69,12 @@ export class PlayerController {
     let linkHit: ColliderBox | null = null;
 
     // Axis-separated AABB resolution keeps wall-slide stable without a physics engine.
-    linkHit = this.moveAxis('x', this.velocity.x * dt, colliders) ?? linkHit;
-    linkHit = this.moveAxis('z', this.velocity.z * dt, colliders) ?? linkHit;
-    linkHit = this.moveAxis('y', this.velocity.y * dt, colliders) ?? linkHit;
+    const xMove = this.moveAxis('x', this.velocity.x * dt, colliders);
+    const zMove = this.moveAxis('z', this.velocity.z * dt, colliders);
+    const verticalDelta = this.velocity.y * dt;
+    const yMove = this.moveAxis('y', verticalDelta, colliders);
+    linkHit = xMove.linkHit ?? zMove.linkHit ?? yMove.linkHit;
+    if (verticalDelta < 0) this.onGround = yMove.landed;
 
     // Soft floor clamp if room has no floor collider miss.
     if (this.position.y < PLAYER.eyeHeight * 0.35) {
@@ -84,14 +87,19 @@ export class PlayerController {
     return linkHit;
   }
 
-  private moveAxis(axis: 'x' | 'y' | 'z', delta: number, colliders: ColliderBox[]): ColliderBox | null {
-    if (delta === 0) return null;
+  private moveAxis(
+    axis: 'x' | 'y' | 'z',
+    delta: number,
+    colliders: ColliderBox[],
+  ): { linkHit: ColliderBox | null; landed: boolean } {
+    if (delta === 0) return { linkHit: null, landed: false };
     this.position[axis] += delta;
 
     const radius = PLAYER.radius;
     const feet = this.position.y - PLAYER.eyeHeight;
     const head = this.position.y + 0.2;
     let hit: ColliderBox | null = null;
+    let landed = false;
 
     for (const box of colliders) {
       const overlaps =
@@ -106,10 +114,8 @@ export class PlayerController {
 
       if (box.linksOnTouch) {
         hit = box;
-        // Non-solid link props: pass through after registering contact.
-        if (box.maxY - box.minY < 0.5 || (box.label && box.label.startsWith('ghost:'))) {
-          continue;
-        }
+        // Link triggers are sensors. A separate collider represents a solid door.
+        continue;
       }
 
       if (axis === 'x') {
@@ -128,24 +134,12 @@ export class PlayerController {
           this.position.y = box.maxY + PLAYER.eyeHeight;
           this.velocity.y = Math.abs(this.velocity.y) * this.physics.bounce;
           this.onGround = true;
+          landed = true;
         }
       }
     }
 
-    if (axis === 'y' && delta < 0) {
-      // Ground detection via tiny probe if no collision resolved.
-      // onGround set above on floor hits.
-    } else if (axis === 'y' && delta >= 0) {
-      // leave onGround as-is unless we land
-    }
-
-    if (axis !== 'y') {
-      // keep previous onGround
-    } else if (delta < 0 && !hit) {
-      this.onGround = false;
-    }
-
-    return hit;
+    return { linkHit: hit, landed };
   }
 
   private syncCamera(dt: number): void {

@@ -42,7 +42,6 @@ export interface ThemePreset {
   width: number;
   depth: number;
   height: number;
-  openSides?: Array<'north' | 'south' | 'east' | 'west'>;
   palette: {
     floor: string;
     ceiling: string;
@@ -83,7 +82,6 @@ export interface RoomDirection {
   fogNear?: number;
   fogFar?: number;
   linkColor?: string;
-  openSides?: Array<'north' | 'south' | 'east' | 'west'>;
   palette?: ThemePreset['palette'];
   physics?: {
     gravity?: number;
@@ -164,7 +162,6 @@ export const THEME_PRESETS: ThemePreset[] = [
     width: 12,
     depth: 12,
     height: 3.2,
-    openSides: ['east'],
     palette: p('#2a2430', '#1a1620', '#3a3144', '#5a6a88', '#1c1822', '#c8b8a0', '#6a6070'),
   },
   {
@@ -249,7 +246,6 @@ export const THEME_PRESETS: ThemePreset[] = [
     width: 18,
     depth: 18,
     height: 6,
-    openSides: ['north', 'south'],
     palette: p('#d8c8a8', '#f0e8d8', '#e6dcc4', '#6aa8c8', '#d8e0e8', '#fff6d8', '#b0c0c8'),
   },
   {

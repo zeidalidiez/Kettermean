@@ -322,3 +322,11 @@ export function styleForMood(part: 'floor' | 'wall' | 'ceiling', mood: string, t
   if (t.includes('backrooms') || t.includes('wallpaper') || mood === 'static') return 'wallpaper';
   return 'plaster';
 }
+
+/** Release room-scoped material/texture caches after the room leaves the scene. */
+export function clearMaterialCaches(): void {
+  for (const material of cache.values()) material.dispose();
+  for (const texture of texCache.values()) texture.dispose();
+  cache.clear();
+  texCache.clear();
+}

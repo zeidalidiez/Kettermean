@@ -7,21 +7,12 @@ import type {
   RoomSpec,
   Vec3,
 } from '../types';
+import { sanitizeDisplayText } from '../core/contentSafety';
 import { boundsForKind, kindFromLabel } from '../world/models';
 
 const SHAPES = new Set<PropShape>(['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane']);
 const BEHAVIORS = new Set<EntityBehavior>(['idle', 'wander', 'orbit', 'stare']);
 const MOODS = new Set<MoodAxis>(['upper', 'downer', 'static', 'dynamic']);
-const SIDES = new Set(['north', 'south', 'east', 'west']);
-
-const BLOCKED =
-  /\b(nsfw|porn|nude|naked|sex|sexual|erotic|explicit|rape|child\s*porn|cp\b|underage|loli|shota)\b/i;
-
-export function sanitizeText(input: string, fallback: string): string {
-  const trimmed = input.replace(/\s+/g, ' ').trim().slice(0, 160);
-  if (!trimmed || BLOCKED.test(trimmed)) return fallback;
-  return trimmed;
-}
 
 function num(v: unknown, fallback: number, min: number, max: number): number {
   const n = typeof v === 'number' ? v : Number(v);
@@ -50,7 +41,7 @@ function shape(v: unknown, fallback: PropShape = 'box'): PropShape {
 function parseProp(raw: unknown, index: number): RoomProp | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
-  const label = sanitizeText(str(o.label, `prop-${index}`), `prop-${index}`);
+  const label = sanitizeDisplayText(str(o.label, `prop-${index}`), `prop-${index}`);
   const scale = vec3(o.scale, { x: 1, y: 1, z: 1 });
   scale.x = num(scale.x, 1, 0.05, 12);
   scale.y = num(scale.y, 1, 0.05, 12);
@@ -92,7 +83,7 @@ function parseProp(raw: unknown, index: number): RoomProp | null {
 function parseEntity(raw: unknown, index: number): RoomEntity | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
-  const label = sanitizeText(str(o.label, `entity-${index}`), `entity-${index}`);
+  const label = sanitizeDisplayText(str(o.label, `entity-${index}`), `entity-${index}`);
   const scale = vec3(o.scale, { x: 1, y: 1.8, z: 1 });
   const behavior =
     typeof o.behavior === 'string' && BEHAVIORS.has(o.behavior as EntityBehavior)
@@ -117,7 +108,6 @@ function parseEntity(raw: unknown, index: number): RoomEntity | null {
     emissive: typeof o.emissive === 'string' ? o.emissive : undefined,
     behavior,
     speed: num(o.speed, 0.8, 0, 4),
-    linksOnTouch: o.linksOnTouch === undefined ? true : Boolean(o.linksOnTouch),
     kind,
   };
 }
@@ -152,21 +142,15 @@ export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
 
   if (props.length < 1) return null;
 
-  const openSides = Array.isArray(o.openSides)
-    ? o.openSides
-        .filter((s): s is 'north' | 'south' | 'east' | 'west' => typeof s === 'string' && SIDES.has(s))
-        .slice(0, 2)
-    : [];
-
   return {
     id: str(o.id, `room-${seed}`),
     seed,
-    title: sanitizeText(str(o.title, 'Unnamed Room'), 'Unnamed Room'),
-    blurb: sanitizeText(str(o.blurb, 'The room waits.'), 'The room waits.'),
+    title: sanitizeDisplayText(str(o.title, 'Unnamed Room'), 'Unnamed Room', 80),
+    blurb: sanitizeDisplayText(str(o.blurb, 'The room waits.'), 'The room waits.'),
     themeTags: Array.isArray(o.themeTags)
       ? o.themeTags
           .filter((t): t is string => typeof t === 'string')
-          .map((t) => sanitizeText(t, 'liminal'))
+          .map((t) => sanitizeDisplayText(t, 'liminal', 32))
           .slice(0, 8)
       : ['liminal'],
     mood,
@@ -194,7 +178,6 @@ export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
     linkColor: str(o.linkColor, '#d9c27a'),
     props,
     entities,
-    openSides,
     offline: false,
   };
 }

@@ -47,6 +47,11 @@ interface PartSpec {
 
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
 
+export function clearModelMaterialCache(): void {
+  for (const material of matCache.values()) material.dispose();
+  matCache.clear();
+}
+
 function mat(
   color: string,
   roughness = 0.75,

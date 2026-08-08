@@ -15,7 +15,11 @@ import {
   parseRoomDirection,
 } from '../world/offlineGenerator';
 import { browserQaPrompt, parseQaDirection } from '../world/qaDirector';
-import { browserChatCompletion } from './browserEngine';
+import {
+  browserChatCompletion,
+  disposeBrowserEngine,
+  ensureBrowserEngine,
+} from './browserEngine';
 import { extractJsonObject, normalizeRoomSpec } from './schema';
 
 interface CacheEntry {
@@ -30,6 +34,10 @@ interface CacheEntry {
 export class RoomGenerator {
   private memory = new Map<string, RoomSpec>();
   private inflight = new Map<string, Promise<RoomSpec>>();
+  private failedKeys = new Set<string>();
+  private generationTail: Promise<void> = Promise.resolve();
+  private sessionEpoch = 0;
+  private activeCloudController: AbortController | null = null;
   private sessionFailures = 0;
   private apiCallsThisSession = 0;
   private onStatus: ((msg: string) => void) | null = null;
@@ -43,13 +51,32 @@ export class RoomGenerator {
   }
 
   updateSettings(settings: AppSettings): void {
+    const previous = this.settings;
     const providerChanged =
-      settings.provider !== this.settings.provider ||
-      settings.model !== this.settings.model ||
-      settings.baseUrl !== this.settings.baseUrl ||
-      settings.apiKey !== this.settings.apiKey;
-    this.settings = settings;
-    if (providerChanged) this.sessionFailures = 0;
+      settings.provider !== previous.provider ||
+      settings.model !== previous.model ||
+      settings.baseUrl !== previous.baseUrl ||
+      settings.apiKey !== previous.apiKey;
+    this.settings = { ...settings };
+    if (providerChanged) {
+      this.invalidateInFlight();
+      this.sessionFailures = 0;
+      this.failedKeys.clear();
+      if (previous.provider === 'browser') void disposeBrowserEngine();
+    }
+  }
+
+  beginSession(): number {
+    this.invalidateInFlight();
+    this.sessionFailures = 0;
+    this.apiCallsThisSession = 0;
+    this.failedKeys.clear();
+    return this.sessionEpoch;
+  }
+
+  endSession(): void {
+    this.invalidateInFlight();
+    if (this.settings.provider === 'browser') void disposeBrowserEngine();
   }
 
   getApiCallCount(): number {
@@ -57,36 +84,39 @@ export class RoomGenerator {
   }
 
   getOrOffline(ctx: GenerationContext): RoomSpec {
-    const key = cacheKey(ctx);
+    const key = cacheKey(ctx, this.settings);
     const cached = this.memory.get(key);
     if (cached) return cached;
     const offline = generateOfflineRoom(ctx);
-    if (!this.inflight.has(key)) this.remember(ctx, offline);
+    if (!this.inflight.has(key)) this.remember(key, offline);
     return offline;
   }
 
   hasLlmRoom(ctx: GenerationContext): boolean {
-    const spec = this.memory.get(cacheKey(ctx));
+    const spec = this.memory.get(cacheKey(ctx, this.settings));
     return Boolean(spec && !spec.offline);
   }
 
   async get(ctx: GenerationContext): Promise<RoomSpec> {
-    const key = cacheKey(ctx);
+    const jobSettings = { ...this.settings };
+    const epoch = this.sessionEpoch;
+    const key = cacheKey(ctx, jobSettings);
     const cached = this.memory.get(key);
     if (cached && (!cached.offline || this.settings.provider === 'offline')) {
       return cached;
     }
+    if (this.failedKeys.has(key)) return cached ?? generateOfflineRoom(ctx);
 
     const pending = this.inflight.get(key);
     if (pending) return pending;
 
-    const job = this.generate(ctx)
+    const job = this.enqueueGeneration(() => this.generate(ctx, jobSettings, epoch, key))
       .then((spec) => {
-        this.remember(ctx, spec);
+        if (epoch === this.sessionEpoch) this.remember(key, spec);
         return spec;
       })
       .finally(() => {
-        this.inflight.delete(key);
+        if (this.inflight.get(key) === job) this.inflight.delete(key);
       });
 
     this.inflight.set(key, job);
@@ -101,20 +131,39 @@ export class RoomGenerator {
     ) {
       return;
     }
-    if (this.inflight.size >= LLM_BUDGET.maxInFlight) return;
-    const existing = this.memory.get(cacheKey(ctx));
+    const key = cacheKey(ctx, this.settings);
+    const existing = this.memory.get(key);
     if (existing && !existing.offline) return;
+    if (this.failedKeys.has(key)) return;
     if (this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures) return;
-    void this.get(ctx);
+    const epoch = this.sessionEpoch;
+    void this.get(ctx)
+      .then((spec) => {
+        if (epoch !== this.sessionEpoch) return;
+        this.onStatus?.(
+          spec.offline ? 'Next room will use offline generation' : 'Next LLM room ready',
+        );
+      })
+      .catch((err) => {
+        if (epoch === this.sessionEpoch) {
+          console.warn('[Kettermean] room prefetch failed.', err);
+          this.onStatus?.('Next room will use offline generation');
+        }
+      });
   }
 
-  private async generate(ctx: GenerationContext): Promise<RoomSpec> {
-    if (this.settings.provider === 'offline') {
+  private async generate(
+    ctx: GenerationContext,
+    settings: AppSettings,
+    epoch: number,
+    key: string,
+  ): Promise<RoomSpec> {
+    if (epoch !== this.sessionEpoch || settings.provider === 'offline') {
       return generateOfflineRoom(ctx);
     }
     if (
-      (this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
-      !this.settings.apiKey.trim()
+      (settings.provider === 'openai' || settings.provider === 'anthropic') &&
+      !settings.apiKey.trim()
     ) {
       return generateOfflineRoom(ctx);
     }
@@ -126,74 +175,51 @@ export class RoomGenerator {
     }
 
     try {
-      let text = await this.callProvider(ctx, 'initial');
       this.apiCallsThisSession += 1;
-      let normalized =
-        this.settings.provider === 'browser'
+      const text = await this.callProvider(ctx, settings);
+      if (epoch !== this.sessionEpoch) return generateOfflineRoom(ctx);
+      const normalized =
+        settings.provider === 'browser'
           ? parseBrowserDirection(text, ctx)
           : parseDirectedOrLegacy(text, ctx.seed);
 
-      // One cheap repair pass if the first reply was unusable.
-      if (!normalized) {
-        text = await this.callProvider(ctx, 'repair', text);
-        this.apiCallsThisSession += 1;
-        normalized =
-          this.settings.provider === 'browser'
-            ? parseBrowserDirection(text, ctx)
-            : parseDirectedOrLegacy(text, ctx.seed);
-      }
-
       if (!normalized) {
         throw new Error(
-          `LLM room direction unusable (need numbered 1-5 answers). Preview: ${text.slice(0, 220)}`,
+          `LLM room direction was unusable. Preview: ${text.slice(0, 220)}`,
         );
       }
       normalized.offline = false;
       this.sessionFailures = 0;
       return normalized;
     } catch (err) {
+      if (epoch !== this.sessionEpoch) return generateOfflineRoom(ctx);
       this.sessionFailures += 1;
+      this.failedKeys.add(key);
       const message = err instanceof Error ? err.message : String(err);
       console.warn('[Kettermean] LLM room generation failed; using offline.', message, err);
       return generateOfflineRoom(ctx);
     }
   }
 
-  private async callProvider(
-    ctx: GenerationContext,
-    mode: 'initial' | 'repair',
-    previousText = '',
-  ): Promise<string> {
-    const { system, user } = buildPrompt(ctx, this.settings.allowGore, mode, previousText);
-    // Soft timeout only — do not AbortController-kill free routes mid-flight.
-    const call =
-      this.settings.provider === 'browser'
-        ? this.callBrowser(ctx, mode, previousText)
-        : this.settings.provider === 'anthropic'
-          ? this.callAnthropic(system, user, true)
-          : this.callOpenAI(system, user, true);
+  private async callProvider(ctx: GenerationContext, settings: AppSettings): Promise<string> {
+    const { system, user } = buildPrompt(ctx, settings.allowGore);
+    if (settings.provider === 'browser') return this.callBrowser(ctx, settings);
 
-    const timeoutMs =
-      this.settings.provider === 'browser'
-        ? LLM_BUDGET.browserRequestTimeoutMs
-        : LLM_BUDGET.requestTimeoutMs;
-
-    let timer: number | undefined;
+    const controller = new AbortController();
+    this.activeCloudController = controller;
+    const timer = window.setTimeout(() => controller.abort(), LLM_BUDGET.requestTimeoutMs);
     try {
-      return await Promise.race([
-        call,
-        new Promise<string>((_, reject) => {
-          timer = window.setTimeout(() => {
-            reject(
-              new Error(
-                `LLM timed out after ${timeoutMs}ms (request may still complete server-side)`,
-              ),
-            );
-          }, timeoutMs);
-        }),
-      ]);
+      return settings.provider === 'anthropic'
+        ? await this.callAnthropic(system, user, settings, controller.signal, true)
+        : await this.callOpenAI(system, user, settings, controller.signal, true);
+    } catch (err) {
+      if (controller.signal.aborted) {
+        throw new Error(`LLM timed out after ${LLM_BUDGET.requestTimeoutMs}ms.`);
+      }
+      throw err;
     } finally {
-      if (timer !== undefined) window.clearTimeout(timer);
+      window.clearTimeout(timer);
+      if (this.activeCloudController === controller) this.activeCloudController = null;
     }
   }
 
@@ -201,36 +227,23 @@ export class RoomGenerator {
   async preloadBrowserModel(): Promise<void> {
     if (this.settings.provider !== 'browser') return;
     const model = this.settings.model.trim() || DEFAULT_BROWSER_MODEL;
-    const { ensureBrowserEngine } = await import('./browserEngine');
     await ensureBrowserEngine(model, (msg) => this.onStatus?.(msg));
   }
 
-  private async callBrowser(
-    ctx: GenerationContext,
-    mode: 'initial' | 'repair',
-    previousText = '',
-  ): Promise<string> {
-    const model = this.settings.model.trim() || DEFAULT_BROWSER_MODEL;
+  private async callBrowser(ctx: GenerationContext, settings: AppSettings): Promise<string> {
+    const model = settings.model.trim() || DEFAULT_BROWSER_MODEL;
     // Tiny models answer numbered questions; client builds RoomDirection/JSON.
     const qa = browserQaPrompt({
       seed: ctx.seed,
       moodBias: ctx.moodBias,
       previousTitles: ctx.previousTitles,
-      allowGore: this.settings.allowGore,
+      allowGore: settings.allowGore,
     });
-    const user =
-      mode === 'repair'
-        ? `${qa.user}
-
-Previous answers were incomplete. Answer lines 1-5 again only.
-bad=${JSON.stringify(previousText.slice(0, 240))}`
-        : qa.user;
     const text = await browserChatCompletion({
       modelId: model,
       system: qa.system,
-      user,
-      // Enough room if the model still emits a short think prefix.
-      maxTokens: 220,
+      user: qa.user,
+      maxTokens: LLM_BUDGET.browserMaxTokens,
       temperature: 0.2,
       forceJson: false,
       onProgress: (msg) => this.onStatus?.(msg),
@@ -238,12 +251,18 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
     return text;
   }
 
-  private async callOpenAI(system: string, user: string, prefillJson = true): Promise<string> {
-    const base = (this.settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
-    const model = this.settings.model || DEFAULT_OPENROUTER_MODEL;
+  private async callOpenAI(
+    system: string,
+    user: string,
+    settings: AppSettings,
+    signal: AbortSignal,
+    prefillJson = true,
+  ): Promise<string> {
+    const base = (settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
+    const model = settings.model || DEFAULT_OPENROUTER_MODEL;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${this.settings.apiKey}`,
+      Authorization: `Bearer ${settings.apiKey}`,
     };
     if (base.includes('openrouter.ai')) {
       headers['HTTP-Referer'] =
@@ -271,6 +290,7 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -288,9 +308,15 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
     return text;
   }
 
-  private async callAnthropic(system: string, user: string, prefillJson = true): Promise<string> {
-    const base = (this.settings.baseUrl || DEFAULT_ANTHROPIC_BASE).replace(/\/$/, '');
-    const model = this.settings.model || DEFAULT_ANTHROPIC_MODEL;
+  private async callAnthropic(
+    system: string,
+    user: string,
+    settings: AppSettings,
+    signal: AbortSignal,
+    prefillJson = true,
+  ): Promise<string> {
+    const base = (settings.baseUrl || DEFAULT_ANTHROPIC_BASE).replace(/\/$/, '');
+    const model = settings.model || DEFAULT_ANTHROPIC_MODEL;
     const messages: Array<{ role: string; content: string }> = [{ role: 'user', content: user }];
     if (prefillJson) messages.push({ role: 'assistant', content: '{' });
 
@@ -298,10 +324,11 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': this.settings.apiKey,
+        'x-api-key': settings.apiKey,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
+      signal,
       body: JSON.stringify({
         model,
         max_tokens: LLM_BUDGET.maxTokens,
@@ -323,8 +350,7 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
     return text;
   }
 
-  private remember(ctx: GenerationContext, spec: RoomSpec): void {
-    const key = cacheKey(ctx);
+  private remember(key: string, spec: RoomSpec): void {
     this.memory.set(key, spec);
     if (this.memory.size > LLM_BUDGET.cacheLimit) {
       const first = this.memory.keys().next().value;
@@ -363,17 +389,33 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
       // ignore
     }
   }
+
+  private enqueueGeneration<T>(work: () => Promise<T>): Promise<T> {
+    const job = this.generationTail.then(work, work);
+    this.generationTail = job.then(
+      () => undefined,
+      () => undefined,
+    );
+    return job;
+  }
+
+  private invalidateInFlight(): void {
+    this.sessionEpoch += 1;
+    this.inflight.clear();
+    this.activeCloudController?.abort();
+    this.activeCloudController = null;
+  }
 }
 
-function cacheKey(ctx: GenerationContext): string {
-  return `${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
+function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
+  const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
+  const model = settings.model.trim() || 'default';
+  return `v7|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
 }
 
 function buildPrompt(
   ctx: GenerationContext,
   allowGore: boolean,
-  mode: 'initial' | 'repair' = 'initial',
-  previousText = '',
 ): { system: string; user: string } {
   const goreLine = allowGore
     ? 'Mild blood/gore allowed sparingly.'
@@ -385,26 +427,13 @@ function buildPrompt(
     'Return ONE JSON object only. No markdown. No analysis.',
     'Do NOT invent meshes. SELECT assets from the catalog by assetId.',
     'You may scale assets for atmosphere (e.g. anomaly_giant_baby scaleMul 2.5-3.8).',
-    'Schema: themeId?, title, blurb, mood, tags, width, depth, height, fogNear, fogFar, linkColor, openSides, palette?, physics?, placements[].',
+    'Schema: themeId?, title, blurb, mood, tags, width, depth, height, fogNear, fogFar, linkColor, palette?, physics?, placements[].',
     'placements item: {assetId,x,z,rotY,scaleMul,linksOnTouch,behavior?}.',
     'mood: upper|downer|static|dynamic. Keep spawn center clear (no solid near 0,0 within 1.8).',
     '6-12 placements. Include at least one portal/link asset (door_fake often).',
     goreLine,
     'Never sexual or obscene.',
   ].join(' ');
-
-  if (mode === 'repair') {
-    return {
-      system,
-      user: [
-        'Previous reply was not valid director JSON. Reply with pure JSON only.',
-        `seed=${ctx.seed}`,
-        `moodBias=${ctx.moodBias}`,
-        `bad=${JSON.stringify(previousText.slice(0, 350))}`,
-        'Start with {',
-      ].join('\n'),
-    };
-  }
 
   const example = {
     themeId: 'wrong_nursery',
@@ -418,7 +447,6 @@ function buildPrompt(
     fogNear: 10,
     fogFar: 34,
     linkColor: '#15203f',
-    openSides: ['east'],
     placements: [
       { assetId: 'crib_empty', x: -2, z: -1.5, rotY: 0.2, scaleMul: 1 },
       { assetId: 'anomaly_giant_baby', x: 1.5, z: 2, scaleMul: 3.1, linksOnTouch: true, behavior: 'idle' },

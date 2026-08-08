@@ -1,8 +1,14 @@
 import * as THREE from 'three';
 import { PLAYER } from '../config';
 import type { BuiltRoom, ColliderBox, RoomEntity, RoomProp, RoomSpec, Vec3 } from '../types';
-import { plainMaterial, styleForMood, surfaceMaterial } from './materials';
-import { boundsForKind, buildModel, kindFromLabel, type PropKind } from './models';
+import { clearMaterialCaches, plainMaterial, styleForMood, surfaceMaterial } from './materials';
+import {
+  boundsForKind,
+  buildModel,
+  clearModelMaterialCache,
+  kindFromLabel,
+  type PropKind,
+} from './models';
 
 interface LiveEntity {
   mesh: THREE.Object3D;
@@ -57,6 +63,15 @@ export class RoomWorld {
     const ceiling = new THREE.Mesh(new THREE.BoxGeometry(spec.width, 0.2, spec.depth), ceilMat);
     ceiling.position.y = h;
     this.group.add(ceiling);
+    this.addCollider({
+      minX: -halfW,
+      maxX: halfW,
+      minY: h - 0.02,
+      maxY: h + 0.2,
+      minZ: -halfD,
+      maxZ: halfD,
+      label: 'ceiling',
+    });
 
     // Baseboards + crown around the room for architectural readability
     const ring = (
@@ -78,51 +93,35 @@ export class RoomWorld {
     ring(0.08, 0.16, 0.08, baseMat);
     ring(h - 0.1, 0.1, 0.07, trimMat);
 
-    const open = new Set(spec.openSides ?? []);
-    const walls: Array<{ side: 'north' | 'south' | 'east' | 'west'; open: boolean }> = [
-      { side: 'north', open: open.has('north') },
-      { side: 'south', open: open.has('south') },
-      { side: 'east', open: open.has('east') },
-      { side: 'west', open: open.has('west') },
+    const walls: Array<'north' | 'south' | 'east' | 'west'> = [
+      'north',
+      'south',
+      'east',
+      'west',
     ];
 
-    for (const w of walls) {
-      if (w.open) {
-        // Visual opening only — do NOT teleport on open walls. Use doors.
-        const curb = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            w.side === 'east' || w.side === 'west' ? wallT : spec.width * 0.45,
-            0.28,
-            w.side === 'north' || w.side === 'south' ? wallT : spec.depth * 0.45,
-          ),
-          trimMat,
-        );
-        placeWall(curb, w.side, halfW, halfD, 0.14);
-        this.group.add(curb);
-        continue;
-      }
-
+    for (const side of walls) {
       const mesh =
-        w.side === 'north' || w.side === 'south'
+        side === 'north' || side === 'south'
           ? new THREE.Mesh(new THREE.BoxGeometry(spec.width + wallT, h, wallT), wallMat)
           : new THREE.Mesh(new THREE.BoxGeometry(wallT, h, spec.depth + wallT), wallMat);
-      placeWall(mesh, w.side, halfW, halfD, h / 2);
+      placeWall(mesh, side, halfW, halfD, h / 2);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.group.add(mesh);
       // Walls are solid only — never room links. Doors are the only teleports.
-      this.addCollider(wallCollider(w.side, halfW, halfD, h, wallT, false), `wall:${w.side}`);
+      this.addCollider(wallCollider(side, halfW, halfD, h, wallT, false), `wall:${side}`);
 
       // Fake window / panel insets so walls aren't flat slabs
       const panel = new THREE.Mesh(
         new THREE.BoxGeometry(
-          w.side === 'north' || w.side === 'south' ? Math.min(2.4, spec.width * 0.25) : 0.06,
+          side === 'north' || side === 'south' ? Math.min(2.4, spec.width * 0.25) : 0.06,
           Math.min(1.6, h * 0.45),
-          w.side === 'east' || w.side === 'west' ? Math.min(2.4, spec.depth * 0.25) : 0.06,
+          side === 'east' || side === 'west' ? Math.min(2.4, spec.depth * 0.25) : 0.06,
         ),
         plainMaterial(spec.palette.light, 0.35, 0.05, spec.palette.light, 0.25),
       );
-      placeWall(panel, w.side, halfW - 0.05, halfD - 0.05, h * 0.55);
+      placeWall(panel, side, halfW - 0.05, halfD - 0.05, h * 0.55);
       this.group.add(panel);
     }
 
@@ -168,7 +167,7 @@ export class RoomWorld {
     scene.background = new THREE.Color(spec.palette.fog);
 
     scene.add(this.group);
-    this.spawn = { x: 0, y: PLAYER.eyeHeight, z: Math.min(2, halfD * 0.25) };
+    this.spawn = findSafeSpawn(this.colliders, halfW, halfD);
 
     return {
       spec,
@@ -230,12 +229,20 @@ export class RoomWorld {
 
   dispose(scene: THREE.Scene): void {
     scene.remove(this.group);
+    const materials = new Set<THREE.Material>();
     this.group.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
-      // Dispose geometries only. Model materials are shared via a kit cache.
       if (mesh.geometry) mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        for (const material of mesh.material) materials.add(material);
+      } else if (mesh.material) {
+        materials.add(mesh.material);
+      }
     });
+    for (const material of materials) material.dispose();
     this.group.clear();
+    clearMaterialCaches();
+    clearModelMaterialCache();
     for (const l of this.lights) {
       scene.remove(l);
       l.dispose?.();
@@ -252,12 +259,13 @@ export class RoomWorld {
   private addProp(prop: RoomProp): void {
     const kind = resolveKind(prop.kind, prop.label);
     const mesh = buildModel(kind, prop.color || '#6a7a8a', prop.color || '#c4b59a');
+    scaleModelToBounds(mesh, kind, prop.scale);
     // Models are feet-origin; keep y at floor unless explicitly elevated.
     mesh.position.set(prop.position.x, Math.max(0, prop.position.y), prop.position.z);
     mesh.rotation.y = prop.rotationY ?? 0;
     this.group.add(mesh);
 
-    const box = feetBounds(mesh.position, prop.scale);
+    const box = feetBounds(mesh.position, prop.scale, prop.rotationY ?? 0);
     const isPortal = kind === 'door_fake' || Boolean(prop.linksOnTouch && /door|portal|exit/i.test(prop.label));
     if (isPortal) {
       // Slightly generous door trigger so players can walk through painted exits.
@@ -272,17 +280,17 @@ export class RoomWorld {
   private addEntity(ent: RoomEntity): void {
     const kind = resolveKind(ent.kind, ent.label);
     const mesh = buildModel(kind, ent.color || '#6a7a8a', ent.color || '#c4b59a');
+    scaleModelToBounds(mesh, kind, ent.scale);
     mesh.position.set(ent.position.x, Math.max(0, ent.position.y), ent.position.z);
     this.group.add(mesh);
     this.liveEntities.push({
       mesh,
-      data: { ...ent, linksOnTouch: false },
+      data: ent,
       origin: mesh.position.clone(),
-      phase: Math.random() * Math.PI * 2,
+      phase: stablePhase(ent.id),
     });
-    const box = feetBounds(mesh.position, ent.scale);
-    // NPCs/creatures are atmosphere only — never room links.
-    this.addCollider({ ...box, linksOnTouch: false, label: ent.label });
+    // NPCs/creatures are moving atmosphere. Static AABBs at their origins would
+    // become invisible blockers as soon as the model moved away.
   }
 
   private addCollider(box: ColliderBox, label?: string): void {
@@ -296,15 +304,76 @@ export class RoomWorld {
   }
 }
 
-function feetBounds(pos: { x: number; y: number; z: number }, scale: Vec3): ColliderBox {
+function feetBounds(
+  pos: { x: number; y: number; z: number },
+  scale: Vec3,
+  rotationY = 0,
+): ColliderBox {
+  const cos = Math.abs(Math.cos(rotationY));
+  const sin = Math.abs(Math.sin(rotationY));
+  const halfX = scale.x * 0.5 * cos + scale.z * 0.5 * sin;
+  const halfZ = scale.x * 0.5 * sin + scale.z * 0.5 * cos;
   return {
-    minX: pos.x - scale.x * 0.5,
-    maxX: pos.x + scale.x * 0.5,
+    minX: pos.x - halfX,
+    maxX: pos.x + halfX,
     minY: pos.y,
     maxY: pos.y + scale.y,
-    minZ: pos.z - scale.z * 0.5,
-    maxZ: pos.z + scale.z * 0.5,
+    minZ: pos.z - halfZ,
+    maxZ: pos.z + halfZ,
   };
+}
+
+function scaleModelToBounds(mesh: THREE.Group, kind: PropKind, target: Vec3): void {
+  const bounds = boundsForKind(kind);
+  mesh.scale.set(
+    target.x / Math.max(0.01, bounds.w),
+    target.y / Math.max(0.01, bounds.h),
+    target.z / Math.max(0.01, bounds.d),
+  );
+}
+
+function findSafeSpawn(colliders: ColliderBox[], halfW: number, halfD: number): Vec3 {
+  const maxX = Math.max(0, halfW - PLAYER.radius - 0.7);
+  const maxZ = Math.max(0, halfD - PLAYER.radius - 0.7);
+  const candidates: Array<{ x: number; z: number }> = [{ x: 0, z: 0 }];
+  const step = 0.85;
+  const rings = Math.ceil(Math.max(maxX, maxZ) / step);
+  for (let ring = 1; ring <= rings; ring += 1) {
+    const radius = ring * step;
+    const samples = Math.max(8, ring * 8);
+    for (let i = 0; i < samples; i += 1) {
+      const angle = (i / samples) * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      if (Math.abs(x) <= maxX && Math.abs(z) <= maxZ) candidates.push({ x, z });
+    }
+  }
+
+  const clearance = PLAYER.radius + 0.18;
+  const chosen = candidates.find(({ x, z }) =>
+    colliders.every((box) => {
+      if (box.label === 'floor' || box.label === 'ceiling') return true;
+      return !(
+        x + clearance > box.minX &&
+        x - clearance < box.maxX &&
+        z + clearance > box.minZ &&
+        z - clearance < box.maxZ &&
+        PLAYER.eyeHeight + 0.2 > box.minY &&
+        0 < box.maxY
+      );
+    }),
+  );
+
+  return { x: chosen?.x ?? 0, y: PLAYER.eyeHeight, z: chosen?.z ?? 0 };
+}
+
+function stablePhase(id: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i += 1) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) / 4294967296) * Math.PI * 2;
 }
 
 function resolveKind(kind: string | undefined, label: string): PropKind {

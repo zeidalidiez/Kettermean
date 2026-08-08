@@ -8,6 +8,7 @@ import {
   type RoomDirection,
 } from './assetCatalog';
 import { SeededRng } from '../core/rng';
+import { sanitizeDisplayText } from '../core/contentSafety';
 import { generateOfflineDirection, type DirectorSteer } from './roomDirector';
 
 /**
@@ -42,11 +43,9 @@ export function parseQaDirection(
   const legacyGiant = get(8);
 
   const preferAssets = tokenizeAssets(legacyAssets);
-  const giantText = `${giantField} ${legacyGiant} ${cleaned}`.toLowerCase();
+  const giantText = `${giantField} ${legacyGiant}`.toLowerCase();
   const giant =
-    /\byes\b/.test(giantField.toLowerCase()) ||
-    giantText.includes('giant baby') ||
-    giantText.includes('anomaly_giant_baby') ||
+    /\b(?:yes|true)\b/.test(giantText) ||
     preferAssets.includes('anomaly_giant_baby');
 
   const steer: DirectorSteer = {
@@ -78,7 +77,8 @@ function stripModelNoise(text: string): string {
     .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
     .replace(/<think>[\s\S]*$/gi, ' ')
     .replace(/<\/think>/gi, ' ')
-    .replace(/```[\s\S]*?```/g, ' ')
+    // Preserve answers inside markdown fences; remove only the fence markers.
+    .replace(/```(?:[a-z0-9_-]+)?/gi, ' ')
     // Drop a leading brace we used to wrongly inject for Q&A.
     .replace(/^\{\s*/, '')
     .trim();
@@ -107,14 +107,16 @@ function softExtractSteer(
 /** Pull only `N. answer` / `N) answer` / `N: answer` lines into a map keyed by N. */
 export function extractNumberedAnswers(text: string): Map<number, string> {
   const byNum = new Map<number, string>();
-  // Also accept multiple answers smashed into one line: "1. a 2. b 3. c"
-  const re = /(?:^|[\n\r;])\s*(?:q\s*)?(\d{1,2})\s*[:.\)\-\]]\s*([^\n\r]+?)(?=(?:\s*(?:q\s*)?\d{1,2}\s*[:.\)\-\]])|$)/gi;
-  let m: RegExpExecArray | null;
-  const src = `\n${text}\n`;
-  while ((m = re.exec(src)) !== null) {
-    const n = Number(m[1]);
+  const markers = [
+    ...text.matchAll(/(?:^|[\s;])(?:q\s*)?(\d{1,2})\s*[:.\)\-\]](?=\s|$)\s*/gi),
+  ];
+  for (let i = 0; i < markers.length; i += 1) {
+    const marker = markers[i]!;
+    const n = Number(marker[1]);
     if (!Number.isFinite(n) || n < 1 || n > 12) continue;
-    const ans = sanitizeAnswer(m[2] ?? '');
+    const start = (marker.index ?? 0) + marker[0].length;
+    const end = markers[i + 1]?.index ?? text.length;
+    const ans = sanitizeAnswer(text.slice(start, end));
     if (!ans) continue;
     // First good answer wins per index (ignore later duplicates/corrections noise).
     if (!byNum.has(n)) byNum.set(n, ans);
@@ -192,13 +194,13 @@ function cleanTitle(raw: string, fallback: string): string {
   if (!t || isChatJunk(t) || t.length < 2) return fallback;
   // Strip trailing mood tags the model sometimes glues on
   t = t.replace(/\s*[-–—|·]\s*(upper|downer|static|dynamic)\s*$/i, '').trim();
-  return clip(t, 48);
+  return sanitizeDisplayText(clip(t, 48), fallback, 48);
 }
 
 function cleanBlurb(raw: string, fallback: string): string {
   const t = sanitizeAnswer(raw);
   if (!t || isChatJunk(t) || t.length < 4) return fallback;
-  return clip(t, 120);
+  return sanitizeDisplayText(clip(t, 120), fallback, 120);
 }
 
 function isChatJunk(s: string): boolean {

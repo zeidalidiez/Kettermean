@@ -18,7 +18,10 @@ export class InputManager {
   private mouseDy = 0;
   private jumpBuffered = false;
   private pausePressed = false;
+  private touchSprint = false;
+  private gamepadPauseHeld = false;
   private enabled = false;
+  private stickCleanups: Array<() => void> = [];
 
   private moveStick: StickState = { x: 0, y: 0, active: false, pointerId: null };
   private lookStick: StickState = { x: 0, y: 0, active: false, pointerId: null };
@@ -29,19 +32,37 @@ export class InputManager {
   private readonly lookZone: HTMLElement;
   private readonly moveKnob: HTMLElement;
   private readonly lookKnob: HTMLElement;
+  private readonly jumpButton: HTMLButtonElement;
+  private readonly sprintButton: HTMLButtonElement;
+  private readonly pauseButton: HTMLButtonElement;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    private readonly onPauseRequested?: () => void,
+  ) {
     this.canvas = canvas;
     this.touchRoot = el('touch-controls');
     this.moveZone = el('stick-move');
     this.lookZone = el('stick-look');
     this.moveKnob = this.moveZone.querySelector('.stick-knob') as HTMLElement;
     this.lookKnob = this.lookZone.querySelector('.stick-knob') as HTMLElement;
+    this.jumpButton = el('touch-jump') as HTMLButtonElement;
+    this.sprintButton = el('touch-sprint') as HTMLButtonElement;
+    this.pauseButton = el('touch-pause') as HTMLButtonElement;
 
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    window.addEventListener('blur', this.onBlur);
+    window.addEventListener('pointerup', this.onGlobalPointerUp);
+    window.addEventListener('pointercancel', this.onGlobalPointerUp);
+
+    this.jumpButton.addEventListener('pointerdown', this.onJumpDown);
+    this.sprintButton.addEventListener('pointerdown', this.onSprintDown);
+    this.sprintButton.addEventListener('pointerup', this.onSprintUp);
+    this.sprintButton.addEventListener('pointercancel', this.onSprintUp);
+    this.pauseButton.addEventListener('pointerdown', this.onPauseDown);
 
     this.bindStick(this.moveZone, 'move');
     this.bindStick(this.lookZone, 'look');
@@ -53,6 +74,11 @@ export class InputManager {
       this.keys.clear();
       this.mouseDx = 0;
       this.mouseDy = 0;
+      this.jumpBuffered = false;
+      this.pausePressed = false;
+      this.touchSprint = false;
+      this.gamepadPauseHeld = false;
+      this.sprintButton.classList.remove('is-active');
       this.resetStick('move');
       this.resetStick('look');
       if (document.pointerLockElement === this.canvas) {
@@ -65,7 +91,11 @@ export class InputManager {
   requestPointerLock(): void {
     if (!this.enabled) return;
     if (document.pointerLockElement !== this.canvas) {
-      void this.canvas.requestPointerLock();
+      const request = this.canvas.requestPointerLock();
+      void request?.catch(() => {
+        // Embedded previews and browser policy can deny pointer lock. Keyboard,
+        // gamepad, and touch input remain usable.
+      });
     }
   }
 
@@ -82,7 +112,7 @@ export class InputManager {
       if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) moveZ -= 1;
       if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) moveX -= 1;
       if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) moveX += 1;
-      sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+      sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || this.touchSprint;
 
       moveX += this.moveStick.x;
       moveZ += -this.moveStick.y;
@@ -107,7 +137,11 @@ export class InputManager {
         lookY += ry * PLAYER.gamepadLookSensitivity * dt;
         if (pad.buttons[0]?.pressed) jump = true;
         if (pad.buttons[1]?.pressed) sprint = true;
-        if (pad.buttons[9]?.pressed) this.pausePressed = true;
+        const gamepadPause = Boolean(pad.buttons[9]?.pressed);
+        if (gamepadPause && !this.gamepadPauseHeld) this.pausePressed = true;
+        this.gamepadPauseHeld = gamepadPause;
+      } else {
+        this.gamepadPauseHeld = false;
       }
 
       if (this.jumpBuffered) {
@@ -133,6 +167,16 @@ export class InputManager {
     window.removeEventListener('keyup', this.onKeyUp);
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    window.removeEventListener('blur', this.onBlur);
+    window.removeEventListener('pointerup', this.onGlobalPointerUp);
+    window.removeEventListener('pointercancel', this.onGlobalPointerUp);
+    this.jumpButton.removeEventListener('pointerdown', this.onJumpDown);
+    this.sprintButton.removeEventListener('pointerdown', this.onSprintDown);
+    this.sprintButton.removeEventListener('pointerup', this.onSprintUp);
+    this.sprintButton.removeEventListener('pointercancel', this.onSprintUp);
+    this.pauseButton.removeEventListener('pointerdown', this.onPauseDown);
+    for (const cleanup of this.stickCleanups) cleanup();
+    this.stickCleanups = [];
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
@@ -162,16 +206,77 @@ export class InputManager {
     // Pause is handled by game when lock is lost while playing.
   };
 
+  private onBlur = (): void => {
+    this.keys.clear();
+    this.mouseDx = 0;
+    this.mouseDy = 0;
+    this.jumpBuffered = false;
+    this.pausePressed = false;
+    this.touchSprint = false;
+    this.gamepadPauseHeld = false;
+    this.sprintButton.classList.remove('is-active');
+    this.resetStick('move');
+    this.resetStick('look');
+  };
+
+  private onJumpDown = (event: PointerEvent): void => {
+    if (!this.enabled) return;
+    event.preventDefault();
+    this.jumpBuffered = true;
+  };
+
+  private onGlobalPointerUp = (event: PointerEvent): void => {
+    if (this.touchSprint) {
+      this.touchSprint = false;
+      this.sprintButton.classList.remove('is-active');
+    }
+    if (this.moveStick.pointerId === event.pointerId) this.resetStick('move');
+    if (this.lookStick.pointerId === event.pointerId) this.resetStick('look');
+  };
+
+  private onSprintDown = (event: PointerEvent): void => {
+    if (!this.enabled) return;
+    event.preventDefault();
+    this.touchSprint = true;
+    this.sprintButton.classList.add('is-active');
+    try {
+      this.sprintButton.setPointerCapture(event.pointerId);
+    } catch {
+      // Some embedded browsers do not expose pointer capture; the global
+      // pointer-up/cancel path still clears sprint.
+    }
+  };
+
+  private onSprintUp = (event: PointerEvent): void => {
+    event.preventDefault();
+    this.touchSprint = false;
+    this.sprintButton.classList.remove('is-active');
+  };
+
+  private onPauseDown = (event: PointerEvent): void => {
+    if (!this.enabled) return;
+    event.preventDefault();
+    if (this.onPauseRequested) {
+      this.onPauseRequested();
+      return;
+    }
+    this.pausePressed = true;
+  };
+
   private bindStick(zone: HTMLElement, which: 'move' | 'look'): void {
     const maxRadius = 40;
 
     const onDown = (e: PointerEvent): void => {
       if (!this.enabled) return;
       e.preventDefault();
-      zone.setPointerCapture(e.pointerId);
       const stick = which === 'move' ? this.moveStick : this.lookStick;
       stick.active = true;
       stick.pointerId = e.pointerId;
+      try {
+        zone.setPointerCapture(e.pointerId);
+      } catch {
+        // The window-level pointer-up/cancel path still releases the stick.
+      }
       this.updateStick(zone, which, e, maxRadius);
     };
 
@@ -192,6 +297,12 @@ export class InputManager {
     zone.addEventListener('pointermove', onMove);
     zone.addEventListener('pointerup', onUp);
     zone.addEventListener('pointercancel', onUp);
+    this.stickCleanups.push(() => {
+      zone.removeEventListener('pointerdown', onDown);
+      zone.removeEventListener('pointermove', onMove);
+      zone.removeEventListener('pointerup', onUp);
+      zone.removeEventListener('pointercancel', onUp);
+    });
   }
 
   private updateStick(

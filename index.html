@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0b0b12" />
     <meta
@@ -27,11 +27,16 @@
       <div id="fade-overlay" aria-hidden="true"></div>
 
       <div id="touch-controls" class="hidden" aria-hidden="true">
+        <button id="touch-pause" class="touch-action touch-pause" type="button" aria-label="Pause game">Ⅱ</button>
         <div id="stick-move" class="stick-zone">
           <div class="stick-base"><div class="stick-knob"></div></div>
         </div>
         <div id="stick-look" class="stick-zone">
           <div class="stick-base"><div class="stick-knob"></div></div>
+        </div>
+        <div class="touch-actions" aria-label="Movement actions">
+          <button id="touch-sprint" class="touch-action" type="button">Sprint</button>
+          <button id="touch-jump" class="touch-action primary" type="button">Jump</button>
         </div>
       </div>
 
@@ -40,7 +45,7 @@
           <header class="panel-header">
             <h1>Kettermean</h1>
             <p class="tagline">
-              Walk through liminal rooms. Link through walls. Let the dream drift.
+              Walk through liminal rooms. Link through doors. Let the dream drift.
             </p>
           </header>
 
@@ -66,8 +71,8 @@
           <section class="panel-section">
             <h2>LLM (optional)</h2>
             <p class="help warn">
-              Keys stay in this browser only (localStorage). Prefer a proxy or key with spend
-              limits. Offline procedural rooms work without a key.
+              Keys stay only in this tab and are cleared when the browser session ends. Prefer a
+              proxy or spend-limited key. Offline rooms work without one.
             </p>
             <label class="field">
               <span>Provider</span>
@@ -93,37 +98,7 @@
             </label>
             <label class="field hidden" id="model-field-browser">
               <span>Browser model</span>
-              <select id="browser-model-select" aria-label="Browser WebLLM model">
-                <optgroup label="Tiny / fast">
-                  <option value="SmolLM2-360M-Instruct-q4f16_1-MLC" selected>
-                    SmolLM2-360M-Instruct
-                  </option>
-                  <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct</option>
-                  <option value="Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC">
-                    Qwen2.5-Coder-0.5B-Instruct
-                  </option>
-                  <option value="Qwen3-0.6B-q4f16_1-MLC">Qwen3-0.6B</option>
-                  <option value="TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama-1.1B-Chat</option>
-                </optgroup>
-                <optgroup label="~1B class">
-                  <option value="gemma3-1b-it-q4f16_1-MLC">gemma3-1b-it</option>
-                  <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct</option>
-                  <option value="OLMo-2-0425-1B-Instruct-q4f16_1-MLC">OLMo-2-0425-1B-Instruct</option>
-                  <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct</option>
-                  <option value="Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC">
-                    Qwen2.5-Coder-1.5B-Instruct
-                  </option>
-                  <option value="Qwen3-1.7B-q4f16_1-MLC">Qwen3-1.7B</option>
-                  <option value="SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2-1.7B-Instruct</option>
-                </optgroup>
-                <optgroup label="Stronger small (more VRAM)">
-                  <option value="gemma-2-2b-it-q4f16_1-MLC">gemma-2-2b-it</option>
-                  <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct</option>
-                  <option value="Hermes-3-Llama-3.2-3B-q4f16_1-MLC">Hermes-3-Llama-3.2-3B</option>
-                  <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi-3.5-mini-instruct</option>
-                  <option value="Phi-3-mini-4k-instruct-q4f16_1-MLC">Phi-3-mini-4k-instruct</option>
-                </optgroup>
-              </select>
+              <select id="browser-model-select" aria-label="Browser WebLLM model"></select>
             </label>
             <label class="field hidden" id="model-field-cloud">
               <span>Model</span>
@@ -158,14 +133,14 @@
             <ul class="controls-list">
               <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</li>
               <li>Mouse look · click canvas to lock pointer</li>
-              <li>Gamepad supported · touch sticks on mobile</li>
+              <li>Gamepad supported · touch sticks plus jump/sprint on mobile</li>
               <li><kbd>Esc</kbd> pause / menu</li>
             </ul>
           </section>
 
           <footer class="panel-footer">
             <button id="start-btn" type="button" class="primary">Enter dream</button>
-            <button id="clear-key-btn" type="button" class="ghost">Clear saved key</button>
+            <button id="clear-key-btn" type="button" class="ghost">Clear session key</button>
           </footer>
         </div>
       </div>

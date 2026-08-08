@@ -1,83 +1,109 @@
 # Kettermean
 
-A browser first-person liminal dream walker inspired by *LSD: Dream Emulator*.
+A browser-first, first-person liminal dream walker inspired by *LSD: Dream Emulator*.
 
-Walk rooms that feel slightly wrong. Touch a wall, prop, or strange figure to **link** into another space. Rooms are generated offline from seeds by default; optional Claude / OpenAI-compatible APIs can author room JSON when you provide a key.
+Walk rooms that feel slightly wrong. Pass through a marked door to link into another seeded space. Every room is playable with the offline procedural director; optional cloud or in-browser models can steer future rooms without owning geometry or physics.
 
 ## Features
 
-- WebGL first-person movement (Three.js + Vite + TypeScript)
-- Seeded continuum or fully randomized dream modes
-- Wall / entity **linking** with mood-tinted fades
-- Per-room physics quirks (gravity, speed, sway, bounce)
-- Keyboard + mouse, gamepad, and touch virtual sticks
-- Optional LLM room authoring with **strict cost controls**
-- Blood/gore prompt flag (off by default); sexual/obscene content always blocked
-- Static build suitable for GitHub Pages (`base: './'`) — Actions not configured yet
+- Three.js first-person rooms assembled from a curated prop kit
+- Seeded continuum and randomized dream modes
+- Door-only room links with mood-tinted fades
+- Per-room gravity, movement, friction, bounce, and sway
+- Keyboard/mouse, gamepad, and complete touch controls
+- Optional OpenAI-compatible, OpenRouter, Anthropic, and WebLLM providers
+- Provider-scoped room cache and strict one-request-at-a-time generation
+- Content sanitization at every LLM-to-HUD boundary
+- Static Vite build and GitHub Pages workflow
 
-## Quick start
+## Local development
+
+Use Node.js 20.19 or newer (Node 24 is used in CI).
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-Build:
+The full local verification command is:
 
 ```bash
-npm run build
-npm run preview
+npm run check
 ```
 
-Output lands in `dist/` for manual Pages hosting later.
+It runs TypeScript, ESLint, Vitest, and the production build. Other useful commands are `npm test`, `npm run test:watch`, and `npm run preview`.
 
-## LLM cost controls
+## How room generation works
 
-Kettermean is designed to avoid unnecessary API spend:
+The active room is always entered immediately. Kettermean never holds a fade or blocks movement while it waits for a provider.
+
+1. The deterministic offline director builds the current playable room.
+2. While the player explores, the selected provider may steer exactly the next room.
+3. At a door, Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
+4. A late provider result is cached for its seed; it never replaces a room underneath the player.
+
+Cloud and browser models select themes, mood, title, blurb, and preferred catalog assets. The client owns placement, collision, density, doors, safety validation, and performance budgets.
+
+## Cost and lifecycle controls
 
 | Guard | Behavior |
 | --- | --- |
-| Offline default | Fully playable with no key and zero network calls |
-| Seed cache | Memory + `localStorage` reuse by seed + gore flag |
-| Single flight | At most one in-flight generation promise per seed |
-| Prefetch depth 1 | Only the *next* room is warmed while you explore |
-| Compact prompts | One JSON object, `max_tokens` capped (~900) |
-| Fail-open | After a provider error, session falls back to offline |
-| No retries | Failed calls do not automatically re-bill |
+| Offline default | No key, model download, or network request |
+| Global single flight | At most one generation runs at a time, even across different seeds |
+| Prefetch depth one | Only the exact next transition seed is warmed |
+| No automatic retry | An invalid or failed response falls back offline and is not retried for that seed during the session |
+| Provider-aware cache | Cache keys include provider, base URL, model, schema version, seed, and gore flag |
+| Request timeout | Cloud calls abort after 90 seconds |
+| Session fail-open | Repeated provider errors stop further calls and keep the dream offline |
+| Session-only key | API keys use `sessionStorage`, never persistent `localStorage` or the build output |
 
-You should still use spend-limited keys or a proxy. Keys are stored only in your browser `localStorage`.
+Use a disposable or spend-limited key. A browser-delivered application cannot protect a provider secret as strongly as a server-side proxy can.
 
 ### Providers
 
-- **Offline procedural only** — default
-- **Browser model (WebLLM / WebGPU)** — local Qwen2.5-0.5B (or similar); first run downloads weights, then cached. No API key.
-- **OpenAI-compatible** — `baseUrl` + key + model (official API, OpenRouter, local proxies, etc.)
-- **Anthropic Claude** — may require a CORS-friendly proxy from browsers
+- **Offline procedural only** — default and fully local.
+- **Browser model (WebLLM / WebGPU)** — local inference with no API key. The default is `SmolLM2-360M-Instruct-q4f16_1-MLC`.
+- **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
+- **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
 
-Browser models are small (about 0.5B). They are good enough for short structured room JSON when geometry is kit-based; they will not match large cloud models.
+## WebLLM notes
 
-> Direct browser calls to cloud LLM APIs often hit CORS. Prefer a small proxy or an OpenAI-compatible gateway you control.
+WebLLM runs in a dedicated web worker so model loading and inference do not freeze rendering or input. Loads, model switches, and completions are serialized, and quitting releases the worker and GPU resources.
+
+- WebGPU requires HTTPS or `http://localhost`; a plain LAN-IP URL is not a secure context.
+- The first use downloads model weights and compiles GPU shaders. Later loads normally use the browser cache.
+- Start with the 360M or 0.5B models. Larger options require substantially more VRAM and can lose the GPU device on integrated hardware.
+- If a model fails, return to the menu and choose a smaller model. Gameplay remains available offline.
+- Tiny models answer a five-line form; Kettermean tolerates fenced, compact, Q-prefixed, and partial well-formed answers.
 
 ## Controls
 
 | Input | Action |
 | --- | --- |
-| WASD / left stick | Move |
-| Mouse / right stick | Look |
-| Shift / gamepad B | Sprint |
-| Space / gamepad A | Jump |
-| Walk into walls/props/entities | Link |
-| Esc | Pause |
+| WASD / left stick / left touch stick | Move |
+| Mouse / right stick / right touch stick | Look |
+| Shift / gamepad B / touch Sprint | Sprint |
+| Space / gamepad A / touch Jump | Jump |
+| Walk into a marked door | Link rooms |
+| Escape / gamepad Menu / touch pause | Pause |
 
-## Content notes
+The setup menu permits normal touch scrolling and browser zoom. Gameplay input disables page gestures only over the canvas and touch controls.
 
-This is meant to feel **liminal and uncanny**, not like a drug sim and not like gore tourism. Expect empty lobbies, wrong nurseries, fluorescent hum, and the occasional giant baby silhouette — not sexual content, and not constant blood.
+## Content policy
+
+Mild blood/gore can be included in prompts only when explicitly enabled. Sexual and obscene display content is always rejected. Provider text is treated as untrusted input, and the final room assembly sanitizes titles, blurbs, tags, and labels before they can reach the HUD.
+
+## GitHub Pages
+
+The Vite build uses relative asset paths. To publish, enable **Settings → Pages → Source: GitHub Actions** in the repository. Pushes to `main` then run `.github/workflows/pages.yml`; all branches and pull requests run `.github/workflows/ci.yml`.
 
 ## Stack
 
 - Three.js
 - TypeScript
 - Vite
+- WebLLM
+- Vitest and ESLint
 
 ## License
 

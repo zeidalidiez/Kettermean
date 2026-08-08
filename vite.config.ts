@@ -17,6 +17,9 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    sourcemap: true,
+    sourcemap: false,
+    // WebLLM is intentionally a large, lazy worker/runtime chunk; model weights
+    // are downloaded separately only when the browser provider is selected.
+    chunkSizeWarningLimit: 6500,
   },
 });
