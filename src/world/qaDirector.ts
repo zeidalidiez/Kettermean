@@ -11,14 +11,17 @@ import { SeededRng } from '../core/rng';
 import { sanitizeDisplayText } from '../core/contentSafety';
 import { generateOfflineDirection, type DirectorSteer } from './roomDirector';
 
+export type QaFallbackField = 'THEME_ID' | 'TITLE' | 'MOOD' | 'GIANT' | 'BLURB';
+
 /**
- * Parse numbered Q&A answers, then hand off to the offline director for real layout variety.
- * ONLY numbered lines count (1. … 9.). Chat preamble is ignored.
+ * Parse the fenced keyed record (or legacy numbered answers), then hand its usable
+ * fields to the procedural director for layout and per-field fallback values.
  */
 export function parseQaDirection(
   text: string,
   seed: string,
   ctx?: Pick<GenerationContext, 'previousTitles' | 'moodBias' | 'allowGore' | 'linkIndex'>,
+  onFieldFallback?: (fields: QaFallbackField[]) => void,
 ): RoomDirection | null {
   if (!text?.trim()) return null;
 
@@ -42,23 +45,40 @@ export function parseQaDirection(
   const validTitle = isUsableTitle(titleRaw);
   const parsedMood = parseMoodAnswer(moodRaw);
   const validBlurb = isUsableBlurb(blurbRaw);
-
-  // A model that repeats the questionnaire has markers but no actual answers.
-  // Reject it rather than putting phrases such as "short title (2-5 words)" in the HUD.
-  if (answerCount > 0 && !recognizedTheme && !validTitle && !parsedMood) return null;
-
-  const theme = recognizedTheme ?? resolveTheme('', seed);
-  const mood = parsedMood ?? soft?.mood ?? theme.mood;
   // Support both short form (4=giant, 5=blurb) and older 9-field form.
   const giantField = get(4);
   const legacyAssets = get(7);
   const legacyGiant = get(8);
-
   const preferAssets = tokenizeAssets(legacyAssets);
-  const giant =
-    parseBooleanAnswer(giantField) === true ||
-    parseBooleanAnswer(legacyGiant) === true ||
-    preferAssets.includes('anomaly_giant_baby');
+  const parsedGiant =
+    parseBooleanAnswer(giantField) ?? parseBooleanAnswer(legacyGiant);
+  const giantFromAsset = preferAssets.includes('anomaly_giant_baby');
+
+  // Reject a copied questionnaire only when it contributed nothing usable. If even
+  // one field is real, preserve it and let the seeded director fill the bad fields.
+  if (
+    answerCount > 0 &&
+    !recognizedTheme &&
+    !validTitle &&
+    !parsedMood &&
+    !validBlurb &&
+    parsedGiant === null &&
+    !giantFromAsset
+  ) {
+    return null;
+  }
+
+  const theme = recognizedTheme ?? resolveTheme('', seed);
+  const mood = parsedMood ?? soft?.mood ?? theme.mood;
+  const giant = parsedGiant === true || giantFromAsset;
+
+  const fallbackFields: QaFallbackField[] = [];
+  if (!recognizedTheme) fallbackFields.push('THEME_ID');
+  if (!validTitle) fallbackFields.push('TITLE');
+  if (!parsedMood) fallbackFields.push('MOOD');
+  if (parsedGiant === null && !giantFromAsset) fallbackFields.push('GIANT');
+  if (!validBlurb) fallbackFields.push('BLURB');
+  if (fallbackFields.length > 0) onFieldFallback?.(fallbackFields);
 
   const steer: DirectorSteer = {
     themeId: theme.id,
@@ -193,17 +213,10 @@ export function browserQaPrompt(ctx: {
   const themes = listThemeIds().join(', ');
   const system = [
     'You generate one tiny room record, not conversation or analysis.',
-    'Return exactly one Markdown code block labeled kettermean and no text outside it.',
-    'Inside it, output exactly five lines using the shown field names and equals signs.',
-    'Invent the values. Never copy instructions, rules, angle-bracket placeholders, or field descriptions as values.',
-    'Template (replace every angle-bracket value):',
-    '```kettermean',
-    'THEME_ID=<one allowed theme id>',
-    'TITLE=<invented atmospheric title>',
-    'MOOD=<upper, downer, static, or dynamic>',
-    'GIANT=<yes or no>',
-    'BLURB=<invented atmospheric sentence>',
-    '```',
+    'Return one Markdown fenced block whose language label is kettermean, with no text outside it.',
+    'Inside the block, write exactly five name-value lines joined by equals signs.',
+    'Use these names once and in this order: THEME_ID, TITLE, MOOD, GIANT, BLURB.',
+    'Invent every value yourself. Do not repeat instructions, rules, examples, or field descriptions.',
     'No JSON. No thinking. No okay. No extra fields.',
     ctx.allowGore ? 'Mild gore ok.' : 'No gore.',
   ].join('\n');

@@ -232,7 +232,7 @@ export class RoomGenerator {
 
   private async callBrowser(ctx: GenerationContext, settings: AppSettings): Promise<string> {
     const model = settings.model.trim() || DEFAULT_BROWSER_MODEL;
-    // Tiny models answer numbered questions; client builds RoomDirection/JSON.
+    // The local model supplies a compact keyed record; the client owns the room structure.
     const qa = browserQaPrompt({
       seed: ctx.seed,
       moodBias: ctx.moodBias,
@@ -481,8 +481,13 @@ function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
 }
 
 function parseBrowserDirection(text: string, ctx: GenerationContext): RoomSpec | null {
-  // Q&A only steers; offline director builds the full room (density/layouts/doors).
-  const qa = parseQaDirection(text, ctx.seed, ctx);
+  // Model fields only steer; the procedural director fills any invalid fields and
+  // always owns the full room structure (density/layouts/doors).
+  const qa = parseQaDirection(text, ctx.seed, ctx, (fields) => {
+    console.warn(
+      `[Kettermean] Browser model used procedural fallback for fields: ${fields.join(', ')}.`,
+    );
+  });
   if (qa) return assembleRoomSpec(qa);
 
   // JSON salvage also goes through director via parseRoomDirection.

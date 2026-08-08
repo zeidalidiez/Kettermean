@@ -72,11 +72,11 @@ BLURB=The depth markers point into dust.
   it('rejects placeholders even when the model puts them in the requested block', () => {
     const direction = parseQaDirection(
       `\`\`\`kettermean
-THEME_ID=choose one allowed theme
-TITLE=short title (2-5 words)
-MOOD=use exactly one mood
-GIANT=yes or no
-BLURB=one short blurb sentence
+THEME_ID=<one allowed theme id>
+TITLE=<invented atmospheric title>
+MOOD=<upper, downer, static, or dynamic>
+GIANT=<yes or no>
+BLURB=<invented atmospheric sentence>
 \`\`\``,
       'copied-placeholders',
     );
@@ -84,7 +84,28 @@ BLURB=one short blurb sentence
     expect(direction).toBeNull();
   });
 
-  it('asks the browser model for one explicitly delimited record', () => {
+  it('keeps any usable model fields and reports only the procedural replacements', () => {
+    const fallbackFields: string[] = [];
+    const direction = parseQaDirection(
+      `\`\`\`kettermean
+THEME_ID=<one allowed theme id>
+TITLE=<invented atmospheric title>
+MOOD=<upper, downer, static, or dynamic>
+GIANT=<yes or no>
+BLURB=Only the exit sign remembers your name.
+\`\`\``,
+      'partial-record',
+      undefined,
+      (fields) => fallbackFields.push(...fields),
+    );
+
+    expect(direction).not.toBeNull();
+    expect(direction?.offline).toBe(false);
+    expect(direction?.blurb).toContain('Only the exit sign remembers your name.');
+    expect(fallbackFields).toEqual(['THEME_ID', 'TITLE', 'MOOD', 'GIANT']);
+  });
+
+  it('asks for one delimited record without providing a copyable answer skeleton', () => {
     const prompt = browserQaPrompt({
       seed: 'prompt-format',
       moodBias: 'static',
@@ -92,8 +113,12 @@ BLURB=one short blurb sentence
       allowGore: false,
     });
 
-    expect(prompt.system).toContain('```kettermean');
-    expect(prompt.system).toContain('THEME_ID=');
+    const fullPrompt = `${prompt.system}\n${prompt.user}`;
+    expect(fullPrompt).toContain('kettermean');
+    expect(fullPrompt).not.toMatch(
+      /^\s*(?:THEME_ID|TITLE|MOOD|GIANT|BLURB)\s*=/gm,
+    );
+    expect(fullPrompt).not.toMatch(/<[^>]+>/);
     expect(prompt.system).not.toContain('Quiet Lobby');
     expect(prompt.user).not.toMatch(/^\s*2[.:)]\s*short title/gm);
   });

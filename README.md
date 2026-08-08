@@ -51,7 +51,7 @@ Cloud and browser models select themes, mood, title, blurb, and preferred catalo
 | Offline default | No key, model download, or network request |
 | Global single flight | At most one generation runs at a time, even across different seeds |
 | Prefetch depth one | Only the exact next transition seed is warmed |
-| No automatic retry | An invalid or failed response falls back offline and is not retried for that seed during the session |
+| No automatic retry | Invalid fields are filled procedurally; a response with no usable fields falls fully offline and is not retried for that seed during the session |
 | Provider-aware cache | Cache keys include provider, base URL, model, schema version, seed, and gore flag |
 | Request timeout | Cloud calls abort after 90 seconds |
 | Session fail-open | Repeated provider errors stop further calls and keep the dream offline |
@@ -74,7 +74,7 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 - The first use downloads model weights and compiles GPU shaders. Later loads normally use the browser cache.
 - Start with the 360M or 0.5B models. Larger options require substantially more VRAM and can lose the GPU device on integrated hardware.
 - If a model fails, return to the menu and choose a smaller model. Gameplay remains available offline.
-- Tiny models answer a fenced five-field record. Kettermean isolates that block, rejects copied instructions/placeholders, and still accepts the older numbered format for compatibility.
+- Tiny models answer a fenced five-field record. Kettermean isolates that block, rejects copied instructions/placeholders, fills individual bad fields procedurally with a console warning, and still accepts the older numbered format for compatibility.
 
 ## Controls
 
