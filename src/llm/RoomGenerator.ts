@@ -145,7 +145,7 @@ export class RoomGenerator {
 
       if (!normalized) {
         throw new Error(
-          `LLM room direction unusable (need numbered 1-9 answers). Preview: ${text.slice(0, 220)}`,
+          `LLM room direction unusable (need numbered 1-5 answers). Preview: ${text.slice(0, 220)}`,
         );
       }
       normalized.offline = false;
@@ -229,8 +229,10 @@ bad=${JSON.stringify(previousText.slice(0, 240))}`
       modelId: model,
       system: qa.system,
       user,
-      maxTokens: 140,
-      temperature: 0.35,
+      // Enough room if the model still emits a short think prefix.
+      maxTokens: 220,
+      temperature: 0.2,
+      forceJson: false,
       onProgress: (msg) => this.onStatus?.(msg),
     });
     return text;

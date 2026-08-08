@@ -21,36 +21,32 @@ export function parseQaDirection(
 ): RoomDirection | null {
   if (!text?.trim()) return null;
 
-  const cleaned = text
-    .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .trim();
-
+  const cleaned = stripModelNoise(text);
   const byNum = extractNumberedAnswers(cleaned);
-  // Need real indexed answers — never freeform line order.
-  if (byNum.size < 1) return null;
-  if (!byNum.has(1) && !byNum.has(2) && !byNum.has(3)) return null;
+
+  // Prefer numbered form; otherwise soft-salvage theme/mood from free text.
+  const soft = byNum.size < 1 ? softExtractSteer(cleaned, seed) : null;
+  if (byNum.size < 1 && !soft) return null;
+  if (byNum.size > 0 && !byNum.has(1) && !byNum.has(2) && !byNum.has(3) && !soft) return null;
 
   const get = (n: number): string => sanitizeAnswer(byNum.get(n) ?? '');
 
-  const theme = resolveTheme(get(1), seed);
-  const titleRaw = get(2);
+  const theme = resolveTheme(get(1) || soft?.themeId || '', seed);
+  const titleRaw = get(2) || soft?.title || '';
   const title = cleanTitle(titleRaw, theme.title);
-  const mood = moodOf(get(3) || theme.mood);
-  // Support both new short form (4=giant, 5=blurb) and older 9-field form.
+  const mood = moodOf(get(3) || soft?.mood || theme.mood);
+  // Support both short form (4=giant, 5=blurb) and older 9-field form.
   const giantField = get(4);
-  const blurbField = get(5) || get(9);
+  const blurbField = get(5) || get(9) || soft?.blurb || '';
   const legacyAssets = get(7);
   const legacyGiant = get(8);
 
-  if (isChatJunk(titleRaw) && !byNum.has(1) && !byNum.has(3)) return null;
-
   const preferAssets = tokenizeAssets(legacyAssets);
-  const giantText = `${giantField} ${legacyGiant}`.toLowerCase();
+  const giantText = `${giantField} ${legacyGiant} ${cleaned}`.toLowerCase();
   const giant =
-    /\byes\b/.test(giantText) ||
-    giantText.includes('baby') ||
-    giantText.includes('giant') ||
+    /\byes\b/.test(giantField.toLowerCase()) ||
+    giantText.includes('giant baby') ||
+    giantText.includes('anomaly_giant_baby') ||
     preferAssets.includes('anomaly_giant_baby');
 
   const steer: DirectorSteer = {
@@ -62,7 +58,7 @@ export function parseQaDirection(
     giant,
   };
 
-  // Offline director owns placement density, doors, layouts, palette jitter.
+  // Offline director owns placement density, doors, packs, palette jitter.
   const dir = generateOfflineDirection(
     {
       seed,
@@ -75,6 +71,37 @@ export function parseQaDirection(
   );
   dir.offline = false;
   return dir;
+}
+
+function stripModelNoise(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
+    .replace(/<think>[\s\S]*$/gi, ' ')
+    .replace(/<\/think>/gi, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    // Drop a leading brace we used to wrongly inject for Q&A.
+    .replace(/^\{\s*/, '')
+    .trim();
+}
+
+/** Last-resort: pull a known themeId / mood out of rambling prose. */
+function softExtractSteer(
+  text: string,
+  seed: string,
+): { themeId?: string; mood?: MoodAxis; title?: string; blurb?: string } | null {
+  const lower = text.toLowerCase();
+  const theme =
+    THEME_PRESETS.find((t) => lower.includes(t.id.toLowerCase())) ||
+    THEME_PRESETS.find((t) => lower.includes(t.title.toLowerCase()));
+  const mood = moodOf(lower);
+  if (!theme && mood === 'static' && !/\b(upper|downer|dynamic|static)\b/.test(lower)) {
+    // Truly nothing useful — let caller fail/repair.
+    return null;
+  }
+  return {
+    themeId: theme?.id || resolveTheme('', seed).id,
+    mood: /\b(upper|downer|dynamic|static)\b/.test(lower) ? mood : theme?.mood,
+  };
 }
 
 /** Pull only `N. answer` / `N) answer` / `N: answer` lines into a map keyed by N. */
@@ -104,9 +131,16 @@ export function browserQaPrompt(ctx: {
   // Short form only — client offline director builds full rooms from these steers.
   const themes = listThemeIds().join(', ');
   const system = [
-    'Fill the form. Output ONLY numbered lines 1-5.',
-    'Format: 1. value',
-    'No intro. No okay. No markdown. No JSON.',
+    'You are a form filler, not a chat assistant.',
+    'Output exactly 5 lines and nothing else.',
+    'Each line: number, period, space, value.',
+    'Example:',
+    '1. fluorescent_lobby',
+    '2. Quiet Lobby',
+    '3. static',
+    '4. no',
+    '5. The plants did not notice.',
+    'No thinking. No okay. No markdown. No JSON. No extra words.',
     ctx.allowGore ? 'Mild gore ok.' : 'No gore.',
   ].join(' ');
 
@@ -115,13 +149,11 @@ export function browserQaPrompt(ctx: {
     `moodBias=${ctx.moodBias}`,
     `avoidTitles=${ctx.previousTitles.slice(-5).join(' | ') || 'none'}`,
     '',
-    `1. themeId from: ${themes}`,
+    `1. themeId exactly one of: ${themes}`,
     '2. short title (2-5 words)',
-    '3. mood: upper OR downer OR static OR dynamic',
-    '4. giant baby? yes OR no',
-    '5. one-sentence blurb',
-    '',
-    'Start with 1.',
+    '3. mood exactly one of: upper, downer, static, dynamic',
+    '4. giant baby? yes or no',
+    '5. one short blurb sentence',
   ].join('\n');
 
   return { system, user };

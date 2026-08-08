@@ -150,9 +150,11 @@ Return ONLY one JSON object. Start with { and end with }. No markdown. No thinki
     stream: false,
   };
 
-  // Qwen3 thinking burns tokens; disable when the runtime accepts it.
+  // Qwen3 defaults to thinking; try several knobs WebLLM builds accept.
   if (/qwen3/i.test(params.modelId)) {
     request.enable_thinking = false;
+    request.chat_template_kwargs = { enable_thinking: false };
+    request.extra_body = { enable_thinking: false };
   }
 
   let completion: NonStream;
@@ -160,7 +162,7 @@ Return ONLY one JSON object. Start with { and end with }. No markdown. No thinki
     completion = (await eng.chat.completions.create(request as never)) as NonStream;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    // Retry without enable_thinking if rejected.
+    // Retry bare request if thinking flags are rejected.
     try {
       completion = (await eng.chat.completions.create({
         messages,
@@ -177,18 +179,24 @@ Return ONLY one JSON object. Start with { and end with }. No markdown. No thinki
   const choice = completion.choices?.[0];
   const content = choice?.message?.content;
   if (typeof content === 'string' && content.trim()) {
-    return normalizeJsonText(content.trim());
+    return normalizeModelText(content.trim(), Boolean(params.forceJson));
   }
   if (choice?.text?.trim()) {
-    return normalizeJsonText(choice.text.trim());
+    return normalizeModelText(choice.text.trim(), Boolean(params.forceJson));
   }
   throw new Error('Browser model returned empty content');
 }
 
-function normalizeJsonText(text: string): string {
-  // Qwen3 may still wrap reasoning even when thinking is disabled.
-  let t = text.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
-  if (!t.startsWith('{')) t = `{${t}`;
+function normalizeModelText(text: string, forceJson: boolean): string {
+  // Strip Qwen thinking blocks (closed or dangling).
+  let t = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, ' ')
+    .replace(/<think>[\s\S]*$/gi, ' ')
+    .replace(/<\/think>/gi, ' ')
+    .trim();
+
+  // Only force JSON brace for explicit JSON mode — never for Q&A forms.
+  if (forceJson && t && !t.startsWith('{')) t = `{${t}`;
   return t;
 }
 
