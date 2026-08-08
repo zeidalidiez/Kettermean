@@ -182,7 +182,9 @@ function populateBrowserModelOptions(): void {
     for (const modelId of group.models) {
       const option = document.createElement('option');
       option.value = modelId;
-      option.textContent = modelId.replace(/-q4f16(?:_1)?-MLC$/i, '');
+      const label = modelId.replace(/-q4f16(?:_1)?-MLC$/i, '');
+      option.textContent =
+        modelId === DEFAULT_BROWSER_MODEL ? `${label} · recommended` : label;
       element.append(option);
     }
     browserModelSelect.append(element);

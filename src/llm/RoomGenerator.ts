@@ -361,6 +361,16 @@ export class RoomGenerator {
 
   private hydrateCache(): void {
     try {
+      const legacyPrefix = 'kettermean.roomCache.v';
+      const legacyKeys = Array.from(
+        { length: localStorage.length },
+        (_, index) => localStorage.key(index),
+      ).filter(
+        (key): key is string =>
+          Boolean(key?.startsWith(legacyPrefix) && key !== STORAGE_KEYS.roomCache),
+      );
+      for (const key of legacyKeys) localStorage.removeItem(key);
+
       const raw = localStorage.getItem(STORAGE_KEYS.roomCache);
       if (!raw) return;
       const parsed = JSON.parse(raw) as Record<string, CacheEntry>;
@@ -410,7 +420,7 @@ export class RoomGenerator {
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v10|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
+  return `v11|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
 }
 
 function buildPrompt(

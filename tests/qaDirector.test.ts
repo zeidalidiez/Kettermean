@@ -165,6 +165,27 @@ The parking lot is a vast expanse of concrete and metal, each car a silent senti
     expect(fallbackFields).toEqual(['THEME_ID']);
   });
 
+  it('replaces only a title that exceeds the requested word budget', () => {
+    const fallbackFields: string[] = [];
+    const direction = parseQaDirection(
+      `\`\`\`kettermean
+THEME_ID=violet_server
+TITLE=Dynamic Neon Corridors Pulse With Energy
+MOOD=upper
+GIANT=no
+BLURB=Neon signs breathe above the silent racks.
+\`\`\``,
+      'long-title',
+      undefined,
+      (fields) => fallbackFields.push(...fields),
+    );
+
+    expect(direction?.title).not.toBe('Dynamic Neon Corridors Pulse With Energy');
+    expect(direction?.blurb).toContain('Neon signs breathe above the silent racks.');
+    expect(direction?.offline).toBe(false);
+    expect(fallbackFields).toEqual(['TITLE']);
+  });
+
   it('asks for one delimited record without providing a copyable answer skeleton', () => {
     const prompt = browserQaPrompt({
       seed: 'prompt-format',
@@ -181,6 +202,7 @@ The parking lot is a vast expanse of concrete and metal, each car a silent senti
     expect(fullPrompt).not.toMatch(/<[^>]+>/);
     expect(prompt.system).not.toContain('Quiet Lobby');
     expect(prompt.user).not.toMatch(/^\s*2[.:)]\s*short title/gm);
+    expect(fullPrompt).not.toContain('prompt-format');
 
     const themeLine = prompt.user
       .split('\n')

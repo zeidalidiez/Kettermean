@@ -1,7 +1,7 @@
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
   sessionApiKey: 'kettermean.apiKey.session.v1',
-  roomCache: 'kettermean.roomCache.v10',
+  roomCache: 'kettermean.roomCache.v11',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
@@ -13,9 +13,9 @@ export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
 /**
  * Browser models = WebLLM prebuilt model_ids only (q4f16 preferred for VRAM).
  * Any id from @mlc-ai/web-llm prebuiltAppConfig still works if typed manually.
- * Default is a small general instruct model; picker spans several families.
+ * Default favors reliable instruction following; picker includes lighter fallbacks.
  */
-export const DEFAULT_BROWSER_MODEL = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
+export const DEFAULT_BROWSER_MODEL = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 export const BROWSER_MODEL_OPTIONS = [
   // Tiny / fast
   'SmolLM2-360M-Instruct-q4f16_1-MLC',

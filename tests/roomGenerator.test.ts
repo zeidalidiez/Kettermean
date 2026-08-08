@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { STORAGE_KEYS } from '../src/config';
 import { RoomGenerator } from '../src/llm/RoomGenerator';
 import type { AppSettings, GenerationContext } from '../src/types';
 import { memoryStorage } from './storage';
@@ -100,5 +101,22 @@ describe('RoomGenerator cost controls', () => {
 
     await expect(obsolete).resolves.toMatchObject({ offline: true });
     expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  });
+
+  it('removes obsolete room-cache versions without touching unrelated storage', () => {
+    const local = memoryStorage({
+      'kettermean.roomCache.v8': '{}',
+      'kettermean.roomCache.v10': '{}',
+      [STORAGE_KEYS.roomCache]: '{}',
+      'another-app': 'keep-me',
+    });
+    vi.stubGlobal('localStorage', local);
+
+    new RoomGenerator(settings);
+
+    expect(local.getItem('kettermean.roomCache.v8')).toBeNull();
+    expect(local.getItem('kettermean.roomCache.v10')).toBeNull();
+    expect(local.getItem(STORAGE_KEYS.roomCache)).toBe('{}');
+    expect(local.getItem('another-app')).toBe('keep-me');
   });
 });

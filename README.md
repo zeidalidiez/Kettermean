@@ -62,7 +62,7 @@ Use a disposable or spend-limited key. A browser-delivered application cannot pr
 ### Providers
 
 - **Offline procedural only** — default and fully local.
-- **Browser model (WebLLM / WebGPU)** — local inference with no API key. The default is `SmolLM2-360M-Instruct-q4f16_1-MLC`.
+- **Browser model (WebLLM / WebGPU)** — local inference with no API key. The default is `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` because it follows the room-record protocol more reliably than the tiny options.
 - **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
 - **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
 
@@ -72,7 +72,7 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 
 - WebGPU requires HTTPS or `http://localhost`; a plain LAN-IP URL is not a secure context.
 - The first use downloads model weights and compiles GPU shaders. Later loads normally use the browser cache.
-- Start with the 360M or 0.5B models. Larger options require substantially more VRAM and can lose the GPU device on integrated hardware.
+- The recommended 1.5B model gives substantially better room text. The 360M and 0.5B options use less memory but need procedural field fallback more often; larger options require substantially more VRAM and can lose the GPU device on integrated hardware.
 - If a model fails, return to the menu and choose a smaller model. Gameplay remains available offline.
 - Tiny models receive a deterministic five-theme shortlist and answer a fenced five-field record. Kettermean also accepts Markdown tables and field-heading records, rejects copied instructions/placeholders, fills individual bad fields procedurally with a console warning, and still accepts the older numbered format for compatibility.
 

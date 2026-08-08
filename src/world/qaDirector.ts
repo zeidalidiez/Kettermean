@@ -289,7 +289,7 @@ export function browserQaPrompt(ctx: {
   ].join('\n');
 
   const user = [
-    `Seed: ${ctx.seed}. Preferred mood: ${ctx.moodBias}.`,
+    `Preferred mood: ${ctx.moodBias}.`,
     `Theme options: ${themes}.`,
     `Avoid title: ${ctx.previousTitles.at(-1) || 'none'}.`,
     'Complete the five-field room block now.',
@@ -359,7 +359,14 @@ function cleanBlurb(raw: string, fallback: string): string {
 
 function isUsableTitle(raw: string): boolean {
   const value = sanitizeAnswer(raw);
-  return value.length >= 2 && !isChatJunk(value) && !isInstructionEcho(value);
+  const words = value.split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word));
+  return (
+    value.length >= 2 &&
+    words.length >= 2 &&
+    words.length <= 5 &&
+    !isChatJunk(value) &&
+    !isInstructionEcho(value)
+  );
 }
 
 function isUsableBlurb(raw: string): boolean {
