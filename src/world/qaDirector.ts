@@ -22,37 +22,49 @@ export function parseQaDirection(
 ): RoomDirection | null {
   if (!text?.trim()) return null;
 
-  const cleaned = stripModelNoise(text);
+  const cleaned = stripModelNoise(extractBestPayload(text));
   const byNum = extractNumberedAnswers(cleaned);
+  const byKey = extractKeyedAnswers(cleaned);
+  const answerCount = new Set([...byNum.keys(), ...byKey.keys()]).size;
 
-  // Prefer numbered form; otherwise soft-salvage theme/mood from free text.
-  const soft = byNum.size < 1 ? softExtractSteer(cleaned, seed) : null;
-  if (byNum.size < 1 && !soft) return null;
-  if (byNum.size > 0 && !byNum.has(1) && !byNum.has(2) && !byNum.has(3) && !soft) return null;
+  // Prefer the fenced keyed record, retain numbered replies for compatibility,
+  // and only soft-salvage prose when no structured fields were found.
+  const soft = answerCount < 1 ? softExtractSteer(cleaned, seed) : null;
+  if (answerCount < 1 && !soft) return null;
 
-  const get = (n: number): string => sanitizeAnswer(byNum.get(n) ?? '');
+  const get = (n: number): string => sanitizeAnswer(byKey.get(n) ?? byNum.get(n) ?? '');
 
-  const theme = resolveTheme(get(1) || soft?.themeId || '', seed);
+  const themeRaw = get(1);
   const titleRaw = get(2) || soft?.title || '';
-  const title = cleanTitle(titleRaw, theme.title);
-  const mood = moodOf(get(3) || soft?.mood || theme.mood);
+  const moodRaw = get(3);
+  const blurbRaw = get(5) || get(9) || soft?.blurb || '';
+  const recognizedTheme = findTheme(themeRaw || soft?.themeId || '');
+  const validTitle = isUsableTitle(titleRaw);
+  const parsedMood = parseMoodAnswer(moodRaw);
+  const validBlurb = isUsableBlurb(blurbRaw);
+
+  // A model that repeats the questionnaire has markers but no actual answers.
+  // Reject it rather than putting phrases such as "short title (2-5 words)" in the HUD.
+  if (answerCount > 0 && !recognizedTheme && !validTitle && !parsedMood) return null;
+
+  const theme = recognizedTheme ?? resolveTheme('', seed);
+  const mood = parsedMood ?? soft?.mood ?? theme.mood;
   // Support both short form (4=giant, 5=blurb) and older 9-field form.
   const giantField = get(4);
-  const blurbField = get(5) || get(9) || soft?.blurb || '';
   const legacyAssets = get(7);
   const legacyGiant = get(8);
 
   const preferAssets = tokenizeAssets(legacyAssets);
-  const giantText = `${giantField} ${legacyGiant}`.toLowerCase();
   const giant =
-    /\b(?:yes|true)\b/.test(giantText) ||
+    parseBooleanAnswer(giantField) === true ||
+    parseBooleanAnswer(legacyGiant) === true ||
     preferAssets.includes('anomaly_giant_baby');
 
   const steer: DirectorSteer = {
     themeId: theme.id,
     mood,
-    title: isChatJunk(titleRaw) ? undefined : title,
-    blurb: isChatJunk(blurbField) ? undefined : cleanBlurb(blurbField, theme.blurb),
+    title: validTitle ? cleanTitle(titleRaw, theme.title) : undefined,
+    blurb: validBlurb ? cleanBlurb(blurbRaw, theme.blurb) : undefined,
     preferAssets,
     giant,
   };
@@ -70,6 +82,32 @@ export function parseQaDirection(
   );
   dir.offline = false;
   return dir;
+}
+
+/** Prefer an explicitly labeled answer block so echoed prompts outside it cannot become data. */
+function extractBestPayload(text: string): string {
+  const named = /```[ \t]*kettermean[ \t]*\r?\n([\s\S]*?)```/i.exec(text);
+  if (named?.[1]?.trim()) return named[1];
+
+  const danglingNamed = /```[ \t]*kettermean[ \t]*\r?\n([\s\S]*)$/i.exec(text);
+  if (danglingNamed?.[1]?.trim()) return danglingNamed[1];
+
+  const genericFences = text.matchAll(
+    /```[ \t]*(?:[a-z0-9_-]+)?[ \t]*\r?\n([\s\S]*?)```/gi,
+  );
+  for (const match of genericFences) {
+    const candidate = match[1]?.trim() || '';
+    if (looksStructured(candidate)) return candidate;
+  }
+
+  return text;
+}
+
+function looksStructured(text: string): boolean {
+  return (
+    /^\s*(?:theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]/im.test(text) ||
+    /(?:^|[\s;])(?:q\s*)?[1-5]\s*[:.)\-\]](?=\s|$)/i.test(text)
+  );
 }
 
 function stripModelNoise(text: string): string {
@@ -124,54 +162,86 @@ export function extractNumberedAnswers(text: string): Map<number, string> {
   return byNum;
 }
 
+function extractKeyedAnswers(text: string): Map<number, string> {
+  const fieldNumbers: Record<string, number> = {
+    theme: 1,
+    theme_id: 1,
+    title: 2,
+    mood: 3,
+    giant: 4,
+    giant_baby: 4,
+    blurb: 5,
+  };
+  const byKey = new Map<number, string>();
+  const fields = text.matchAll(
+    /^\s*(theme(?:_id)?|title|mood|giant(?:_baby)?|blurb)\s*[:=]\s*(.*?)\s*$/gim,
+  );
+  for (const match of fields) {
+    const number = fieldNumbers[(match[1] || '').toLowerCase()];
+    const answer = sanitizeAnswer(match[2] || '');
+    if (number && answer && !byKey.has(number)) byKey.set(number, answer);
+  }
+  return byKey;
+}
+
 export function browserQaPrompt(ctx: {
   seed: string;
   moodBias: MoodAxis;
   previousTitles: string[];
   allowGore: boolean;
 }): { system: string; user: string } {
-  // Short form only — client offline director builds full rooms from these steers.
   const themes = listThemeIds().join(', ');
   const system = [
-    'You are a form filler, not a chat assistant.',
-    'Output exactly 5 lines and nothing else.',
-    'Each line: number, period, space, value.',
-    'Example:',
-    '1. fluorescent_lobby',
-    '2. Quiet Lobby',
-    '3. static',
-    '4. no',
-    '5. The plants did not notice.',
-    'No thinking. No okay. No markdown. No JSON. No extra words.',
+    'You generate one tiny room record, not conversation or analysis.',
+    'Return exactly one Markdown code block labeled kettermean and no text outside it.',
+    'Inside it, output exactly five lines using the shown field names and equals signs.',
+    'Invent the values. Never copy instructions, rules, angle-bracket placeholders, or field descriptions as values.',
+    'Example syntax (create different content):',
+    '```kettermean',
+    'THEME_ID=fluorescent_lobby',
+    'TITLE=Quiet Lobby',
+    'MOOD=static',
+    'GIANT=no',
+    'BLURB=The plants did not notice.',
+    '```',
+    'No JSON. No thinking. No okay. No extra fields.',
     ctx.allowGore ? 'Mild gore ok.' : 'No gore.',
-  ].join(' ');
+  ].join('\n');
 
   const user = [
-    `seed=${ctx.seed}`,
-    `moodBias=${ctx.moodBias}`,
-    `avoidTitles=${ctx.previousTitles.slice(-5).join(' | ') || 'none'}`,
-    '',
-    `1. themeId exactly one of: ${themes}`,
-    '2. short title (2-5 words)',
-    '3. mood exactly one of: upper, downer, static, dynamic',
-    '4. giant baby? yes or no',
-    '5. one short blurb sentence',
+    `Create a different room record for seed ${ctx.seed}.`,
+    `Mood preference: ${ctx.moodBias}.`,
+    `Titles to avoid: ${ctx.previousTitles.slice(-5).join(' | ') || 'none'}.`,
+    `Allowed THEME_ID values: ${themes}.`,
+    'TITLE rule: invent an atmospheric title of two to five words.',
+    'MOOD rule: use exactly upper, downer, static, or dynamic.',
+    'GIANT rule: use exactly yes or no.',
+    'BLURB rule: invent one short atmospheric sentence.',
+    'Return the completed kettermean block now.',
   ].join('\n');
 
   return { system, user };
 }
 
-function resolveTheme(raw: string, seed: string) {
+function findTheme(raw: string) {
   const t = raw.toLowerCase().trim().replace(/\s+/g, '_');
-  if (t) {
+  if (t && !isInstructionEcho(raw)) {
     const direct = getTheme(t) || getTheme(raw.trim());
     if (direct) return direct;
-    const fuzzy =
-      THEME_PRESETS.find((th) => t.includes(th.id)) ||
-      THEME_PRESETS.find((th) => th.id.includes(t.slice(0, 8))) ||
-      THEME_PRESETS.find((th) => t.includes(th.title.toLowerCase().replace(/\s+/g, '_')));
+    const fuzzy = THEME_PRESETS.find(
+      (theme) =>
+        t.includes(theme.id) ||
+        (t.length >= 4 && theme.id.includes(t.slice(0, 8))) ||
+        t.includes(theme.title.toLowerCase().replace(/\s+/g, '_')),
+    );
     if (fuzzy) return fuzzy;
   }
+  return undefined;
+}
+
+function resolveTheme(raw: string, seed: string) {
+  const matched = findTheme(raw);
+  if (matched) return matched;
   // Deterministic theme from seed when model fails Q1 but other answers exist.
   const rng = new SeededRng(`${seed}:theme`);
   return rng.pick(THEME_PRESETS);
@@ -203,11 +273,50 @@ function cleanBlurb(raw: string, fallback: string): string {
   return sanitizeDisplayText(clip(t, 120), fallback, 120);
 }
 
+function isUsableTitle(raw: string): boolean {
+  const value = sanitizeAnswer(raw);
+  return value.length >= 2 && !isChatJunk(value) && !isInstructionEcho(value);
+}
+
+function isUsableBlurb(raw: string): boolean {
+  const value = sanitizeAnswer(raw);
+  return value.length >= 4 && !isChatJunk(value) && !isInstructionEcho(value);
+}
+
+function parseMoodAnswer(raw: string): MoodAxis | null {
+  const value = sanitizeAnswer(raw).toLowerCase().replace(/[.!]+$/, '').trim();
+  return ['upper', 'downer', 'static', 'dynamic'].includes(value)
+    ? (value as MoodAxis)
+    : null;
+}
+
+function parseBooleanAnswer(raw: string): boolean | null {
+  const value = sanitizeAnswer(raw).toLowerCase().replace(/[.!]+$/, '').trim();
+  if (value === 'yes' || value === 'true') return true;
+  if (value === 'no' || value === 'false') return false;
+  return null;
+}
+
+function isInstructionEcho(raw: string): boolean {
+  const value = sanitizeAnswer(raw).toLowerCase();
+  return (
+    /^(?:a\s+)?short\s+title\b/.test(value) ||
+    /\b(?:2|two)\s*(?:-|–|to)\s*(?:5|five)\s+words?\b/.test(value) ||
+    /^(?:one\s+)?short\s+blurb\b/.test(value) ||
+    /^theme(?:_?id)?\b.*\b(?:one of|allowed|choose|select)\b/.test(value) ||
+    /^mood\b.*\b(?:one of|upper|downer|static|dynamic)\b/.test(value) ||
+    /^giant(?:\s+baby)?\??\s+(?:yes\s+or\s+no|true\s+or\s+false)\b/.test(value) ||
+    /^(?:invent|write|choose|select|use exactly|value)\b/.test(value) ||
+    /^<[^>]+>$/.test(value)
+  );
+}
+
 function isChatJunk(s: string): boolean {
   const t = s.toLowerCase();
   if (!t.trim()) return true;
   if (/^["'`.\s]+$/.test(s)) return true;
   return (
+    isInstructionEcho(s) ||
     t.includes('let’s tackle') ||
     t.includes("let's tackle") ||
     t.includes('step by step') ||

@@ -74,7 +74,7 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 - The first use downloads model weights and compiles GPU shaders. Later loads normally use the browser cache.
 - Start with the 360M or 0.5B models. Larger options require substantially more VRAM and can lose the GPU device on integrated hardware.
 - If a model fails, return to the menu and choose a smaller model. Gameplay remains available offline.
-- Tiny models answer a five-line form; Kettermean tolerates fenced, compact, Q-prefixed, and partial well-formed answers.
+- Tiny models answer a fenced five-field record. Kettermean isolates that block, rejects copied instructions/placeholders, and still accepts the older numbered format for compatibility.
 
 ## Controls
 

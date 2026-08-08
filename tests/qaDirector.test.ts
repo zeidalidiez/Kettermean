@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { extractNumberedAnswers, parseQaDirection } from '../src/world/qaDirector';
+import {
+  browserQaPrompt,
+  extractNumberedAnswers,
+  parseQaDirection,
+} from '../src/world/qaDirector';
 
-describe('browser-model numbered answer parser', () => {
+describe('browser-model answer parser', () => {
   it('keeps the final answer in the standard five-line form', () => {
     const answers = extractNumberedAnswers(
       '1. wrong_nursery\n2. Quiet Crib\n3. downer\n4. no\n5. The mobile turns alone.',
@@ -30,5 +34,66 @@ describe('browser-model numbered answer parser', () => {
     );
     expect(direction?.title).toBe('Night Intake');
     expect(direction?.blurb).toContain('No one calls your name.');
+  });
+
+  it('extracts the dedicated fenced record and ignores surrounding prompt echoes', () => {
+    const direction = parseQaDirection(
+      `2. short title (2-5 words)
+
+\`\`\`kettermean
+THEME_ID=dry_pool
+TITLE=Waterless Lanes
+MOOD=static
+GIANT=no
+BLURB=The depth markers point into dust.
+\`\`\`
+
+5. one short blurb sentence`,
+      'fenced-record',
+    );
+
+    expect(direction?.title).toBe('Waterless Lanes');
+    expect(direction?.blurb).toContain('The depth markers point into dust.');
+  });
+
+  it('rejects an echoed questionnaire instead of displaying instructions', () => {
+    const direction = parseQaDirection(
+      `1. themeId exactly one of: fluorescent_lobby, dry_pool
+2. short title (2-5 words)
+3. mood exactly one of: upper, downer, static, dynamic
+4. giant baby? yes or no
+5. one short blurb sentence`,
+      'echoed-questionnaire',
+    );
+
+    expect(direction).toBeNull();
+  });
+
+  it('rejects placeholders even when the model puts them in the requested block', () => {
+    const direction = parseQaDirection(
+      `\`\`\`kettermean
+THEME_ID=choose one allowed theme
+TITLE=short title (2-5 words)
+MOOD=use exactly one mood
+GIANT=yes or no
+BLURB=one short blurb sentence
+\`\`\``,
+      'copied-placeholders',
+    );
+
+    expect(direction).toBeNull();
+  });
+
+  it('asks the browser model for one explicitly delimited record', () => {
+    const prompt = browserQaPrompt({
+      seed: 'prompt-format',
+      moodBias: 'static',
+      previousTitles: [],
+      allowGore: false,
+    });
+
+    expect(prompt.system).toContain('```kettermean');
+    expect(prompt.system).toContain('THEME_ID=');
+    expect(prompt.user).not.toMatch(/^\s*2[.:)]\s*short title/gm);
   });
 });
