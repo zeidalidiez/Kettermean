@@ -1,6 +1,14 @@
 import * as THREE from 'three';
 import { PLAYER } from '../config';
-import type { BuiltRoom, ColliderBox, RoomEntity, RoomProp, RoomSpec, Vec3 } from '../types';
+import type {
+  BuiltRoom,
+  ColliderBox,
+  RoomEntity,
+  RoomProp,
+  RoomSpec,
+  RoomVisuals,
+  Vec3,
+} from '../types';
 import { clearMaterialCaches, plainMaterial, styleForMood, surfaceMaterial } from './materials';
 import {
   boundsForKind,
@@ -17,6 +25,29 @@ interface LiveEntity {
   phase: number;
 }
 
+interface PulsingLight {
+  light: THREE.Light;
+  baseIntensity: number;
+  amplitude: number;
+  speed: number;
+  phase: number;
+}
+
+interface LightingProfile {
+  primary: string;
+  ambient: string;
+  ground: string;
+  stripCount: number;
+  stripIntensity: number;
+  pointIntensity: number;
+  ambientIntensity: number;
+  hemiIntensity: number;
+  keyIntensity: number;
+  fillIntensity: number;
+  pulseAmplitude: number;
+  pulseSpeed: number;
+}
+
 export class RoomWorld {
   readonly group = new THREE.Group();
   private colliders: ColliderBox[] = [];
@@ -25,6 +56,7 @@ export class RoomWorld {
   private liveEntities: LiveEntity[] = [];
   private fog: THREE.Fog | null = null;
   private lights: THREE.Light[] = [];
+  private pulsingLights: PulsingLight[] = [];
   private spec: RoomSpec | null = null;
 
   build(spec: RoomSpec, scene: THREE.Scene): BuiltRoom {
@@ -38,6 +70,8 @@ export class RoomWorld {
     const wallT = 0.35;
     const seedKey = spec.seed;
     const tags = spec.themeTags ?? [];
+    const visuals = spec.visuals ?? defaultVisuals();
+    const lighting = lightingProfile(visuals, spec.palette);
 
     const floorMat = surfaceMaterial(styleForMood('floor', spec.mood, tags), spec.palette.floor, seedKey);
     const ceilMat = surfaceMaterial(styleForMood('ceiling', spec.mood, tags), spec.palette.ceiling, seedKey);
@@ -132,32 +166,51 @@ export class RoomWorld {
       this.addEntity(ent);
     }
 
-    // Ceiling fluorescents — visible anchors + real light sources
+    // Visible fixtures and real light sources change character with each room.
     const span = Math.max(spec.width, spec.depth);
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < lighting.stripCount; i += 1) {
       const strip = new THREE.Mesh(
         new THREE.BoxGeometry(Math.min(4.2, spec.width * 0.28), 0.06, 0.4),
         new THREE.MeshStandardMaterial({
-          color: '#ffffff',
-          emissive: new THREE.Color(spec.palette.light),
-          emissiveIntensity: 2.2,
+          color: lighting.primary,
+          emissive: new THREE.Color(lighting.primary),
+          emissiveIntensity: lighting.stripIntensity,
           roughness: 0.35,
         }),
       );
-      const x = (i - 1) * Math.min(5, halfW * 0.55);
+      const across = lighting.stripCount === 1 ? 0 : i / (lighting.stripCount - 1) - 0.5;
+      const x = across * 2 * Math.min(5, halfW * 0.55);
       strip.position.set(x, h - 0.12, 0);
       this.group.add(strip);
 
-      const bulb = new THREE.PointLight(spec.palette.light, 1.1, span * 1.35, 1.6);
+      const bulb = new THREE.PointLight(
+        lighting.primary,
+        lighting.pointIntensity,
+        span * 1.35,
+        1.6,
+      );
       bulb.position.set(x, h - 0.35, 0);
       this.lights.push(bulb);
+      if (lighting.pulseAmplitude > 0) {
+        this.pulsingLights.push({
+          light: bulb,
+          baseIntensity: lighting.pointIntensity,
+          amplitude: lighting.pulseAmplitude,
+          speed: lighting.pulseSpeed,
+          phase: stablePhase(`${spec.seed}:light:${i}`),
+        });
+      }
     }
 
-    const ambient = new THREE.AmbientLight(spec.palette.ambient, 0.95);
-    const hemi = new THREE.HemisphereLight(spec.palette.light, spec.palette.floor, 0.85);
-    const key = new THREE.DirectionalLight(spec.palette.light, 0.75);
+    const ambient = new THREE.AmbientLight(lighting.ambient, lighting.ambientIntensity);
+    const hemi = new THREE.HemisphereLight(
+      lighting.primary,
+      lighting.ground,
+      lighting.hemiIntensity,
+    );
+    const key = new THREE.DirectionalLight(lighting.primary, lighting.keyIntensity);
     key.position.set(halfW * 0.35, h * 0.9, halfD * 0.25);
-    const fill = new THREE.DirectionalLight(spec.palette.ambient, 0.35);
+    const fill = new THREE.DirectionalLight(lighting.ambient, lighting.fillIntensity);
     fill.position.set(-halfW * 0.5, h * 0.6, -halfD * 0.3);
     this.lights.push(ambient, hemi, key, fill);
     for (const l of this.lights) scene.add(l);
@@ -166,6 +219,7 @@ export class RoomWorld {
     scene.fog = this.fog;
     scene.background = new THREE.Color(spec.palette.fog);
 
+    if (visuals.wireframe) setWireframe(this.group, lighting.primary);
     scene.add(this.group);
     this.spawn = findSafeSpawn(this.colliders, halfW, halfD);
 
@@ -178,6 +232,12 @@ export class RoomWorld {
   }
 
   update(dt: number, playerPos: THREE.Vector3): void {
+    for (const pulse of this.pulsingLights) {
+      pulse.phase += dt * pulse.speed;
+      pulse.light.intensity =
+        pulse.baseIntensity * (1 + Math.sin(pulse.phase) * pulse.amplitude);
+    }
+
     for (const ent of this.liveEntities) {
       ent.phase += dt * (ent.data.speed ?? 1);
       const m = ent.mesh;
@@ -248,6 +308,7 @@ export class RoomWorld {
       l.dispose?.();
     }
     this.lights = [];
+    this.pulsingLights = [];
     this.colliders = [];
     this.linkTriggers = [];
     this.liveEntities = [];
@@ -374,6 +435,138 @@ function stablePhase(id: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return ((hash >>> 0) / 4294967296) * Math.PI * 2;
+}
+
+function defaultVisuals(): RoomVisuals {
+  return {
+    shader: 'none',
+    lighting: 'fluorescent',
+    tint: '#ffffff',
+    effectStrength: 0,
+    pixelSize: 4,
+    wireframe: false,
+    exposure: 1,
+  };
+}
+
+function lightingProfile(
+  visuals: RoomVisuals,
+  palette: RoomSpec['palette'],
+): LightingProfile {
+  switch (visuals.lighting) {
+    case 'dim':
+      return {
+        primary: '#aaa1c8',
+        ambient: palette.ambient,
+        ground: palette.floor,
+        stripCount: 2,
+        stripIntensity: 0.75,
+        pointIntensity: 0.5,
+        ambientIntensity: 0.5,
+        hemiIntensity: 0.4,
+        keyIntensity: 0.4,
+        fillIntensity: 0.18,
+        pulseAmplitude: 0,
+        pulseSpeed: 0,
+      };
+    case 'cold':
+      return {
+        primary: '#82b8ff',
+        ambient: '#243c5c',
+        ground: palette.floor,
+        stripCount: 4,
+        stripIntensity: 2.5,
+        pointIntensity: 1.25,
+        ambientIntensity: 0.72,
+        hemiIntensity: 0.72,
+        keyIntensity: 0.72,
+        fillIntensity: 0.28,
+        pulseAmplitude: 0,
+        pulseSpeed: 0,
+      };
+    case 'warm':
+      return {
+        primary: '#ffd19b',
+        ambient: '#704a32',
+        ground: palette.floor,
+        stripCount: 3,
+        stripIntensity: 2.15,
+        pointIntensity: 1.08,
+        ambientIntensity: 0.8,
+        hemiIntensity: 0.68,
+        keyIntensity: 0.68,
+        fillIntensity: 0.3,
+        pulseAmplitude: 0,
+        pulseSpeed: 0,
+      };
+    case 'emergency':
+      return {
+        primary: '#ff392f',
+        ambient: '#6d171a',
+        ground: '#26080a',
+        stripCount: 2,
+        stripIntensity: 3,
+        pointIntensity: 1.65,
+        ambientIntensity: 0.9,
+        hemiIntensity: 0.72,
+        keyIntensity: 0.82,
+        fillIntensity: 0.32,
+        pulseAmplitude: 0.14,
+        pulseSpeed: 1.15,
+      };
+    case 'pulse':
+      return {
+        primary: visuals.tint,
+        ambient: palette.ambient,
+        ground: palette.floor,
+        stripCount: 3,
+        stripIntensity: 2.35,
+        pointIntensity: 1.15,
+        ambientIntensity: 0.68,
+        hemiIntensity: 0.62,
+        keyIntensity: 0.62,
+        fillIntensity: 0.25,
+        pulseAmplitude: 0.28,
+        pulseSpeed: 1.35,
+      };
+    default:
+      return {
+        primary: palette.light,
+        ambient: palette.ambient,
+        ground: palette.floor,
+        stripCount: 3,
+        stripIntensity: 2.2,
+        pointIntensity: 1.1,
+        ambientIntensity: 0.95,
+        hemiIntensity: 0.85,
+        keyIntensity: 0.75,
+        fillIntensity: 0.35,
+        pulseAmplitude: 0,
+        pulseSpeed: 0,
+      };
+  }
+}
+
+function setWireframe(group: THREE.Group, lineColor: string): void {
+  const glow = new THREE.Color(lineColor);
+  const seen = new Set<THREE.Material>();
+  group.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.material) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      if (seen.has(material)) continue;
+      seen.add(material);
+      const candidate = material as THREE.Material & { wireframe?: boolean };
+      if (typeof candidate.wireframe !== 'boolean') continue;
+      candidate.wireframe = true;
+      candidate.needsUpdate = true;
+      if (material instanceof THREE.MeshStandardMaterial) {
+        material.emissive.lerp(glow, 0.65);
+        material.emissiveIntensity = Math.max(material.emissiveIntensity, 0.65);
+      }
+    }
+  });
 }
 
 function resolveKind(kind: string | undefined, label: string): PropKind {

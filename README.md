@@ -10,6 +10,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 - Seeded continuum and randomized dream modes
 - Door-only room links with mood-tinted fades
 - Per-room gravity, movement, friction, bounce, and sway
+- Seeded lighting, tint, retro, dream, noir, CRT, and wireframe treatments
 - Keyboard/mouse, gamepad, and complete touch controls
 - Optional OpenAI-compatible, OpenRouter, Anthropic, and WebLLM providers
 - Provider-scoped room cache and strict one-request-at-a-time generation
@@ -42,7 +43,7 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 3. At a door, Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
 4. A late provider result is cached for its seed; it never replaces a room underneath the player.
 
-Cloud and browser models select themes, mood, title, blurb, and preferred catalog assets. The client owns placement, collision, density, doors, safety validation, and performance budgets.
+Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets.
 
 ## Cost and lifecycle controls
 
@@ -51,7 +52,7 @@ Cloud and browser models select themes, mood, title, blurb, and preferred catalo
 | Offline default | No key, model download, or network request |
 | Global single flight | At most one generation runs at a time, even across different seeds |
 | Prefetch depth one | Only the exact next transition seed is warmed |
-| No automatic retry | Invalid fields are filled procedurally; a response with no usable fields falls fully offline and is not retried for that seed during the session |
+| No automatic retry | Invalid cloud fields fall back procedurally for that seed; malformed browser output becomes a complete procedural steering code without disabling later model calls |
 | Provider-aware cache | Cache keys include provider, base URL, model, schema version, seed, and gore flag |
 | Request timeout | Cloud calls abort after 90 seconds |
 | Session fail-open | Repeated provider errors stop further calls and keep the dream offline |
@@ -62,7 +63,7 @@ Use a disposable or spend-limited key. A browser-delivered application cannot pr
 ### Providers
 
 - **Offline procedural only** — default and fully local.
-- **Browser model (WebLLM / WebGPU)** — local inference with no API key. The default is `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` because it follows the room-record protocol more reliably than the tiny options.
+- **Browser model (WebLLM / WebGPU)** — local inference with no API key. The default is the lightweight `SmolLM2-360M-Instruct-q4f16_1-MLC`; a 1.5B option remains available for machines that can comfortably run it.
 - **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
 - **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
 
@@ -72,9 +73,10 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 
 - WebGPU requires HTTPS or `http://localhost`; a plain LAN-IP URL is not a secure context.
 - The first use downloads model weights and compiles GPU shaders. Later loads normally use the browser cache.
-- The recommended 1.5B model gives substantially better room text. The 360M and 0.5B options use less memory but need procedural field fallback more often; larger options require substantially more VRAM and can lose the GPU device on integrated hardware.
+- The default 360M model minimizes download, memory, and inference cost. Larger options may make more deliberate choices but require substantially more VRAM and can lose the GPU device on integrated hardware.
 - If a model fails, return to the menu and choose a smaller model. Gameplay remains available offline.
-- Tiny models receive a deterministic five-theme shortlist and answer a fenced five-field record. Kettermean also accepts Markdown tables and field-heading records, rejects copied instructions/placeholders, fills individual bad fields procedurally with a console warning, and still accepts the older numbered format for compatibility.
+- Tiny models receive a deterministic five-theme shortlist and answer with one `KMR` token plus eight digits for theme, mood, anomaly, shader, lighting, tint, density, and wireframe. Kettermean searches for that token inside surrounding junk, fills missing digits from the room seed, and limits the response to 40 tokens with repetition penalties.
+- Titles and blurbs stay procedural in browser mode, so weak model prose never reaches the HUD. Older field records and JSON remain accepted during the protocol transition.
 
 ## Controls
 

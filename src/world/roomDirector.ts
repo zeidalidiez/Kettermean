@@ -283,9 +283,9 @@ export function resolveRoomVisuals(
     override?.lighting ?? (rng.chance(0.45) ? moodLighting : rng.pick(LIGHTING_STYLES));
   const defaultExposure =
     lighting === 'dim'
-      ? 0.72
+      ? 0.82
       : lighting === 'emergency'
-        ? 0.82
+        ? 0.98
         : lighting === 'cold'
           ? 0.92
           : lighting === 'warm'

@@ -6,6 +6,8 @@ import { InputManager } from '../input/InputManager';
 import { RoomGenerator } from '../llm/RoomGenerator';
 import { PlayerController } from '../player/PlayerController';
 import { RoomWorld } from '../world/RoomBuilder';
+import { resolveRoomVisuals } from '../world/roomDirector';
+import { RoomPostProcessor } from './RoomPostProcessor';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'linking';
 
@@ -23,6 +25,7 @@ export class DreamGame {
   private input: InputManager;
   private roomWorld = new RoomWorld();
   private generator: RoomGenerator;
+  private post: RoomPostProcessor;
 
   private state: GameState = 'menu';
   private settings: AppSettings;
@@ -66,6 +69,13 @@ export class DreamGame {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.post = new RoomPostProcessor();
+    this.post.setSize(
+      window.innerWidth,
+      window.innerHeight,
+      this.renderer.getPixelRatio(),
+    );
 
     this.player = new PlayerController(window.innerWidth / window.innerHeight);
     // Touch pause should be immediate even when a mobile browser throttles RAF.
@@ -121,7 +131,7 @@ export class DreamGame {
     // Always enter a playable offline room immediately. Never block controls on the API.
     const boot = this.generator.getOrOffline(ctx);
     this.applyRoom(boot);
-    this.renderer.render(this.scene, this.player.camera);
+    this.renderFrame();
     this.startLoop();
     if (!useLlm) {
       this.showToast('Offline room');
@@ -194,18 +204,31 @@ export class DreamGame {
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     this.input.dispose();
     this.roomWorld.dispose(this.scene);
+    this.post.dispose();
     this.renderer.dispose();
   }
 
   private applyRoom(spec: RoomSpec): void {
+    spec.visuals ??= resolveRoomVisuals(spec.seed, spec.mood);
     const built = this.roomWorld.build(spec, this.scene);
     this.player.setPhysics(spec.physics);
     this.player.spawnAt(built.spawn.x, built.spawn.y, built.spawn.z, 0);
     this.previousTitles.push(spec.title);
     if (this.previousTitles.length > 12) this.previousTitles.shift();
     this.moodBias = spec.mood;
+    this.post.setProfile(spec.visuals);
+    this.renderer.toneMappingExposure = spec.visuals?.exposure ?? 1;
     this.hudTheme.textContent = `${spec.title} · ${spec.mood}`;
-    this.hudSeed.textContent = `seed ${spec.seed}${spec.offline ? ' · offline' : ''}`;
+    const visualLabels = [
+      spec.visuals?.wireframe ? 'wireframe' : '',
+      spec.visuals?.shader && spec.visuals.shader !== 'none' ? spec.visuals.shader : '',
+      spec.visuals?.lighting ?? '',
+    ].filter(Boolean);
+    this.hudSeed.textContent = [
+      `seed ${spec.seed}`,
+      spec.offline ? 'offline' : '',
+      ...visualLabels,
+    ].filter(Boolean).join(' · ');
     must('hud-hint').textContent = spec.blurb;
   }
 
@@ -281,7 +304,7 @@ export class DreamGame {
       if (runEpoch !== this.runEpoch) return;
       this.applyRoom(spec);
       this.state = 'playing';
-      this.renderer.render(this.scene, this.player.camera);
+      this.renderFrame();
       this.startLoop();
       this.schedulePrefetch();
     } catch (err) {
@@ -322,7 +345,7 @@ export class DreamGame {
       void frame;
     }
 
-    this.renderer.render(this.scene, this.player.camera);
+    this.renderFrame(t / 1000);
     if (this.state === 'playing') this.raf = requestAnimationFrame(this.loop);
   }
 
@@ -342,11 +365,16 @@ export class DreamGame {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h);
+    this.post.setSize(w, h, this.renderer.getPixelRatio());
     this.player.setAspect(w / h);
     if (this.state !== 'playing' && this.roomWorld.getSpec()) {
-      this.renderer.render(this.scene, this.player.camera);
+      this.renderFrame();
     }
   };
+
+  private renderFrame(timeSeconds = performance.now() / 1000): void {
+    this.post.render(this.renderer, this.scene, this.player.camera, timeSeconds);
+  }
 
   private onCanvasClick = (): void => {
     if (this.state === 'playing' || this.state === 'paused') {

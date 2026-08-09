@@ -64,7 +64,7 @@ export const RANDOM_RESEED_EVERY = 7;
  * - only one in-flight generation at a time
  * - prefetch at most one next room
  * - cache by seed (memory + localStorage)
- * - compact JSON, low max_tokens
+ * - compact output with strict token budgets
  */
 export const LLM_BUDGET = {
   maxTokens: 1100,
