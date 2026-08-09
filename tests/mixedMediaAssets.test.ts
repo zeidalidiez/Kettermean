@@ -16,6 +16,11 @@ import {
   type PropKind,
 } from '../src/world/models';
 
+const RASTER_MODEL_ASSETS = import.meta.glob(
+  '../src/assets/*.{png,jpg,jpeg,webp,avif}',
+  { eager: true, query: '?url', import: 'default' },
+);
+
 afterAll(() => clearModelMaterialCache());
 
 describe('mixed-media model expansion', () => {
@@ -98,6 +103,10 @@ describe('mixed-media model expansion', () => {
     for (const [family, signatures] of familySignatures) {
       expect(signatures.size, family).toBe(8);
     }
+  });
+
+  it('ships no raster model artwork that could restore the removed sprite actors', () => {
+    expect(Object.keys(RASTER_MODEL_ASSETS)).toEqual([]);
   });
 
   it('keeps every family available to cloud direction without expanding every variant', () => {
