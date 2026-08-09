@@ -186,6 +186,32 @@ describe('RoomGenerator cost controls', () => {
     });
   });
 
+  it('uses a second focused cloud pass only at deep AI depth', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(
+        '{"themeId":"fluorescent_lobby","title":"Base Archive","blurb":"The first pass chose the room.","mood":"static","preferredAssets":["npc_clerk","cabinet_file"]}',
+      ))
+      .mockResolvedValueOnce(response(
+        '{"title":"Archive of Rain","blurb":"Every file is wet. The cabinets insist it has never rained.","roomRule":"Speak only when the lights are blue.","signs":[{"headline":"WATER RECORDS","caption":"DRY FORMS ONLY"}],"npcLines":["Your umbrella is overdue."],"npcBehavior":"stare"}',
+      ));
+    vi.stubGlobal('fetch', fetchMock);
+    const generator = new RoomGenerator({ ...settings, aiDepth: 'deep' });
+    generator.beginSession();
+
+    const room = await generator.get(context('deep-cloud'));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(generator.getApiCallCount()).toBe(2);
+    expect(room).toMatchObject({
+      offline: false,
+      title: 'Archive of Rain',
+      roomRule: 'Speak only when the lights are blue.',
+      signs: [{ headline: 'WATER RECORDS', caption: 'DRY FORMS ONLY' }],
+    });
+    expect(room.entities.every((entity) => entity.behavior === 'stare')).toBe(true);
+    expect(room.entities.some((entity) => entity.dialogue === 'Your umbrella is overdue.')).toBe(true);
+  });
+
   it('reports the selected OpenRouter backend and a useful HTTP failure state', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.stubGlobal(

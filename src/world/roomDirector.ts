@@ -556,9 +556,21 @@ export function parseRoomDirection(
   const mood = enumValue(o.mood, MOOD_VALUES);
 
   const preferAssets: string[] = [];
-  const placementsRaw = Array.isArray(o.placements) ? o.placements : Array.isArray(o.assets) ? o.assets : null;
+  const placementsRaw = Array.isArray(o.placements)
+    ? o.placements
+    : Array.isArray(o.assets)
+      ? o.assets
+      : Array.isArray(o.preferredAssets)
+        ? o.preferredAssets
+        : Array.isArray(o.preferAssets)
+          ? o.preferAssets
+          : null;
   if (placementsRaw) {
     for (const p of placementsRaw) {
+      if (typeof p === 'string') {
+        if (getAsset(p)) preferAssets.push(p);
+        continue;
+      }
       if (!p || typeof p !== 'object') continue;
       const po = p as Record<string, unknown>;
       const id = typeof po.assetId === 'string' ? po.assetId : typeof po.id === 'string' ? po.id : '';

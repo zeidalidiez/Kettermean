@@ -7,8 +7,8 @@ import {
   LLM_BUDGET,
   STORAGE_KEYS,
 } from '../config';
-import type { AppSettings, GenerationContext, RoomSpec } from '../types';
-import { catalogPromptSummary } from '../world/assetCatalog';
+import type { AiDepth, AppSettings, GenerationContext, RoomSpec } from '../types';
+import { catalogPromptSummary, listThemeIds } from '../world/assetCatalog';
 import {
   assembleRoomSpec,
   generateOfflineRoom,
@@ -27,6 +27,13 @@ import {
   parseSteeringDirection,
 } from '../world/steeringCode';
 import { resolveRoomVisuals } from '../world/roomDirector';
+import {
+  applyNarrativePatch,
+  browserNarrativePrompt,
+  cloudNarrativePrompt,
+  narrativePatchFromObject,
+  parseBrowserNarrative,
+} from './narrative';
 
 interface CacheEntry {
   spec: RoomSpec;
@@ -63,7 +70,8 @@ export class RoomGenerator {
       settings.provider !== previous.provider ||
       settings.model !== previous.model ||
       settings.baseUrl !== previous.baseUrl ||
-      settings.apiKey !== previous.apiKey;
+      settings.apiKey !== previous.apiKey ||
+      settings.aiDepth !== previous.aiDepth;
     const constraintsChanged =
       settings.allowGore !== previous.allowGore ||
       settings.noFlashingLights !== previous.noFlashingLights ||
@@ -219,18 +227,13 @@ export class RoomGenerator {
     }
 
     try {
-      this.apiCallsThisSession += 1;
-      const text = await this.callProvider(ctx, settings);
+      const normalized = settings.provider === 'browser'
+        ? await this.generateBrowserRoom(ctx, settings)
+        : await this.generateCloudRoom(ctx, settings);
       if (epoch !== this.sessionEpoch) return generateOfflineRoom(ctx);
-      const normalized =
-        settings.provider === 'browser'
-          ? parseBrowserDirection(text, ctx)
-          : parseDirectedOrLegacy(text, ctx);
 
       if (!normalized) {
-        throw new Error(
-          `LLM room direction was unusable. Preview: ${text.slice(0, 220)}`,
-        );
+        throw new Error('LLM room direction was unusable after field validation.');
       }
       normalized.visuals = resolveRoomVisuals(
         normalized.seed,
@@ -263,21 +266,19 @@ export class RoomGenerator {
     }
   }
 
-  private async callProvider(ctx: GenerationContext, settings: AppSettings): Promise<string> {
-    const { system, user } = buildPrompt(ctx);
-    if (settings.provider === 'browser') return this.callBrowser(ctx, settings);
-
-    console.info(`[Kettermean] ${providerLabel(settings)} request started.`, {
-      provider: settings.provider,
-      model: providerModel(settings),
-    });
+  private async callCloudCompletion(
+    system: string,
+    user: string,
+    settings: AppSettings,
+    maxTokens: number,
+  ): Promise<string> {
     const controller = new AbortController();
     this.activeCloudController = controller;
     const timer = window.setTimeout(() => controller.abort(), LLM_BUDGET.requestTimeoutMs);
     try {
       return settings.provider === 'anthropic'
-        ? await this.callAnthropic(system, user, settings, controller.signal, true)
-        : await this.callOpenAI(system, user, settings, controller.signal, true);
+        ? await this.callAnthropic(system, user, settings, controller.signal, maxTokens, true)
+        : await this.callOpenAI(system, user, settings, controller.signal, maxTokens, true);
     } catch (err) {
       if (controller.signal.aborted) {
         throw new Error(`LLM timed out after ${LLM_BUDGET.requestTimeoutMs}ms.`);
@@ -296,20 +297,142 @@ export class RoomGenerator {
     await ensureBrowserEngine(model, (msg) => this.onStatus?.(msg));
   }
 
-  private async callBrowser(ctx: GenerationContext, settings: AppSettings): Promise<string> {
+  private async callBrowser(
+    prompt: { system: string; user: string },
+    settings: AppSettings,
+    maxTokens: number,
+    pass: number,
+    totalPasses: number,
+    temperature: number,
+  ): Promise<string> {
     const model = settings.model.trim() || DEFAULT_BROWSER_MODEL;
-    // The local model supplies eight bounded digits; the client owns everything else.
-    const qa = browserSteeringPrompt(ctx);
     const text = await browserChatCompletion({
       modelId: model,
-      system: qa.system,
-      user: qa.user,
-      maxTokens: LLM_BUDGET.browserMaxTokens,
-      temperature: 0.25,
+      system: prompt.system,
+      user: prompt.user,
+      maxTokens,
+      temperature,
       forceJson: false,
-      onProgress: (msg) => this.onStatus?.(msg),
+      onProgress: (msg) => this.onStatus?.(
+        /loading|downloading|fetching|compiling|model url|cache/i.test(msg)
+          ? msg
+          : `Pass ${pass}/${totalPasses} · ${msg}`,
+      ),
     });
     return text;
+  }
+
+  private async generateBrowserRoom(
+    ctx: GenerationContext,
+    settings: AppSettings,
+  ): Promise<RoomSpec | null> {
+    const totalPasses = passCount(settings.aiDepth, 'browser');
+    this.onStatus?.(`Creating room direction · pass 1/${totalPasses}`);
+    this.apiCallsThisSession += 1;
+    const steeringText = await this.callBrowser(
+      browserSteeringPrompt(ctx),
+      settings,
+      LLM_BUDGET.browserMaxTokens,
+      1,
+      totalPasses,
+      0.25,
+    );
+    const room = parseBrowserDirection(steeringText, ctx);
+    if (!room || settings.aiDepth === 'light') return room;
+
+    await this.tryBrowserNarrativePass('language', 2, totalPasses, room, ctx, settings);
+    if (settings.aiDepth === 'deep') {
+      await this.tryBrowserNarrativePass('inhabitants', 3, totalPasses, room, ctx, settings);
+    }
+    return room;
+  }
+
+  private async tryBrowserNarrativePass(
+    kind: 'language' | 'inhabitants',
+    pass: number,
+    totalPasses: number,
+    room: RoomSpec,
+    ctx: GenerationContext,
+    settings: AppSettings,
+  ): Promise<void> {
+    const prompt = browserNarrativePrompt(kind, ctx, room);
+    this.onStatus?.(
+      kind === 'language'
+        ? `Writing room language · pass ${pass}/${totalPasses}`
+        : `Directing inhabitants · pass ${pass}/${totalPasses}`,
+    );
+    try {
+      this.apiCallsThisSession += 1;
+      const text = await this.callBrowser(
+        prompt,
+        settings,
+        kind === 'language' ? LLM_BUDGET.browserTextMaxTokens : LLM_BUDGET.browserCastMaxTokens,
+        pass,
+        totalPasses,
+        0.72,
+      );
+      const applied = applyNarrativePatch(room, parseBrowserNarrative(text, prompt.marker));
+      console.info(
+        applied.length
+          ? `[Kettermean] WebLLM pass ${pass}/${totalPasses} applied: ${applied.join(', ')}.`
+          : `[Kettermean] WebLLM pass ${pass}/${totalPasses} used procedural text fallbacks.`,
+        { preview: responsePreview(text) },
+      );
+    } catch (err) {
+      console.warn(
+        `[Kettermean] WebLLM pass ${pass}/${totalPasses} failed; retaining validated earlier fields.`,
+        err,
+      );
+      this.onStatus?.(`Pass ${pass}/${totalPasses} failed · earlier AI direction retained`);
+    }
+  }
+
+  private async generateCloudRoom(
+    ctx: GenerationContext,
+    settings: AppSettings,
+  ): Promise<RoomSpec | null> {
+    const totalPasses = passCount(settings.aiDepth, 'cloud');
+    const prompt = buildPrompt(ctx, settings.aiDepth);
+    this.onStatus?.(`Creating room direction · pass 1/${totalPasses}`);
+    console.info(`[Kettermean] ${providerLabel(settings)} request started.`, {
+      provider: settings.provider,
+      model: providerModel(settings),
+      depth: settings.aiDepth,
+      pass: `1/${totalPasses}`,
+    });
+    this.apiCallsThisSession += 1;
+    const text = await this.callCloudCompletion(
+      prompt.system,
+      prompt.user,
+      settings,
+      settings.aiDepth === 'light' ? LLM_BUDGET.lightMaxTokens : LLM_BUDGET.maxTokens,
+    );
+    const room = parseDirectedOrLegacy(text, ctx);
+    if (!room || settings.aiDepth !== 'deep') return room;
+
+    const narrative = cloudNarrativePrompt(ctx, room);
+    this.onStatus?.(`Writing room language and inhabitants · pass 2/${totalPasses}`);
+    try {
+      this.apiCallsThisSession += 1;
+      const narrativeText = await this.callCloudCompletion(
+        narrative.system,
+        narrative.user,
+        settings,
+        LLM_BUDGET.deepNarrativeMaxTokens,
+      );
+      const raw = extractJsonObject(narrativeText);
+      const applied = applyNarrativePatch(room, narrativePatchFromObject(raw));
+      console.info(
+        applied.length
+          ? `[Kettermean] ${providerLabel(settings)} deep pass applied: ${applied.join(', ')}.`
+          : `[Kettermean] ${providerLabel(settings)} deep pass used procedural text fallbacks.`,
+        { preview: responsePreview(narrativeText) },
+      );
+    } catch (err) {
+      console.warn('[Kettermean] Deep writing pass failed; retaining base AI room.', err);
+      this.onStatus?.('Deep writing pass failed · base AI room retained');
+    }
+    return room;
   }
 
   private async callOpenAI(
@@ -317,6 +440,7 @@ export class RoomGenerator {
     user: string,
     settings: AppSettings,
     signal: AbortSignal,
+    maxTokens: number,
     prefillJson = true,
   ): Promise<string> {
     const base = (settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
@@ -345,7 +469,7 @@ export class RoomGenerator {
     const body: Record<string, unknown> = {
       model,
       temperature: Math.min(LLM_BUDGET.temperature, 0.7),
-      max_tokens: LLM_BUDGET.maxTokens,
+      max_tokens: maxTokens,
       messages,
     };
     if (useJsonMode) body.response_format = { type: 'json_object' };
@@ -376,6 +500,7 @@ export class RoomGenerator {
     user: string,
     settings: AppSettings,
     signal: AbortSignal,
+    maxTokens: number,
     prefillJson = true,
   ): Promise<string> {
     const base = (settings.baseUrl || DEFAULT_ANTHROPIC_BASE).replace(/\/$/, '');
@@ -394,7 +519,7 @@ export class RoomGenerator {
       signal,
       body: JSON.stringify({
         model,
-        max_tokens: LLM_BUDGET.maxTokens,
+        max_tokens: maxTokens,
         temperature: Math.min(LLM_BUDGET.temperature, 0.7),
         system,
         messages,
@@ -536,10 +661,10 @@ function withSettingsConstraints(
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v22|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
+  return `v23|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
-function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
+function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; user: string } {
   const goreLine = ctx.allowGore
     ? 'Mild blood/gore allowed sparingly.'
     : 'No blood or gore.';
@@ -550,43 +675,49 @@ function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
     ? 'Keep the room clearly illuminated; do not request dim or low-light treatment.'
     : 'Low-light atmosphere is permitted.';
 
-  // Director mode: pick catalog assets + atmospheric scale. Client builds meshes.
+  if (depth === 'light') {
+    return {
+      system: [
+        'Direct one liminal dream room. Return one JSON object only; no markdown or analysis.',
+        'Schema: themeId, title, blurb, mood, environment, condition, visuals.',
+        'mood: upper|downer|static|dynamic.',
+        'environment: interior|open-hall|outdoor.',
+        'visuals may contain shader, lighting, tint, wireframe.',
+        goreLine,
+        flashingLine,
+        lowLightLine,
+        'Invent actual values. Never repeat the schema or use placeholders. Never sexual or obscene.',
+      ].join(' '),
+      user: [
+        `seed=${ctx.seed}`,
+        `moodBias=${ctx.moodBias}`,
+        `linkIndex=${ctx.linkIndex}`,
+        `avoidTitles=${JSON.stringify(ctx.previousTitles.slice(-5))}`,
+        `themeOptions=${listThemeIds().join(',')}`,
+        'Return a different room as JSON now.',
+      ].join('\n'),
+    };
+  }
+
+  // Rich director mode chooses semantic controls; the client owns safe placement.
   const system = [
     'You are an art director for a liminal WebGL game.',
     'Return ONE JSON object only. No markdown. No analysis.',
-    'Do NOT invent meshes. SELECT assets from the catalog by assetId.',
-    'You may scale assets for atmosphere (e.g. anomaly_giant_baby scaleMul 2.5-3.8).',
-    'Schema: themeId?, title, blurb, mood, tags, width, depth, height, fogNear, fogFar, linkColor, palette?, physics?, placements[].',
-    'placements item: {assetId,x,z,rotY,scaleMul,behavior?}.',
-    'mood: upper|downer|static|dynamic. Keep spawn center clear (no solid near 0,0 within 1.8).',
-    '6-12 placements. Do not place doors or portals; the player changes dreams with R.',
+    'Do NOT invent meshes. SELECT preferredAssets from the supplied catalog by exact assetId.',
+    'The client owns coordinates and collision-safe placement.',
+    'Schema: themeId, title, blurb, mood, tags, environment, layoutStyle, architecture, scaleProfile, worldScale, condition, density, width, depth, height, fogNear, fogFar, linkColor, palette, physics, visuals, preferredAssets, roomRule, signs, npcLines, npcBehavior.',
+    'environment: interior|open-hall|outdoor. layoutStyle: clusters|perimeter|axial|scattered|sparse.',
+    'architecture: chamber|colonnade|atrium|arena|concourse|courtyard|causeway|field|basin.',
+    'scaleProfile: closet|human|grand|monumental|colossal. condition: normal|bloodied|slimed|scorched|burning|ruined|overgrown|frozen|flooded|dusty|moldy|electrified|haunted|gilded|bioluminescent|stormbound.',
+    'mood: upper|downer|static|dynamic. npcBehavior: idle|wander|orbit|stare.',
+    'visuals: shader, lighting, tint, effectStrength, distortion, colorCycle, wireframe.',
+    'Write a two-or-three-sentence blurb, a strange roomRule, 2-4 signs with headline/caption, and 1-4 short npcLines.',
+    'Choose 4-10 preferredAssets. Do not select doors or portals; the player changes dreams with R.',
     goreLine,
     flashingLine,
     lowLightLine,
     'Never sexual or obscene.',
   ].join(' ');
-
-  const example = {
-    themeId: 'wrong_nursery',
-    title: 'Wrong Nursery',
-    blurb: 'The crib is empty. Something else is not.',
-    mood: 'downer',
-    tags: ['nursery', 'uncanny'],
-    width: 12,
-    depth: 12,
-    height: 3.4,
-    fogNear: 10,
-    fogFar: 34,
-    linkColor: '#15203f',
-    placements: [
-      { assetId: 'crib_empty', x: -2, z: -1.5, rotY: 0.2, scaleMul: 1 },
-      { assetId: 'anomaly_giant_baby', x: 1.5, z: 2, scaleMul: 3.1, behavior: 'idle' },
-      { assetId: 'bottle_giant', x: 3, z: -2.5, scaleMul: 1.4 },
-      { assetId: 'plant_fern', x: -5.2, z: 0, rotY: 1.57 },
-      { assetId: 'lamp_floor', x: -3.5, z: 3, scaleMul: 1 },
-      { assetId: 'mirror_tall', x: 5, z: 0, rotY: -1.57, scaleMul: 1.1 },
-    ],
-  };
 
   const user = [
     `seed=${ctx.seed}`,
@@ -595,11 +726,15 @@ function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
     `avoidTitles=${JSON.stringify(ctx.previousTitles.slice(-5))}`,
     'CATALOG (choose only these assetId values):',
     catalogPromptSummary(),
-    `example=${JSON.stringify(example)}`,
-    'Direct a different room. JSON only.',
+    'Direct a new room. Use actual invented values, not schema descriptions or placeholders. JSON only.',
   ].join('\n');
 
   return { system, user };
+}
+
+function passCount(depth: AiDepth, provider: 'browser' | 'cloud'): number {
+  if (provider === 'browser') return depth === 'light' ? 1 : depth === 'standard' ? 2 : 3;
+  return depth === 'deep' ? 2 : 1;
 }
 
 function parseDirectedOrLegacy(text: string, ctx: GenerationContext): RoomSpec | null {

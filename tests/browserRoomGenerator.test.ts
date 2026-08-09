@@ -58,9 +58,13 @@ describe('RoomGenerator browser steering recovery', () => {
   it('keeps generating after repeated malformed tiny-model responses', async () => {
     browser.completion
       .mockResolvedValueOnce('kettermean\n=RED_STAIRWELL\n=IN_UPPER_MOOD\n=IN_UPPER_MOOD')
+      .mockResolvedValueOnce('TITLE=Red Benefits Office\nBLURB=The forms are warm. The pens are asleep.\nSIGN=STAIR CLAIMS | LEVEL ZERO')
       .mockResolvedValueOnce('kettermean\n=red_stairwell\n=giants\n=giants\n=giants')
+      .mockResolvedValueOnce('TITLE=Giant Service Desk\nBLURB=Every clerk is too tall. Nobody can reach the forms.\nSIGN=GIANT INTAKE | WAIT BELOW')
       .mockResolvedValueOnce('=Vending=,=Vending=,=Vending=,=Vending=')
-      .mockResolvedValueOnce('I forgot the requested format.');
+      .mockResolvedValueOnce('TITLE=Vending Chapel\nBLURB=The machines hum together. Exact change is forgiven.\nSIGN=COIN SERVICE | ALWAYS OPEN')
+      .mockResolvedValueOnce('I forgot the requested format.')
+      .mockResolvedValueOnce('TITLE=Forgotten Format\nBLURB=The instructions left first. The room improvised.\nSIGN=NO TEMPLATE | PROCEED ANYWAY');
 
     const generator = new RoomGenerator(settings);
     generator.beginSession();
@@ -69,10 +73,28 @@ describe('RoomGenerator browser steering recovery', () => {
       rooms.push(await generator.get(context(index)));
     }
 
-    expect(browser.completion).toHaveBeenCalledTimes(4);
-    expect(generator.getApiCallCount()).toBe(4);
+    expect(browser.completion).toHaveBeenCalledTimes(8);
+    expect(generator.getApiCallCount()).toBe(8);
     expect(rooms.every((room) => room.offline === false)).toBe(true);
     expect(rooms.every((room) => room.visuals)).toBe(true);
+    expect(rooms.map((room) => room.title)).toEqual([
+      'Red Benefits Office',
+      'Giant Service Desk',
+      'Vending Chapel',
+      'Forgotten Format',
+    ]);
+  });
+
+  it('keeps light depth to one compact browser-model pass', async () => {
+    browser.completion.mockResolvedValueOnce('KMR12345670');
+    const generator = new RoomGenerator({ ...settings, aiDepth: 'light' });
+    generator.beginSession();
+
+    const room = await generator.get(context(20));
+
+    expect(room.offline).toBe(false);
+    expect(browser.completion).toHaveBeenCalledTimes(1);
+    expect(generator.getApiCallCount()).toBe(1);
   });
 
   it('starts a newly selected cloud provider without waiting for obsolete WebLLM work', async () => {

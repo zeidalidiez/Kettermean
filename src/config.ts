@@ -1,7 +1,7 @@
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
   sessionApiKey: 'kettermean.apiKey.session.v1',
-  roomCache: 'kettermean.roomCache.v21',
+  roomCache: 'kettermean.roomCache.v22',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
@@ -90,7 +90,11 @@ export const RANDOM_RESEED_EVERY = 7;
  */
 export const LLM_BUDGET = {
   maxTokens: 1100,
+  lightMaxTokens: 480,
+  deepNarrativeMaxTokens: 760,
   browserMaxTokens: 40,
+  browserTextMaxTokens: 150,
+  browserCastMaxTokens: 120,
   temperature: 0.8,
   cacheLimit: 48,
   /** Free routers can be slow; do not abort quickly. */
