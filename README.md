@@ -6,7 +6,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated all-3D catalog with 2,778 composed furniture, fixture, animal, and NPC variants across 366 multi-variant families, plus the original one-off kit pieces
+- Three.js first-person rooms assembled from a curated all-3D catalog with 3,228 composed furniture, fixture, animal, and NPC variants across 441 multi-variant families, plus the original one-off kit pieces
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
@@ -20,7 +20,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - A player flashlight on **F**, gamepad X, and touch, independent of room lighting
 - Billboards that interleave model-authored notices with longer tagged procedural notices from an 860-entry semantic lexicon and seventy-two caption endings, so neither writing source replaces the other
-- Three high-detail expansion rounds contribute 908 props and 454 NPC/animal variants across 189 artisan families, with geometry changes—not palette swaps—between variants in every family
+- Four high-detail expansion rounds contribute 1,208 props and 604 NPC/animal variants across 264 artisan families, with geometry changes—not palette swaps—between variants in every family
 - Every selectable actor and prop is built as 3D geometry; the former prerendered character cutouts are excluded from the catalog and production bundle
 - Deliberately cheap low-poly forms and room-scale voxel giants remain as intentional contrasts to the increasingly intricate catalog
 - Twenty-three body-independent face-kit archetypes with separately seeded eyes, brows, noses, mouths, hair, markings, and accessories; animal faces cross-mount on people, human faces on animals, and both kinds appear on furniture, fixtures, and other objects
@@ -75,7 +75,7 @@ AI depth changes how much authorship the selected model attempts, not the proced
 
 Every later pass is additive: if it fails, the game retains the valid AI direction from earlier passes and procedurally fills only the missing fields.
 
-The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, thirty dedicated high-detail animal families, thirty-three high-detail humanoid roles, and the broader legacy catalog. The newer families range from upholstered furniture, scientific instruments, workshop machinery, ritual displays, medical apparatus, magic lanterns, switchboards, seismographs, phoropters, and observatory equipment to foxes, octopuses, ravens, axolotls, mantises, seahorses, projectionists, conservators, astronomers, and stationmasters. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. Actors range from articulated, role-equipped people and species-specific animals to intentionally crude low-poly figures and giant voxel apparitions. Catalog metadata remains separate from geometry builders so future families can be added without turning either system into a monolith.
+The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, forty dedicated high-detail animal families, forty-eight high-detail humanoid roles, and the broader legacy catalog. The newer families range from upholstered furniture, scientific instruments, workshop machinery, ritual displays, medical apparatus, weather instruments, botanical automata, miniature architecture, and textile machines to pangolins, cranes, octopuses, capybaras, projectionists, conservators, weather observers, scent archivists, and clock conductors. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. Actors range from articulated, role-equipped people and species-specific animals to intentionally crude low-poly figures and giant voxel apparitions. Catalog metadata remains separate from geometry builders so future families can be added without turning either system into a monolith.
 
 ## Cost and lifecycle controls
 
