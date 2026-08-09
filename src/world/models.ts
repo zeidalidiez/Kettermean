@@ -80,8 +80,15 @@ interface PartSpec {
 }
 
 const matCache = new Map<string, THREE.MeshStandardMaterial>();
+const modelCache = new Map<string, THREE.Group>();
 
 export function clearModelMaterialCache(): void {
+  for (const model of modelCache.values()) {
+    model.traverse((object) => {
+      if (object instanceof THREE.Mesh) object.geometry.dispose();
+    });
+  }
+  modelCache.clear();
   for (const material of matCache.values()) material.dispose();
   matCache.clear();
 }
@@ -641,6 +648,20 @@ export function buildModel(
   kind: PropKind,
   accent = '#6a7a8a',
   body = '#c4b59a',
+  assetId?: string,
+): THREE.Group {
+  const key = `${kind}|${assetVariant(assetId)}|${accent}|${body}`;
+  const cached = modelCache.get(key);
+  if (cached) return cached.clone(true);
+  const model = createModel(kind, accent, body, assetId);
+  modelCache.set(key, model);
+  return model.clone(true);
+}
+
+function createModel(
+  kind: PropKind,
+  accent: string,
+  body: string,
   assetId?: string,
 ): THREE.Group {
   const expanded = buildExpandedModel(kind, assetVariant(assetId), accent, body);

@@ -67,6 +67,8 @@ export class RoomWorld {
   private fog: THREE.Fog | null = null;
   private lights: THREE.Light[] = [];
   private pulsingLights: PulsingLight[] = [];
+  private navigationLight: THREE.PointLight | null = null;
+  private exitLabelTexture: THREE.CanvasTexture | null = null;
   private spec: RoomSpec | null = null;
 
   build(spec: RoomSpec, scene: THREE.Scene): BuiltRoom {
@@ -255,7 +257,14 @@ export class RoomWorld {
       lighting.fillIntensity * (outdoor ? 1.4 : 1),
     );
     fill.position.set(-halfW * 0.5, h * 0.6, -halfD * 0.3);
-    this.lights.push(ambient, hemi, key, fill);
+    this.navigationLight = new THREE.PointLight(
+      spec.palette.light,
+      outdoor ? 1.65 : 2.15,
+      outdoor ? 22 : 18,
+      1.25,
+    );
+    this.navigationLight.position.set(0, PLAYER.eyeHeight + 0.35, 0);
+    this.lights.push(ambient, hemi, key, fill, this.navigationLight);
     for (const l of this.lights) scene.add(l);
 
     this.fog = new THREE.Fog(spec.palette.fog, Math.max(8, spec.fogNear), Math.max(spec.fogFar, spec.fogNear + 18));
@@ -275,6 +284,9 @@ export class RoomWorld {
   }
 
   update(dt: number, playerPos: THREE.Vector3): void {
+    if (this.navigationLight) {
+      this.navigationLight.position.set(playerPos.x, playerPos.y + 0.35, playerPos.z);
+    }
     for (const pulse of this.pulsingLights) {
       pulse.phase += dt * pulse.speed;
       pulse.light.intensity =
@@ -346,6 +358,8 @@ export class RoomWorld {
       }
     });
     for (const material of materials) material.dispose();
+    this.exitLabelTexture?.dispose();
+    this.exitLabelTexture = null;
     this.group.clear();
     clearMaterialCaches();
     clearModelMaterialCache();
@@ -355,6 +369,7 @@ export class RoomWorld {
     }
     this.lights = [];
     this.pulsingLights = [];
+    this.navigationLight = null;
     this.colliders = [];
     this.linkTriggers = [];
     this.liveEntities = [];
@@ -559,6 +574,28 @@ export class RoomWorld {
 
     const header = bar(Math.max(0.65, width * 0.58), 0.13, depth + 0.04, 0, height + 0.3);
     frame.add(header);
+    const beacon = new THREE.Mesh(
+      new THREE.OctahedronGeometry(Math.max(0.18, Math.min(0.34, width * 0.14))),
+      glowMaterial,
+    );
+    beacon.position.set(0, height + 0.72, 0);
+    beacon.userData.keepSolid = true;
+    frame.add(beacon);
+    const exitLabel = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.getExitLabelTexture(),
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+    exitLabel.position.set(0, height + 0.72, 0);
+    exitLabel.scale.set(Math.max(3.4, Math.min(4.8, width * 1.55)), 1.02, 1);
+    exitLabel.renderOrder = 10_000;
+    exitLabel.userData.keepSolid = true;
+    frame.add(exitLabel);
     for (const z of [-0.72, 0.72]) {
       const marker = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.48, 24), glowMaterial);
       marker.rotation.x = -Math.PI / 2;
@@ -571,6 +608,29 @@ export class RoomWorld {
     light.position.set(0, Math.min(height - 0.2, 1.8), 0.65);
     frame.add(light);
     this.group.add(frame);
+  }
+
+  private getExitLabelTexture(): THREE.CanvasTexture {
+    if (this.exitLabelTexture) return this.exitLabelTexture;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 72;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('2D canvas unavailable for exit marker');
+    context.fillStyle = 'rgba(5, 9, 13, 0.9)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = '#f8fff2';
+    context.lineWidth = 6;
+    context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+    context.fillStyle = '#f8fff2';
+    context.font = '900 46px monospace';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('EXIT', canvas.width / 2, canvas.height / 2 + 2);
+    this.exitLabelTexture = new THREE.CanvasTexture(canvas);
+    this.exitLabelTexture.colorSpace = THREE.SRGBColorSpace;
+    this.exitLabelTexture.needsUpdate = true;
+    return this.exitLabelTexture;
   }
 
   private addCollider(box: ColliderBox, label?: string): void {
@@ -728,10 +788,10 @@ function lightingProfile(
         stripCount: 4,
         stripIntensity: 2.5,
         pointIntensity: 1.25,
-        ambientIntensity: 0.72,
-        hemiIntensity: 0.72,
-        keyIntensity: 0.72,
-        fillIntensity: 0.28,
+        ambientIntensity: 0.96,
+        hemiIntensity: 0.9,
+        keyIntensity: 0.86,
+        fillIntensity: 0.45,
         pulseAmplitude: 0,
         pulseSpeed: 0,
       };
@@ -743,10 +803,10 @@ function lightingProfile(
         stripCount: 3,
         stripIntensity: 2.15,
         pointIntensity: 1.08,
-        ambientIntensity: 0.8,
-        hemiIntensity: 0.68,
-        keyIntensity: 0.68,
-        fillIntensity: 0.3,
+        ambientIntensity: 1.0,
+        hemiIntensity: 0.88,
+        keyIntensity: 0.84,
+        fillIntensity: 0.44,
         pulseAmplitude: 0,
         pulseSpeed: 0,
       };
@@ -758,10 +818,10 @@ function lightingProfile(
         stripCount: 2,
         stripIntensity: 3,
         pointIntensity: 1.65,
-        ambientIntensity: 0.9,
-        hemiIntensity: 0.72,
-        keyIntensity: 0.82,
-        fillIntensity: 0.32,
+        ambientIntensity: 1.05,
+        hemiIntensity: 0.86,
+        keyIntensity: 0.95,
+        fillIntensity: 0.48,
         pulseAmplitude: 0.14,
         pulseSpeed: 1.15,
       };
@@ -771,13 +831,13 @@ function lightingProfile(
         ambient: palette.ambient,
         ground: palette.floor,
         stripCount: 3,
-        stripIntensity: 2.35,
-        pointIntensity: 1.15,
-        ambientIntensity: 0.68,
-        hemiIntensity: 0.62,
-        keyIntensity: 0.62,
-        fillIntensity: 0.25,
-        pulseAmplitude: 0.28,
+        stripIntensity: 2.8,
+        pointIntensity: 1.45,
+        ambientIntensity: 1.08,
+        hemiIntensity: 0.94,
+        keyIntensity: 0.9,
+        fillIntensity: 0.5,
+        pulseAmplitude: 0.16,
         pulseSpeed: 1.35,
       };
     default:

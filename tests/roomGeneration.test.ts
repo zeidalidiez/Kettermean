@@ -3,6 +3,7 @@ import { PLAYER, ROOM } from '../src/config';
 import { childSeed, randomSeed } from '../src/core/rng';
 import type { RoomHistoryEntry, RoomProp } from '../src/types';
 import { generateOfflineRoom } from '../src/world/offlineGenerator';
+import { getAsset } from '../src/world/assetCatalog';
 import { roomHistoryEntryFor } from '../src/world/roomDirector';
 
 describe('offline room invariants', () => {
@@ -25,6 +26,18 @@ describe('offline room invariants', () => {
 
       expect(room.props.length).toBeLessThanOrEqual(ROOM.propCountMax);
       expect(room.entities.length).toBeLessThanOrEqual(ROOM.entityCountMax);
+      expect(
+        room.props.reduce((total, prop) => {
+          const asset = prop.assetId ? getAsset(prop.assetId) : undefined;
+          return total + (asset?.category === 'portal' ? 0 : asset?.renderCost ?? 1);
+        }, 0),
+      ).toBeLessThanOrEqual(ROOM.propRenderCostMax);
+      expect(
+        room.entities.reduce(
+          (total, entity) => total + (entity.assetId ? getAsset(entity.assetId)?.renderCost ?? 3 : 3),
+          0,
+        ),
+      ).toBeLessThanOrEqual(ROOM.entityRenderCostMax);
       expect(room.props.some((prop) => prop.linksOnTouch)).toBe(true);
       environments.add(room.environment ?? 'interior');
       largestSide = Math.max(largestSide, room.width, room.depth);
@@ -36,7 +49,7 @@ describe('offline room invariants', () => {
         wireframeModes.add(room.visuals.wireframe);
         expect(room.visuals.effectStrength).toBeGreaterThanOrEqual(0);
         expect(room.visuals.effectStrength).toBeLessThanOrEqual(1);
-        expect(room.visuals.exposure).toBeGreaterThanOrEqual(0.92);
+        expect(room.visuals.exposure).toBeGreaterThanOrEqual(1.02);
         expect(room.visuals.exposure).toBeLessThanOrEqual(1.35);
       }
 

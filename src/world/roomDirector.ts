@@ -146,6 +146,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   );
   const nonPortalBudget = ROOM.propCountMax - portalReserve;
   let nonPortalProps = 0;
+  let propRenderCost = 0;
+  let entityRenderCost = 0;
 
   dir.placements.forEach((p, i) => {
     const asset = getAsset(p.assetId);
@@ -162,7 +164,11 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     const label = sanitizeDisplayText(p.labelOverride || asset.label, asset.label, 64);
 
     if (isActor) {
-      if (entities.length >= ROOM.entityCountMax) return;
+      const renderCost = asset.renderCost ?? 3;
+      if (
+        entities.length >= ROOM.entityCountMax ||
+        entityRenderCost + renderCost > ROOM.entityRenderCostMax
+      ) return;
       entities.push({
         id: `e${i}`,
         label,
@@ -175,8 +181,15 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         kind: asset.kind,
         assetId: asset.id,
       });
+      entityRenderCost += renderCost;
     } else {
-      if (isPortal ? props.length >= ROOM.propCountMax : nonPortalProps >= nonPortalBudget) return;
+      const renderCost = asset.renderCost ?? 1;
+      if (
+        isPortal
+          ? props.length >= ROOM.propCountMax
+          : nonPortalProps >= nonPortalBudget ||
+            propRenderCost + renderCost > ROOM.propRenderCostMax
+      ) return;
       props.push({
         id: `p${i}`,
         label,
@@ -190,7 +203,10 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         kind: asset.kind,
         assetId: asset.id,
       });
-      if (!isPortal) nonPortalProps += 1;
+      if (!isPortal) {
+        nonPortalProps += 1;
+        propRenderCost += renderCost;
+      }
     }
   });
 
@@ -308,14 +324,16 @@ export function resolveRoomVisuals(
   );
   const defaultExposure =
     lighting === 'dim'
-      ? 1.12
+      ? 1.16
       : lighting === 'emergency'
-        ? 1.06
+        ? 1.13
         : lighting === 'cold'
-          ? 1.02
+          ? 1.1
           : lighting === 'warm'
-            ? 1.1
-            : 1.04;
+            ? 1.12
+            : lighting === 'pulse'
+              ? 1.14
+              : 1.08;
 
   const previousWasWireframe = recentRooms.at(-1)?.wireframe === true;
   const wireframe =
@@ -332,7 +350,7 @@ export function resolveRoomVisuals(
     effectStrength: clamp(override?.effectStrength ?? rng.float(0.36, 0.68), 0, 0.78),
     pixelSize: clamp(Math.round(override?.pixelSize ?? rng.int(3, 8)), 2, 12),
     wireframe,
-    exposure: clamp(override?.exposure ?? defaultExposure + rng.float(-0.04, 0.08), 0.92, 1.35),
+    exposure: clamp(override?.exposure ?? defaultExposure + rng.float(-0.03, 0.07), 1.02, 1.35),
   };
 }
 

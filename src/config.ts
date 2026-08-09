@@ -86,6 +86,9 @@ export const ROOM = {
   propCountMin: 2,
   /** Logical-object budgets; composed models may contain several meshes each. */
   propCountMax: 72,
+  /** Approximate five-mesh units, so richer assets reduce density before they stall a GPU. */
+  propRenderCostMax: 80,
   entityCountMin: 0,
   entityCountMax: 12,
+  entityRenderCostMax: 32,
 } as const;

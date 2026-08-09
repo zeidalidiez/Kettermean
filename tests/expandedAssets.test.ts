@@ -66,12 +66,24 @@ describe('expanded procedural asset catalog', () => {
       signatures.add(signature);
       familySignatures.set(asset.family!, signatures);
 
-      for (const mesh of meshes) mesh.geometry.dispose();
     }
 
     for (const [family, signatures] of familySignatures) {
       expect(signatures.size, family).toBe(8);
     }
+  });
+
+  it('reuses geometry without sharing mutable transforms between repeated instances', () => {
+    const first = buildModel('figure_nurse', '#6a7a8a', '#c4b59a', 'npc_nurse_04');
+    const second = buildModel('figure_nurse', '#6a7a8a', '#c4b59a', 'npc_nurse_04');
+    const firstArm = first.getObjectByName('rig-arm-left') as THREE.Mesh;
+    const secondArm = second.getObjectByName('rig-arm-left') as THREE.Mesh;
+
+    expect(first).not.toBe(second);
+    expect(firstArm).not.toBe(secondArm);
+    expect(firstArm.geometry).toBe(secondArm.geometry);
+    firstArm.rotation.x = 0.75;
+    expect(secondArm.rotation.x).not.toBe(0.75);
   });
 
   it('keeps the LLM catalog compact while advertising every family', () => {

@@ -76,6 +76,7 @@ export const EXPANDED_ASSETS: AssetDef[] = [...PROP_FAMILIES, ...NPC_FAMILIES].f
       linksByDefault: false,
       solidDefault: assetFamily.category !== 'npc',
       weight: assetFamily.weight ?? (assetFamily.category === 'npc' ? 0.62 : 0.78),
+      renderCost: renderCostFor(assetFamily.kind, assetFamily.category),
       family: assetFamily.id,
       variant,
     })),
@@ -100,6 +101,15 @@ function family(
     moods: ['upper', 'downer', 'static', 'dynamic'],
     scale,
   };
+}
+
+function renderCostFor(kind: string, category: AssetCategory): number {
+  if (category === 'npc') return 4;
+  if (kind === 'bookcase') return 5;
+  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree'].includes(kind)) {
+    return 3;
+  }
+  return 2;
 }
 
 function npc(

@@ -37,6 +37,8 @@ export interface AssetDef {
   solidDefault?: boolean;
   /** Weight for offline random picks. */
   weight?: number;
+  /** Approximate render cost in five-mesh units for per-room performance budgets. */
+  renderCost?: number;
   /** Variants in one family share a semantic role but have different geometry. */
   family?: string;
   variant?: number;
