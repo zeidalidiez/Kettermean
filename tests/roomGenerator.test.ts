@@ -184,4 +184,27 @@ describe('RoomGenerator cost controls', () => {
       highVisibility: true,
     });
   });
+
+  it('reports the selected OpenRouter backend and a useful HTTP failure state', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('unauthorized', { status: 401 })),
+    );
+    const statuses: string[] = [];
+    const generator = new RoomGenerator({
+      ...settings,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'openrouter/free',
+    });
+    generator.setStatusHandler((status) => statuses.push(status));
+    generator.beginSession();
+    generator.prefetch(context('openrouter-status'));
+
+    await vi.waitFor(() =>
+      expect(statuses.some((status) => status.includes('returned HTTP 401'))).toBe(true),
+    );
+    expect(statuses[0]).toContain('OpenRouter · openrouter/free · requesting');
+    expect(statuses.at(-1)).toContain('retry 1/3');
+  });
 });

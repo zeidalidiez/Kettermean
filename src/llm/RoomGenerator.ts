@@ -146,21 +146,37 @@ export class RoomGenerator {
     const effectiveCtx = withSettingsConstraints(ctx, this.settings);
     const key = cacheKey(effectiveCtx, this.settings);
     const existing = this.memory.get(key);
-    if (existing && !existing.offline) return;
-    if (this.failedKeys.has(key)) return;
-    if (this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures) return;
+    if (existing && !existing.offline) {
+      this.onStatus?.(`Next AI room ready · ${providerLabel(this.settings)}`);
+      return;
+    }
+    if (this.failedKeys.has(key)) {
+      this.onStatus?.('This room\'s AI attempt failed · procedural direction ready');
+      return;
+    }
+    if (this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures) {
+      this.onStatus?.(
+        `AI paused after ${this.sessionFailures} failures · restart or change AI settings to retry`,
+      );
+      return;
+    }
     const epoch = this.sessionEpoch;
+    this.onStatus?.(
+      `${providerLabel(this.settings)} · ${providerModel(this.settings)} · requesting next room…`,
+    );
     void this.get(effectiveCtx)
       .then((spec) => {
         if (epoch !== this.sessionEpoch) return;
-        this.onStatus?.(
-          spec.offline ? 'Next room will use offline generation' : 'Next LLM room ready',
-        );
+        // generate() reports the actionable reason when it falls back. Do not
+        // immediately replace that message with a generic offline notice.
+        if (!spec.offline) {
+          this.onStatus?.(`Next AI room ready · ${providerLabel(this.settings)}`);
+        }
       })
       .catch((err) => {
         if (epoch === this.sessionEpoch) {
           console.warn('[Kettermean] room prefetch failed.', err);
-          this.onStatus?.('Next room will use offline generation');
+          this.onStatus?.('AI prefetch failed · procedural direction ready');
         }
       });
   }
@@ -211,6 +227,10 @@ export class RoomGenerator {
       );
       normalized.offline = false;
       this.sessionFailures = 0;
+      console.info(`[Kettermean] ${providerLabel(settings)} room direction accepted.`, {
+        provider: settings.provider,
+        model: providerModel(settings),
+      });
       return normalized;
     } catch (err) {
       if (epoch !== this.sessionEpoch) return generateOfflineRoom(ctx);
@@ -218,6 +238,12 @@ export class RoomGenerator {
       this.failedKeys.add(key);
       const message = err instanceof Error ? err.message : String(err);
       console.warn('[Kettermean] LLM room generation failed; using offline.', message, err);
+      const exhausted = this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures;
+      this.onStatus?.(
+        exhausted
+          ? `${providerLabel(settings)} ${failureSummary(message)} · AI paused after ${this.sessionFailures} failures`
+          : `${providerLabel(settings)} ${failureSummary(message)} · procedural direction ready · retry ${this.sessionFailures}/${LLM_BUDGET.maxConsecutiveFailures}`,
+      );
       return generateOfflineRoom(ctx);
     }
   }
@@ -226,6 +252,10 @@ export class RoomGenerator {
     const { system, user } = buildPrompt(ctx);
     if (settings.provider === 'browser') return this.callBrowser(ctx, settings);
 
+    console.info(`[Kettermean] ${providerLabel(settings)} request started.`, {
+      provider: settings.provider,
+      model: providerModel(settings),
+    });
     const controller = new AbortController();
     this.activeCloudController = controller;
     const timer = window.setTimeout(() => controller.abort(), LLM_BUDGET.requestTimeoutMs);
@@ -276,6 +306,7 @@ export class RoomGenerator {
   ): Promise<string> {
     const base = (settings.baseUrl || DEFAULT_OPENAI_BASE).replace(/\/$/, '');
     const model = settings.model || DEFAULT_OPENROUTER_MODEL;
+    const useJsonMode = prefillJson && supportsJsonMode(base);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${settings.apiKey}`,
@@ -292,7 +323,7 @@ export class RoomGenerator {
       { role: 'system', content: system },
       { role: 'user', content: user },
     ];
-    if (prefillJson) {
+    if (prefillJson && !useJsonMode) {
       messages.push({ role: 'assistant', content: '{' });
     }
 
@@ -302,6 +333,7 @@ export class RoomGenerator {
       max_tokens: LLM_BUDGET.maxTokens,
       messages,
     };
+    if (useJsonMode) body.response_format = { type: 'json_object' };
 
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
@@ -320,7 +352,7 @@ export class RoomGenerator {
       throw new Error(`Empty OpenAI response. Payload: ${preview}`);
     }
     // Prefill is not always echoed back by providers — restore the leading brace.
-    if (prefillJson) text = ensureLeadingBrace(text);
+    if (prefillJson && !useJsonMode) text = ensureLeadingBrace(text);
     return text;
   }
 
@@ -430,7 +462,47 @@ export class RoomGenerator {
     this.inflight.clear();
     this.activeCloudController?.abort();
     this.activeCloudController = null;
+    // A provider/session change must not sit behind an obsolete WebLLM job.
+    // The old job is epoch-guarded and cannot populate the new session, while
+    // the fresh queue lets the newly selected provider start immediately.
+    this.generationTail = Promise.resolve();
   }
+}
+
+function providerLabel(settings: AppSettings): string {
+  if (settings.provider === 'browser') return 'WebLLM';
+  if (settings.provider === 'anthropic') return 'Anthropic';
+  if (
+    settings.provider === 'openai' &&
+    settings.baseUrl.trim().toLowerCase().includes('openrouter.ai')
+  ) {
+    return 'OpenRouter';
+  }
+  return settings.provider === 'openai' ? 'OpenAI-compatible' : 'Procedural';
+}
+
+function providerModel(settings: AppSettings): string {
+  if (settings.model.trim()) return settings.model.trim();
+  if (settings.provider === 'browser') return DEFAULT_BROWSER_MODEL;
+  if (settings.provider === 'anthropic') return DEFAULT_ANTHROPIC_MODEL;
+  return DEFAULT_OPENROUTER_MODEL;
+}
+
+function supportsJsonMode(baseUrl: string): boolean {
+  const base = baseUrl.toLowerCase();
+  return base.includes('openrouter.ai') || base.includes('api.openai.com');
+}
+
+function failureSummary(message: string): string {
+  if (/timed out/i.test(message)) return 'timed out';
+  const status = message.match(/(?:error|status)\s+(\d{3})/i)?.[1];
+  if (status) return `returned HTTP ${status}`;
+  if (/failed to fetch|networkerror|network request|load failed|cors/i.test(message)) {
+    return 'hit a network/CORS error';
+  }
+  if (/empty/i.test(message)) return 'returned an empty response';
+  if (/unusable|parse|json/i.test(message)) return 'returned unusable direction';
+  return 'request failed';
 }
 
 function withSettingsConstraints(

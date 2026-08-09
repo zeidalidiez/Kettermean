@@ -607,11 +607,16 @@ kbd {
 }
 
 #hud-seed,
+#hud-ai-status,
 #hud-hint {
   margin-top: 5px;
   color: rgba(232, 230, 242, 0.78);
   font-size: 0.72rem;
   line-height: 1.45;
+}
+
+#hud-ai-status {
+  color: rgba(213, 255, 37, 0.82);
 }
 
 #hud-actions {

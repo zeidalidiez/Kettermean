@@ -62,6 +62,7 @@ export class DreamGame {
   private readonly hud: HTMLElement;
   private readonly hudTheme: HTMLElement;
   private readonly hudSeed: HTMLElement;
+  private readonly hudAiStatus: HTMLElement;
   private readonly hudFlashlight: HTMLElement;
   private readonly hudFlashlightState: HTMLElement;
   private readonly menu: HTMLElement;
@@ -78,6 +79,7 @@ export class DreamGame {
     this.hud = must('hud');
     this.hudTheme = must('hud-theme');
     this.hudSeed = must('hud-seed');
+    this.hudAiStatus = must('hud-ai-status');
     this.hudFlashlight = must('hud-flashlight');
     this.hudFlashlightState = must('hud-flashlight-state');
     this.menu = must('menu');
@@ -116,7 +118,7 @@ export class DreamGame {
     this.input = new InputManager(this.canvas, () => this.pause());
     this.generator = new RoomGenerator(settings);
     this.generator.setStatusHandler((msg) => {
-      if (this.state !== 'menu') this.showToast(msg);
+      this.updateAiStatus(msg, true);
     });
 
     window.addEventListener('resize', this.onResize);
@@ -178,29 +180,28 @@ export class DreamGame {
     this.renderFrame();
     this.startLoop();
     if (!useLlm) {
+      this.updateAiStatus('Procedural direction only');
       this.showToast('Offline room');
       return;
     }
 
     if (this.settings.provider !== 'browser') {
-      this.showToast('Warming the next LLM room…', false);
       this.schedulePrefetch();
       return;
     }
 
     // WebLLM download/compilation happens in a worker. The current room stays
     // untouched; the model only authors future rooms at deliberate link boundaries.
-    this.showToast('Loading browser model…', true);
+    this.updateAiStatus('WebLLM · loading browser model…', true);
     void (async (): Promise<void> => {
       try {
         await this.generator.preloadBrowserModel();
         if (runEpoch !== this.runEpoch || this.state === 'menu') return;
-        this.showToast('Browser model ready · warming next room', false);
         this.schedulePrefetch();
       } catch (err) {
         console.warn('[Kettermean] browser model preload failed', err);
         if (runEpoch === this.runEpoch && this.state !== 'menu') {
-          this.showToast('Browser model unavailable · continuing offline');
+          this.updateAiStatus('WebLLM unavailable · continuing procedurally', true);
         }
       }
     })();
@@ -545,6 +546,11 @@ export class DreamGame {
     }
   }
 
+  private updateAiStatus(message: string, announce = false): void {
+    this.hudAiStatus.textContent = `AI · ${message}`;
+    if (announce && this.state !== 'menu') this.showToast(message);
+  }
+
   private hideToast(): void {
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = null;
@@ -563,5 +569,5 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isProgressMessage(message: string): boolean {
-  return /loading|downloading|fetching|warming|compiling|shader|model url|cache/i.test(message);
+  return /loading|downloading|fetching|warming|requesting|compiling|shader|model url|cache/i.test(message);
 }

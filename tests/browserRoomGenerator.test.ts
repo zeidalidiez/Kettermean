@@ -72,4 +72,53 @@ describe('RoomGenerator browser steering recovery', () => {
     expect(rooms.every((room) => room.offline === false)).toBe(true);
     expect(rooms.every((room) => room.visuals)).toBe(true);
   });
+
+  it('starts a newly selected cloud provider without waiting for obsolete WebLLM work', async () => {
+    let finishBrowser!: (value: string) => void;
+    browser.completion.mockImplementationOnce(
+      () => new Promise<string>((resolve) => {
+        finishBrowser = resolve;
+      }),
+    );
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  '{"themeId":"fluorescent_lobby","title":"Cloud Lobby","blurb":"The cloud request arrived.","mood":"static"}',
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const generator = new RoomGenerator(settings);
+    generator.beginSession();
+    const obsoleteBrowserRoom = generator.get(context(10));
+    await vi.waitFor(() => expect(browser.completion).toHaveBeenCalledTimes(1));
+
+    generator.updateSettings({
+      ...settings,
+      provider: 'openai',
+      apiKey: 'test-only-key',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'openrouter/free',
+    });
+    generator.beginSession();
+    const cloudRoom = generator.get(context(11));
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await expect(cloudRoom).resolves.toMatchObject({
+      offline: false,
+      title: 'Cloud Lobby',
+    });
+
+    finishBrowser('00012345');
+    await expect(obsoleteBrowserRoom).resolves.toMatchObject({ offline: true });
+  });
 });
