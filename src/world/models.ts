@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
 import {
+  buildMixedMediaModel,
+  MIXED_MEDIA_BOUNDS,
+} from './mixedMediaModels';
+import type { MixedMediaModelKind } from './mixedMediaAssets';
+import {
   buildSemanticModel,
   SEMANTIC_BOUNDS,
 } from './semanticModels';
@@ -163,6 +168,7 @@ export type PropKind =
   | 'figure_lab_tech'
   | 'figure_coach'
   | 'figure_musician'
+  | MixedMediaModelKind
   | SemanticModelKind;
 
 interface PartSpec {
@@ -188,13 +194,33 @@ const matCache = new Map<string, THREE.MeshStandardMaterial>();
 const modelCache = new Map<string, THREE.Group>();
 
 export function clearModelMaterialCache(): void {
+  const disposedMaterials = new Set<THREE.Material>();
+  const disposedTextures = new Set<THREE.Texture>();
   for (const model of modelCache.values()) {
     model.traverse((object) => {
       if (object instanceof THREE.Mesh) object.geometry.dispose();
+      if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Sprite)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (disposedMaterials.has(material)) continue;
+        disposedMaterials.add(material);
+        const map = (material as THREE.Material & { map?: THREE.Texture | null }).map;
+        if (
+          map &&
+          map.userData.persistentModelTexture !== true &&
+          !disposedTextures.has(map)
+        ) {
+          disposedTextures.add(map);
+          map.dispose();
+        }
+        material.dispose();
+      }
     });
   }
   modelCache.clear();
-  for (const material of matCache.values()) material.dispose();
+  for (const material of matCache.values()) {
+    if (!disposedMaterials.has(material)) material.dispose();
+  }
   matCache.clear();
 }
 
@@ -2184,6 +2210,8 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const mixedMedia = buildMixedMediaModel(kind, assetVariant(assetId), accent, body);
+  if (mixedMedia) return mixedMedia;
   const semantic = buildSemanticModel(kind, assetVariant(assetId), accent, body);
   if (semantic) return semantic;
   const surreal = buildSurrealModel(kind, assetVariant(assetId), accent, body);
@@ -2611,6 +2639,8 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const mixedMedia = MIXED_MEDIA_BOUNDS[kind as MixedMediaModelKind];
+  if (mixedMedia) return mixedMedia;
   const semantic = SEMANTIC_BOUNDS[kind as SemanticModelKind];
   if (semantic) return semantic;
   const surreal = SURREAL_BOUNDS[kind as keyof typeof SURREAL_BOUNDS];
@@ -2679,6 +2709,38 @@ export function boundsForKind(kind: PropKind): { w: number; h: number; d: number
 
 export function kindFromLabel(label: string): PropKind {
   const l = label.toLowerCase();
+  if (l.includes('ornate settee')) return 'ornate_settee';
+  if (l.includes('grand piano')) return 'grand_piano';
+  if (l.includes('diner counter')) return 'diner_counter';
+  if (l.includes('pipe organ')) return 'pipe_organ';
+  if (l.includes('control room console')) return 'control_console';
+  if (l.includes('operating lamp') || l.includes('surgical lamp')) return 'operating_lamp';
+  if (l.includes('greenhouse specimen cart')) return 'greenhouse_cart';
+  if (l.includes('funeral casket')) return 'funeral_casket';
+  if (l.includes('subway service kiosk')) return 'subway_kiosk';
+  if (l.includes('stacked hotel luggage')) return 'hotel_luggage_stack';
+  if (l.includes('bride waiting')) return 'figure_bride';
+  if (l.includes('luggage porter')) return 'figure_porter';
+  if (l.includes('low-poly parked car')) return 'lowpoly_car';
+  if (l.includes('low-poly tree')) return 'lowpoly_tree';
+  if (l.includes('low-poly television')) return 'lowpoly_tv';
+  if (l.includes('low-poly toilet')) return 'lowpoly_toilet';
+  if (l.includes('low-poly service robot')) return 'lowpoly_robot';
+  if (l.includes('low-poly bystander')) return 'lowpoly_person';
+  if (l.includes('low-poly watching bird')) return 'lowpoly_bird';
+  if (l.includes('low-poly waiting dog')) return 'lowpoly_dog';
+  if (l.includes('giant voxel pedestrian')) return 'voxel_giant';
+  if (l.includes('voxel whale')) return 'voxel_whale';
+  if (l.includes('voxel hand')) return 'voxel_hand';
+  if (l.includes('voxel head')) return 'voxel_head';
+  if (l.includes('voxel crawler')) return 'voxel_crawler';
+  if (l.includes('voxel cat')) return 'voxel_cat';
+  if (l.includes('voxel horizon watcher')) return 'voxel_watcher';
+  if (l.includes('voxel train')) return 'voxel_train';
+  if (l.includes('paper elevator attendant')) return 'sprite_attendant';
+  if (l.includes('paper office worker')) return 'sprite_office_worker';
+  if (l.includes('paper masked swimmer')) return 'sprite_swimmer';
+  if (l.includes('paper motel guest')) return 'sprite_motel_guest';
   if (l.includes('conference table')) return 'conference_table';
   if (l.includes('dentist chair')) return 'dentist_chair';
   if (l.includes('barber chair')) return 'barber_chair';

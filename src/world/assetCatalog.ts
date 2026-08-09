@@ -10,6 +10,7 @@ import type {
   RoomVisuals,
 } from '../types';
 import { EXPANDED_ASSETS } from './expandedAssets';
+import { MIXED_MEDIA_ASSETS } from './mixedMediaAssets';
 import { SEMANTIC_ASSETS } from './semanticAssets';
 import { sceneSetIdsForTags, type SceneSetId } from './sceneSets';
 import { SURREAL_ASSETS, SURREAL_THEMES } from './surrealAssets';
@@ -171,6 +172,7 @@ export const ASSETS: AssetDef[] = [
   ...EXPANDED_ASSETS,
   ...SURREAL_ASSETS,
   ...SEMANTIC_ASSETS,
+  ...MIXED_MEDIA_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [
@@ -511,10 +513,10 @@ export function catalogPromptSummary(): string {
     const first = variants[0]!;
     const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
     const category = first.category === 'npc' ? 'npc' : first.category.slice(0, 3);
-    return `${family}|${category}|01-08|${first.tags.join(',')}${moods === 'any' ? '' : `|${moods}`}`;
+    return `${family}|${category}|${first.tags.join(',')}${moods === 'any' ? '' : `|${moods}`}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
-  return `ASSETS:\n${[...baseLines, ...familyLines].join('\n')}\nTHEMES:\n${themes.join('\n')}`;
+  return `ASSETS:\n${baseLines.join('\n')}\nFAMILIES (IDs end 01-08):\n${familyLines.join('\n')}\nTHEMES:\n${themes.join('\n')}`;
 }
 
 function a(

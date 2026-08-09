@@ -378,6 +378,7 @@ export class RoomWorld {
       }
 
       animateRig(ent.rig, ent.phase, ent.data.behavior);
+      animateBillboard(m, ent.phase, ent.data.behavior);
 
       // Entities never act as room links.
     }
@@ -2037,6 +2038,32 @@ function animateRig(
   setRigAxis(rig.leftLeg, 'x', -stride * 0.72);
   setRigAxis(rig.rightLeg, 'x', stride * 0.72);
   setRigAxis(rig.head, 'y', Math.sin(phase * 0.42) * 0.08);
+}
+
+function animateBillboard(
+  root: THREE.Object3D,
+  phase: number,
+  behavior: RoomEntity['behavior'],
+): void {
+  const sprite = root.getObjectByName('sprite-actor');
+  if (!(sprite instanceof THREE.Sprite)) return;
+  const baseScale = sprite.userData.baseScale as THREE.Vector3 | undefined;
+  const basePosition = sprite.userData.basePosition as THREE.Vector3 | undefined;
+  if (!baseScale || !basePosition) return;
+  const moving = behavior === 'wander' || behavior === 'orbit';
+  const cadence = moving ? 3.4 : 0.72;
+  const step = Math.sin(phase * cadence);
+  const lift = moving ? Math.abs(step) * 0.035 : Math.sin(phase * cadence) * 0.012;
+  sprite.position.set(
+    basePosition.x + (moving ? step * 0.018 : 0),
+    basePosition.y + lift,
+    basePosition.z,
+  );
+  sprite.scale.set(
+    baseScale.x * (1 - Math.abs(step) * (moving ? 0.018 : 0.004)),
+    baseScale.y * (1 + Math.abs(step) * (moving ? 0.016 : 0.005)),
+    baseScale.z,
+  );
 }
 
 function setRigAxis(object: THREE.Object3D | undefined, axis: 'x' | 'y', offset: number): void {
