@@ -202,6 +202,84 @@ export const SIGN_WORDS: TaggedSignWord[] = [
   ...wordGroup('time', ['public', 'service'], [
     'Level 01', 'Level B2', 'Gate 00', 'Route 7', 'Zone C', 'Floor 13', 'Counter 4', 'Platform 9',
   ]),
+
+  ...wordGroup('place', ['place', 'furniture', 'meeting', 'banquet'], [
+    'Table', 'Long Table', 'Table Nine', 'Conference Room', 'Card Room', 'Reading Table', 'Folding Hall', 'Empty Banquet',
+  ]),
+  ...wordGroup('place', ['place', 'dental', 'clinic', 'observation'], [
+    'Dental Wing', 'Tooth Room', 'Oral Surgery', 'Rinse Station', 'Smile Clinic', 'Chair Bay', 'Hygiene Hall', 'Lower Jaw',
+  ]),
+  ...wordGroup('place', ['place', 'laundry', 'service', 'home'], [
+    'Laundry Room', 'Wash House', 'Folding Area', 'Linen Hall', 'Dryer Court', 'Lost Socks', 'Pressing Room', 'Detergent Wing',
+  ]),
+  ...wordGroup('place', ['place', 'cinema', 'leisure', 'projection'], [
+    'Cinema', 'Projection Booth', 'Screen Two', 'Picture House', 'Film Archive', 'Back Row', 'Matinee Hall', 'Empty Theatre',
+  ]),
+  ...wordGroup('place', ['place', 'park', 'outdoor', 'weather'], [
+    'Ranger Station', 'Weather Garden', 'Picnic Ground', 'Visitor Trail', 'Lookout', 'Rain Shelter', 'Park Office', 'Fire Road',
+  ]),
+  ...wordGroup('place', ['place', 'civic', 'leisure', 'community'], [
+    'Community Hall', 'Bingo Room', 'Social Club', 'Meeting House', 'Function Room', 'Public Lounge', 'Local Center', 'Assembly Room',
+  ]),
+  ...wordGroup('place', ['place', 'airport', 'transit', 'baggage'], [
+    'Carousel', 'Baggage Claim', 'Lost Luggage', 'Customs Hall', 'Oversize Bags', 'Claim Area', 'Terminal Loop', 'Unclaimed Property',
+  ]),
+
+  ...wordGroup('modifier', ['meeting', 'office', 'civic'], [
+    'Executive', 'Quarterly', 'Unscheduled', 'Committee', 'Mandatory', 'Adjourned', 'Consensus', 'Closed-Door',
+  ]),
+  ...wordGroup('modifier', ['dental', 'clinic', 'observation'], [
+    'Sterile', 'Mint', 'Painless', 'Fluoride', 'Enamel', 'Clinical', 'Waiting', 'Numb',
+  ]),
+  ...wordGroup('modifier', ['laundry', 'service', 'home'], [
+    'Washed', 'Pressed', 'Permanent Press', 'Warm Cycle', 'Unclaimed', 'Bleached', 'Folded', 'Spin',
+  ]),
+  ...wordGroup('modifier', ['cinema', 'projection', 'leisure'], [
+    'Technicolor', 'Silent', 'Final Reel', 'Matinee', 'Wide Screen', 'Unreleased', 'Looping', 'Double Feature',
+  ]),
+  ...wordGroup('modifier', ['hotel', 'motel', 'hospitality'], [
+    'Vacant', 'Complimentary', 'Late Checkout', 'Reserved', 'No Vacancy', 'Guest', 'Lobby', 'Do Not Disturb',
+  ]),
+  ...wordGroup('modifier', ['uncanny', 'time', 'liminal'], [
+    'Premature', 'Postponed', 'Formerly Open', 'Almost', 'Recurring', 'Second Shift', 'Out of Sequence', 'Temporary',
+  ]),
+
+  ...wordGroup('institution', ['community', 'civic', 'leisure'], [
+    'Neighborhood Association', 'Recreation Board', 'Social Committee', 'Community Trust', 'Events Council', 'Public Club', 'Local Chapter', 'Residents League',
+  ]),
+  ...wordGroup('institution', ['dental', 'clinic', 'hospital'], [
+    'Dental Practice', 'Oral Health', 'Smile Authority', 'Hygiene Institute', 'Orthodontics', 'Tooth Council', 'Enamel Research', 'Mouth Services',
+  ]),
+  ...wordGroup('institution', ['cinema', 'projection', 'museum'], [
+    'Film Society', 'Picture Company', 'Projection Service', 'Screen Institute', 'Reel Archive', 'Cinema Board', 'Moving Image', 'Broadcast Office',
+  ]),
+  ...wordGroup('institution', ['hotel', 'motel', 'hospitality'], [
+    'Guest Services', 'Lodging Company', 'Housekeeping', 'Hospitality Group', 'Room Authority', 'Front Desk', 'Night Management', 'Vacancy Office',
+  ]),
+
+  ...wordGroup('instruction', ['furniture', 'meeting', 'banquet'], [
+    'Take a Seat', 'Face the Table', 'Wait at Table', 'Remain Seated', 'Chairs This Way', 'Join the Meeting', 'Return Your Chair', 'Do Not Rearrange',
+  ]),
+  ...wordGroup('instruction', ['airport', 'transit', 'baggage'], [
+    'Collect Bags At', 'Claim From', 'Leave Luggage At', 'Carousel Continues To', 'Report Missing Bags', 'Do Not Claim', 'Follow Belt To', 'Bags Return Via',
+  ]),
+
+  ...wordGroup('service', ['meeting', 'civic', 'office'], [
+    'Registration', 'Minutes', 'Public Comment', 'Agenda', 'Name Badges', 'Committee Access', 'Reservations', 'Conference Services',
+  ]),
+  ...wordGroup('service', ['dental', 'clinic', 'observation'], [
+    'Examinations', 'Cleaning', 'X-Ray', 'Rinse', 'Appointments', 'Emergency Dental', 'Waiting List', 'Aftercare',
+  ]),
+  ...wordGroup('service', ['cinema', 'leisure', 'community'], [
+    'Tickets', 'Matinee', 'Refreshments', 'Bingo Tonight', 'Film Club', 'Late Showing', 'Intermission', 'Seat Reservations',
+  ]),
+
+  ...wordGroup('time', ['meeting', 'public', 'service'], [
+    'Meeting at 4', 'Session in Progress', 'Doors at 7', 'By Appointment', 'Every Tuesday', 'Second Sitting', 'Recess Until Further Notice', 'Schedule Pending',
+  ]),
+  ...wordGroup('time', ['uncanny', 'liminal', 'dream'], [
+    'After the Last Showing', 'Before Closing Yesterday', 'During Your Absence', 'At the Same Time', 'One Minute Remaining', 'Open Between Hours', 'Next Week Previously', 'Immediately Later',
+  ]),
 ];
 
 const TAG_RELATIONS: Record<string, readonly string[]> = {
@@ -222,6 +300,15 @@ const TAG_RELATIONS: Record<string, readonly string[]> = {
   parking: ['highway', 'roadside', 'service'],
   mall: ['retail', 'food', 'public'],
   warehouse: ['industrial', 'service', 'loading'],
+  furniture: ['meeting', 'interior', 'banquet'],
+  meeting: ['civic', 'office', 'community'],
+  dental: ['clinic', 'hospital', 'observation'],
+  laundry: ['service', 'home', 'motel'],
+  cinema: ['leisure', 'projection', 'ceremonial'],
+  projection: ['cinema', 'leisure', 'museum'],
+  baggage: ['airport', 'terminal', 'transit'],
+  community: ['civic', 'leisure', 'public'],
+  hospitality: ['hotel', 'motel', 'lobby'],
   ruined: ['abandoned', 'downer', 'old'],
   overgrown: ['nature', 'garden', 'upper'],
   slimed: ['wet', 'water', 'dynamic'],

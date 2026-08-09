@@ -6,7 +6,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated prop kit, including 1,016 composed furniture, fixture, animal, and NPC variants across 127 families
+- Three.js first-person rooms assembled from a curated prop kit, including 1,192 composed furniture, fixture, animal, and NPC variants across 149 families
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
@@ -19,7 +19,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - A player flashlight on **F**, gamepad X, and touch, independent of room lighting
-- Tagged procedural room signage that chains contextually related words from a 392-entry semantic lexicon
+- Tagged procedural room signage that chains contextually related words from a 584-entry semantic lexicon
 - Keyboard/mouse, gamepad, and complete touch controls
 - WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings
 - Provider-scoped room cache and strict one-request-at-a-time generation
@@ -54,7 +54,7 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 
 Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, scene conditions, lighting, visual effects, safety validation, and performance budgets. Press **R** at any time (gamepad Y or the touch **Next** button) to move to the next dream. Recent-room fingerprints actively steer the director away from repeated themes, layouts, conditions, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
 
-The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, six expanded animal families, and twenty-six richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions.
+The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, six expanded animal families, and thirty-four richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions. New catalog batches keep semantic metadata separate from geometry builders so more families can be added without turning either system into a monolith.
 
 ## Cost and lifecycle controls
 

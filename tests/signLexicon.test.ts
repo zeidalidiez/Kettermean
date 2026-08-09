@@ -13,11 +13,16 @@ const tropicalContext = (seed: string) => ({
 
 describe('tagged procedural signage', () => {
   it('keeps a broad data-only vocabulary with explicit Jungle correlations', () => {
-    expect(SIGN_WORDS.length).toBeGreaterThan(380);
+    expect(SIGN_WORDS.length).toBeGreaterThan(580);
     expect(SIGN_WORDS).toContainEqual(expect.objectContaining({
       text: 'Jungle',
       role: 'place',
       tags: expect.arrayContaining(['environment', 'place', 'warm', 'tropical']),
+    }));
+    expect(SIGN_WORDS).toContainEqual(expect.objectContaining({
+      text: 'Table',
+      role: 'place',
+      tags: expect.arrayContaining(['furniture', 'meeting', 'banquet']),
     }));
   });
 

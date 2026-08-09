@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
+import {
+  buildSemanticModel,
+  SEMANTIC_BOUNDS,
+} from './semanticModels';
+import type { SemanticModelKind } from './semanticAssets';
 import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
 
 export type PropKind =
@@ -157,7 +162,8 @@ export type PropKind =
   | 'figure_librarian'
   | 'figure_lab_tech'
   | 'figure_coach'
-  | 'figure_musician';
+  | 'figure_musician'
+  | SemanticModelKind;
 
 interface PartSpec {
   w: number;
@@ -2178,6 +2184,8 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const semantic = buildSemanticModel(kind, assetVariant(assetId), accent, body);
+  if (semantic) return semantic;
   const surreal = buildSurrealModel(kind, assetVariant(assetId), accent, body);
   if (surreal) return surreal;
   const expanded = buildExpandedModel(kind, assetVariant(assetId), accent, body);
@@ -2603,6 +2611,8 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const semantic = SEMANTIC_BOUNDS[kind as SemanticModelKind];
+  if (semantic) return semantic;
   const surreal = SURREAL_BOUNDS[kind as keyof typeof SURREAL_BOUNDS];
   if (surreal) return surreal;
   const expanded = EXPANDED_BOUNDS[kind];
@@ -2669,6 +2679,28 @@ export function boundsForKind(kind: PropKind): { w: number; h: number; d: number
 
 export function kindFromLabel(label: string): PropKind {
   const l = label.toLowerCase();
+  if (l.includes('conference table')) return 'conference_table';
+  if (l.includes('dentist chair')) return 'dentist_chair';
+  if (l.includes('barber chair')) return 'barber_chair';
+  if (l.includes('reading table')) return 'reading_table';
+  if (l.includes('bunk bed')) return 'bunk_bed';
+  if (l.includes('card table')) return 'card_table';
+  if (l.includes('lectern')) return 'lectern';
+  if (l.includes('coat rack')) return 'coat_rack';
+  if (l.includes('grandfather clock')) return 'grandfather_clock';
+  if (l.includes('jukebox')) return 'jukebox';
+  if (l.includes('baggage carousel') || l.includes('luggage carousel')) return 'luggage_carousel';
+  if (l.includes('ticket booth')) return 'ticket_booth';
+  if (l.includes('laundry folding table')) return 'laundry_folding_table';
+  if (l.includes('patio table')) return 'patio_table';
+  if (l.includes('dentist')) return 'figure_dentist';
+  if (l.includes('cashier')) return 'figure_cashier';
+  if (l.includes('projectionist')) return 'figure_projectionist';
+  if (l.includes('choir member')) return 'figure_choir_member';
+  if (l.includes('park ranger')) return 'figure_park_ranger';
+  if (l.includes('hotel guest')) return 'figure_hotel_guest';
+  if (l.includes('crossing guard')) return 'figure_crossing_guard';
+  if (l.includes('bingo caller')) return 'figure_bingo_caller';
   if (l.includes('elevator bank') || l.includes('elevator')) return 'elevator_bank';
   if (l.includes('escalator')) return 'escalator';
   if (l.includes('fuel pump') || l.includes('gas pump')) return 'gas_pump';
