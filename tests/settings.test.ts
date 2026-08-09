@@ -27,6 +27,7 @@ describe('settings persistence', () => {
     expect(loaded.provider).toBe('browser');
     expect(loaded.model).toBe(DEFAULT_BROWSER_MODEL);
     expect(loaded.baseUrl).toMatch(/^https:/);
+    expect(loaded.aiDepth).toBe('standard');
     expect(loaded.allowGore).toBe(false);
     expect(loaded.noFlashingLights).toBe(false);
     expect(loaded.noLowLight).toBe(false);
@@ -46,6 +47,7 @@ describe('settings persistence', () => {
       apiKey: 'temporary-key',
       baseUrl: 'https://openrouter.ai/api/v1',
       model: 'openrouter/free',
+      aiDepth: 'deep',
       allowGore: false,
       noFlashingLights: true,
       noLowLight: true,
@@ -55,6 +57,7 @@ describe('settings persistence', () => {
     expect(local.getItem(STORAGE_KEYS.settings)).not.toContain('temporary-key');
     expect(session.getItem(STORAGE_KEYS.sessionApiKey)).toBe('temporary-key');
     expect(loadSettings()).toMatchObject({
+      aiDepth: 'deep',
       noFlashingLights: true,
       noLowLight: true,
     });
@@ -92,6 +95,7 @@ describe('settings persistence', () => {
       apiKey: '',
       baseUrl: 'https://example.test/v1',
       model: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+      aiDepth: 'light',
       allowGore: false,
       noFlashingLights: false,
       noLowLight: false,
@@ -128,6 +132,7 @@ describe('settings persistence', () => {
       apiKey: '',
       baseUrl: 'https://example.test/v1',
       model: 'model',
+      aiDepth: 'standard',
       allowGore: false,
       noFlashingLights: false,
       noLowLight: false,

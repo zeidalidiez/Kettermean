@@ -11,7 +11,23 @@ import {
 import { getWebGpuStatus, isWebGpuAvailable } from './llm/browserEngine';
 import { clearApiKey, loadSettings, modelForProvider, saveSettings } from './core/settings';
 import { DreamGame } from './game/DreamGame';
-import type { AppSettings, DreamMode, LlmProvider } from './types';
+import type { AiDepth, AppSettings, DreamMode, LlmProvider } from './types';
+
+const AI_DEPTHS: readonly AiDepth[] = ['light', 'standard', 'deep'];
+const AI_DEPTH_COPY: Record<AiDepth, { label: string; note: string }> = {
+  light: {
+    label: 'Light · quickest',
+    note: 'One compact direction pass. The local director safely fills every other field.',
+  },
+  standard: {
+    label: 'Standard · balanced',
+    note: 'Adds authored room language while the next dream forms in the background.',
+  },
+  deep: {
+    label: 'Deep · most authored',
+    note: 'Adds another focused pass for signs, inhabitants, and the room\'s strange rule.',
+  },
+};
 
 const settings = loadSettings();
 const game = new DreamGame(settings);
@@ -30,6 +46,9 @@ const apiKeyField = qs<HTMLElement>('api-key-field');
 const baseUrlField = qs<HTMLElement>('base-url-field');
 const aiProviderStatus = qs<HTMLElement>('ai-provider-status');
 const aiModelStatus = qs<HTMLElement>('ai-model-status');
+const aiDepthInput = qs<HTMLInputElement>('ai-depth-input');
+const aiDepthValue = qs<HTMLOutputElement>('ai-depth-value');
+const aiDepthNote = qs<HTMLElement>('ai-depth-note');
 const goreToggle = qs<HTMLInputElement>('gore-toggle');
 const noFlashingToggle = qs<HTMLInputElement>('no-flashing-toggle');
 const noLowLightToggle = qs<HTMLInputElement>('no-low-light-toggle');
@@ -48,6 +67,7 @@ function applyForm(s: AppSettings): void {
   baseUrlInput.value = s.baseUrl;
   modelInput.value = s.model;
   setBrowserModelValue(s.model);
+  setAiDepthValue(s.aiDepth);
   goreToggle.checked = s.allowGore;
   noFlashingToggle.checked = s.noFlashingLights;
   noLowLightToggle.checked = s.noLowLight;
@@ -68,6 +88,7 @@ function readForm(): AppSettings {
     apiKey: apiKeyInput.value.trim(),
     baseUrl: baseUrlInput.value.trim(),
     model,
+    aiDepth: readAiDepth(),
     allowGore: goreToggle.checked,
     noFlashingLights: noFlashingToggle.checked,
     noLowLight: noLowLightToggle.checked,
@@ -98,6 +119,7 @@ function syncProviderUi(): void {
   baseUrlInput.disabled = !cloud;
   modelInput.disabled = !cloud;
   browserModelSelect.disabled = !browser;
+  aiDepthInput.disabled = provider === 'offline';
   apiKeyField.classList.toggle('hidden', !cloud);
   baseUrlField.classList.toggle('hidden', !cloud);
   clearKeyBtn.classList.toggle('hidden', !cloud);
@@ -155,6 +177,7 @@ modeSelect.addEventListener('change', syncModeUi);
 providerSelect.addEventListener('change', syncProviderUi);
 browserModelSelect.addEventListener('change', () => syncAiStatus('browser'));
 modelInput.addEventListener('input', () => syncAiStatus(providerSelect.value as LlmProvider));
+aiDepthInput.addEventListener('input', syncAiDepthUi);
 
 startBtn.addEventListener('click', () => {
   const next = readForm();
@@ -238,6 +261,23 @@ function friendlyModelName(modelId: string): string {
   if (!group) return friendly;
   const level = group.depth.split(' · ')[0];
   return `${friendly} · suggested ${level}${modelId === DEFAULT_BROWSER_MODEL ? ' · default' : ''}`;
+}
+
+function readAiDepth(): AiDepth {
+  return AI_DEPTHS[Number(aiDepthInput.value)] ?? 'standard';
+}
+
+function setAiDepthValue(depth: AiDepth): void {
+  const index = AI_DEPTHS.indexOf(depth);
+  aiDepthInput.value = String(index >= 0 ? index : 1);
+  syncAiDepthUi();
+}
+
+function syncAiDepthUi(): void {
+  const depth = readAiDepth();
+  aiDepthValue.textContent = AI_DEPTH_COPY[depth].label;
+  aiDepthNote.textContent = AI_DEPTH_COPY[depth].note;
+  aiDepthInput.setAttribute('aria-valuetext', AI_DEPTH_COPY[depth].label);
 }
 
 clearKeyBtn.addEventListener('click', () => {

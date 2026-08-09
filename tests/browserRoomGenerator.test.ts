@@ -22,6 +22,7 @@ const settings: AppSettings = {
   apiKey: '',
   baseUrl: '',
   model: 'tiny-test-model',
+  aiDepth: 'standard',
   allowGore: false,
   noFlashingLights: false,
   noLowLight: false,

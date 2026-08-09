@@ -5,11 +5,12 @@ import {
   DEFAULT_OPENROUTER_MODEL,
   STORAGE_KEYS,
 } from '../config';
-import type { AppSettings, DreamMode, LlmProvider } from '../types';
+import type { AiDepth, AppSettings, DreamMode, LlmProvider } from '../types';
 import { randomSeed } from './rng';
 
 const MODES = new Set<DreamMode>(['random', 'seeded']);
 const PROVIDERS = new Set<LlmProvider>(['offline', 'openai', 'anthropic', 'browser']);
+const AI_DEPTHS = new Set<AiDepth>(['light', 'standard', 'deep']);
 const BROWSER_MODEL_DEFAULTS_REVISION = 2;
 const LEGACY_BROWSER_DEFAULTS = new Set([
   'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
@@ -23,6 +24,7 @@ export function defaultSettings(): AppSettings {
     apiKey: '',
     baseUrl: DEFAULT_OPENAI_BASE,
     model: DEFAULT_BROWSER_MODEL,
+    aiDepth: 'standard',
     allowGore: false,
     noFlashingLights: false,
     noLowLight: false,
@@ -61,6 +63,7 @@ export function loadSettings(): AppSettings {
       apiKey: readSessionKey(),
       baseUrl: cleanBaseUrl(parsed.baseUrl, defaults.baseUrl),
       model,
+      aiDepth: isAiDepth(parsed.aiDepth) ? parsed.aiDepth : defaults.aiDepth,
       allowGore: parsed.allowGore === true,
       noFlashingLights: parsed.noFlashingLights === true,
       noLowLight: parsed.noLowLight === true,
@@ -127,6 +130,7 @@ function persistNonSecretSettings(settings: AppSettings): void {
     provider: settings.provider,
     baseUrl: settings.baseUrl,
     model: settings.model,
+    aiDepth: settings.aiDepth,
     browserModelDefaultsRevision: BROWSER_MODEL_DEFAULTS_REVISION,
     allowGore: settings.allowGore,
     noFlashingLights: settings.noFlashingLights,
@@ -182,6 +186,10 @@ function isMode(value: unknown): value is DreamMode {
 
 function isProvider(value: unknown): value is LlmProvider {
   return typeof value === 'string' && PROVIDERS.has(value as LlmProvider);
+}
+
+function isAiDepth(value: unknown): value is AiDepth {
+  return typeof value === 'string' && AI_DEPTHS.has(value as AiDepth);
 }
 
 function cleanString(value: unknown, fallback: string, maxLength: number): string {

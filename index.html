@@ -124,6 +124,24 @@
                     <option value="anthropic">Anthropic Claude</option>
                   </select>
                 </label>
+                <label class="field ai-depth-field">
+                  <span class="ai-depth-heading">
+                    <span>AI depth</span>
+                    <output id="ai-depth-value" for="ai-depth-input">Standard · balanced</output>
+                  </span>
+                  <input
+                    id="ai-depth-input"
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="1"
+                    value="1"
+                    aria-describedby="ai-depth-note"
+                  />
+                  <span id="ai-depth-note" class="browser-depth-note">
+                    Adds authored room language while the next dream forms in the background.
+                  </span>
+                </label>
                 <label class="field" id="model-field-browser">
                   <span>Browser model</span>
                   <select id="browser-model-select" aria-label="Browser WebLLM model"></select>

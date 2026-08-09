@@ -289,6 +289,31 @@ button {
   line-height: 1.5;
 }
 
+.ai-depth-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ai-depth-heading output {
+  color: var(--acid);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.field input[type='range'] {
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  accent-color: var(--acid);
+  cursor: pointer;
+}
+
+.field input[type='range']:disabled {
+  cursor: default;
+}
+
 .field input,
 .field select {
   width: 100%;

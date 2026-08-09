@@ -1,5 +1,6 @@
 export type DreamMode = 'random' | 'seeded';
 export type LlmProvider = 'offline' | 'openai' | 'anthropic' | 'browser';
+export type AiDepth = 'light' | 'standard' | 'deep';
 export type MoodAxis = 'upper' | 'downer' | 'static' | 'dynamic';
 export type RoomEnvironment = 'interior' | 'open-hall' | 'outdoor';
 export type RoomLayoutStyle = 'clusters' | 'perimeter' | 'axial' | 'scattered' | 'sparse';
@@ -49,6 +50,8 @@ export interface AppSettings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  /** Creative authorship budget. Rendering complexity remains independent. */
+  aiDepth: AiDepth;
   allowGore: boolean;
   noFlashingLights: boolean;
   noLowLight: boolean;

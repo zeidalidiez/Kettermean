@@ -11,6 +11,7 @@ const settings: AppSettings = {
   apiKey: 'test-only-key',
   baseUrl: 'https://example.test/v1',
   model: 'test-model',
+  aiDepth: 'standard',
   allowGore: false,
   noFlashingLights: false,
   noLowLight: false,
