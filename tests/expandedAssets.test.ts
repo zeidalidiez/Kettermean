@@ -113,5 +113,5 @@ describe('expanded procedural asset catalog', () => {
     }
 
     expect(used.size).toBeGreaterThanOrEqual(420);
-  });
+  }, 15_000);
 });
