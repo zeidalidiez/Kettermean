@@ -25,7 +25,7 @@ export const EXHIBITION_PROP_KINDS = [
   'detail_optometrist_phoropter',
   'detail_player_piano',
   'detail_reel_to_reel_tower',
-  'detail_vanity_dresser',
+  'exhibition_vanity_dresser',
   'detail_grandfather_clock',
   'detail_turbine_governor',
   'detail_pressure_manifold',
@@ -50,13 +50,13 @@ export const EXHIBITION_PROP_KINDS = [
   'detail_reception_pigeonholes',
   'detail_room_service_dumbwaiter',
   'detail_anatomy_model_cabinet',
-  'detail_drafting_table',
+  'exhibition_drafting_table',
   'detail_spiral_stair_fragment',
   'detail_stained_glass_kiosk',
 ] as const;
 
 export const EXHIBITION_HUMANOID_KINDS = [
-  'detail_figure_projectionist',
+  'exhibition_figure_projectionist',
   'detail_figure_perfumer',
   'detail_figure_elevator_operator',
   'detail_figure_surveyor',
@@ -67,22 +67,22 @@ export const EXHIBITION_HUMANOID_KINDS = [
   'detail_figure_cartographer',
   'detail_figure_stationmaster',
   'detail_figure_optician',
-  'detail_figure_astronomer',
+  'exhibition_figure_astronomer',
   'detail_figure_locksmith',
   'detail_figure_pastry_chef',
   'detail_figure_telephone_operator',
 ] as const;
 
 export const EXHIBITION_CREATURE_KINDS = [
-  'detail_animal_fox',
-  'detail_animal_owl',
-  'detail_animal_moth',
-  'detail_animal_frog',
-  'detail_animal_snail',
+  'exhibition_animal_fox',
+  'exhibition_animal_owl',
+  'exhibition_animal_moth',
+  'exhibition_animal_frog',
+  'exhibition_animal_snail',
   'detail_animal_stag',
   'detail_animal_seahorse',
   'detail_animal_mantis',
-  'detail_animal_goat',
+  'exhibition_animal_goat',
   'detail_animal_swan',
 ] as const;
 
@@ -165,7 +165,7 @@ export const EXHIBITION_PROP_FAMILIES: ExhibitionFamilyDefinition[] = [
   prop('exhibition_phoropter', 'detail_optometrist_phoropter', 'many-lensed optometrist phoropter', 'fixture', ['clinic', 'hospital', 'optical', 'tech'], { x: 1.45, y: 2.15, z: 1.3 }, 'medical'),
   prop('exhibition_player_piano', 'detail_player_piano', 'self-playing upright piano', 'anomaly', ['hotel', 'theater', 'home', 'haunted'], { x: 2.1, y: 2.1, z: 1.0 }, 'audio'),
   prop('exhibition_reel_tower', 'detail_reel_to_reel_tower', 'reel-to-reel broadcast tower', 'fixture', ['communication', 'archive', 'tech', 'cinema'], { x: 1.65, y: 2.25, z: 0.88 }, 'audio'),
-  prop('exhibition_vanity', 'detail_vanity_dresser', 'three-mirror vanity dresser', 'furniture', ['home', 'hotel', 'theater', 'uncanny'], { x: 2.05, y: 2.0, z: 0.85 }, 'domestic'),
+  prop('exhibition_vanity', 'exhibition_vanity_dresser', 'three-mirror vanity dresser', 'furniture', ['home', 'hotel', 'theater', 'uncanny'], { x: 2.05, y: 2.0, z: 0.85 }, 'domestic'),
   prop('exhibition_clock', 'detail_grandfather_clock', 'astronomical grandfather clock', 'anomaly', ['home', 'hotel', 'archive', 'haunted'], { x: 1.2, y: 2.75, z: 0.72 }, 'domestic'),
   prop('exhibition_governor', 'detail_turbine_governor', 'flywheel turbine governor', 'fixture', ['industrial', 'service', 'tech', 'warehouse'], { x: 1.85, y: 2.0, z: 1.55 }, 'industrial'),
   prop('exhibition_manifold', 'detail_pressure_manifold', 'gauge-covered pressure manifold', 'fixture', ['industrial', 'service', 'lab', 'tech'], { x: 2.2, y: 1.9, z: 0.78 }, 'industrial'),
@@ -190,7 +190,7 @@ export const EXHIBITION_PROP_FAMILIES: ExhibitionFamilyDefinition[] = [
   prop('exhibition_pigeonholes', 'detail_reception_pigeonholes', 'hotel reception pigeonhole desk', 'furniture', ['hotel', 'lobby', 'office', 'archive'], { x: 2.35, y: 2.25, z: 0.95 }, 'hospitality'),
   prop('exhibition_dumbwaiter', 'detail_room_service_dumbwaiter', 'room-service dumbwaiter station', 'fixture', ['hotel', 'food', 'service', 'industrial'], { x: 1.55, y: 2.35, z: 0.9 }, 'hospitality'),
   prop('exhibition_anatomy', 'detail_anatomy_model_cabinet', 'sectioned anatomy model cabinet', 'decor', ['school', 'clinic', 'museum', 'observation'], { x: 1.65, y: 2.25, z: 0.92 }, 'classroom'),
-  prop('exhibition_drafting', 'detail_drafting_table', 'counterweighted drafting table', 'furniture', ['school', 'office', 'archive', 'workshop'], { x: 2.2, y: 1.65, z: 1.15 }, 'classroom'),
+  prop('exhibition_drafting', 'exhibition_drafting_table', 'counterweighted drafting table', 'furniture', ['school', 'office', 'archive', 'workshop'], { x: 2.2, y: 1.65, z: 1.15 }, 'classroom'),
   prop('exhibition_stair', 'detail_spiral_stair_fragment', 'freestanding spiral stair fragment', 'anomaly', ['architecture', 'hotel', 'industrial', 'uncanny'], { x: 2.4, y: 3.0, z: 2.4 }, 'architectural'),
   prop('exhibition_glass_kiosk', 'detail_stained_glass_kiosk', 'stained-glass information kiosk', 'fixture', ['architecture', 'lobby', 'cathedral', 'public'], { x: 2.0, y: 2.65, z: 1.6 }, 'architectural'),
 ];
@@ -206,7 +206,7 @@ const being = (
 ): ExhibitionFamilyDefinition => ({ id, kind, label, category, tags, scale, behavior });
 
 export const EXHIBITION_BEING_FAMILIES: ExhibitionFamilyDefinition[] = [
-  being('exhibition_npc_projectionist', 'detail_figure_projectionist', 'last-reel projectionist', 'npc', ['cinema', 'theater', 'archive', 'night'], { x: 0.96, y: 2.48, z: 0.76 }, 'stare'),
+  being('exhibition_npc_projectionist', 'exhibition_figure_projectionist', 'last-reel projectionist', 'npc', ['cinema', 'theater', 'archive', 'night'], { x: 0.96, y: 2.48, z: 0.76 }, 'stare'),
   being('exhibition_npc_perfumer', 'detail_figure_perfumer', 'hotel corridor perfumer', 'npc', ['hotel', 'retail', 'garden', 'uncanny'], { x: 0.94, y: 2.42, z: 0.74 }, 'wander'),
   being('exhibition_npc_elevator_operator', 'detail_figure_elevator_operator', 'between-floors elevator operator', 'npc', ['hotel', 'lobby', 'transit', 'night'], { x: 0.93, y: 2.48, z: 0.72 }, 'stare'),
   being('exhibition_npc_surveyor', 'detail_figure_surveyor', 'interior land surveyor', 'npc', ['office', 'outdoor', 'industrial', 'uncanny'], { x: 0.98, y: 2.45, z: 0.78 }, 'orbit'),
@@ -217,19 +217,19 @@ export const EXHIBITION_BEING_FAMILIES: ExhibitionFamilyDefinition[] = [
   being('exhibition_npc_cartographer', 'detail_figure_cartographer', 'lost-building cartographer', 'npc', ['archive', 'office', 'museum', 'transit'], { x: 0.96, y: 2.46, z: 0.76 }, 'stare'),
   being('exhibition_npc_stationmaster', 'detail_figure_stationmaster', 'platformless stationmaster', 'npc', ['station', 'terminal', 'transit', 'night'], { x: 0.98, y: 2.54, z: 0.78 }, 'stare'),
   being('exhibition_npc_optician', 'detail_figure_optician', 'many-spectacled optician', 'npc', ['clinic', 'retail', 'optical', 'uncanny'], { x: 0.95, y: 2.43, z: 0.74 }, 'idle'),
-  being('exhibition_npc_astronomer', 'detail_figure_astronomer', 'ceiling astronomer', 'npc', ['museum', 'school', 'night', 'tech'], { x: 0.98, y: 2.52, z: 0.78 }, 'orbit'),
+  being('exhibition_npc_astronomer', 'exhibition_figure_astronomer', 'ceiling astronomer', 'npc', ['museum', 'school', 'night', 'tech'], { x: 0.98, y: 2.52, z: 0.78 }, 'orbit'),
   being('exhibition_npc_locksmith', 'detail_figure_locksmith', 'doorless-building locksmith', 'npc', ['hotel', 'industrial', 'service', 'archive'], { x: 0.96, y: 2.45, z: 0.76 }, 'wander'),
   being('exhibition_npc_pastry_chef', 'detail_figure_pastry_chef', 'banquet pastry chef', 'npc', ['food', 'hotel', 'banquet', 'night'], { x: 1.02, y: 2.58, z: 0.82 }, 'wander'),
   being('exhibition_npc_operator', 'detail_figure_telephone_operator', 'unconnected telephone operator', 'npc', ['communication', 'office', 'hotel', 'tech'], { x: 0.94, y: 2.44, z: 0.74 }, 'stare'),
-  being('exhibition_creature_fox', 'detail_animal_fox', 'carpet-colored fox', 'creature', ['hotel', 'garden', 'night', 'outdoor'], { x: 1.05, y: 1.05, z: 1.7 }, 'wander'),
-  being('exhibition_creature_owl', 'detail_animal_owl', 'records-room owl', 'creature', ['archive', 'museum', 'night', 'school'], { x: 1.0, y: 1.35, z: 0.9 }, 'stare'),
-  being('exhibition_creature_moth', 'detail_animal_moth', 'chandelier atlas moth', 'creature', ['hotel', 'garden', 'night', 'dream'], { x: 1.75, y: 0.85, z: 0.52 }, 'orbit'),
-  being('exhibition_creature_frog', 'detail_animal_frog', 'waiting-room tree frog', 'creature', ['clinic', 'garden', 'water', 'dream'], { x: 0.9, y: 0.78, z: 1.05 }, 'idle'),
-  being('exhibition_creature_snail', 'detail_animal_snail', 'marble lobby snail', 'creature', ['hotel', 'garden', 'wet', 'liminal'], { x: 0.92, y: 0.82, z: 1.55 }, 'wander'),
+  being('exhibition_creature_fox', 'exhibition_animal_fox', 'carpet-colored fox', 'creature', ['hotel', 'garden', 'night', 'outdoor'], { x: 1.05, y: 1.05, z: 1.7 }, 'wander'),
+  being('exhibition_creature_owl', 'exhibition_animal_owl', 'records-room owl', 'creature', ['archive', 'museum', 'night', 'school'], { x: 1.0, y: 1.35, z: 0.9 }, 'stare'),
+  being('exhibition_creature_moth', 'exhibition_animal_moth', 'chandelier atlas moth', 'creature', ['hotel', 'garden', 'night', 'dream'], { x: 1.75, y: 0.85, z: 0.52 }, 'orbit'),
+  being('exhibition_creature_frog', 'exhibition_animal_frog', 'waiting-room tree frog', 'creature', ['clinic', 'garden', 'water', 'dream'], { x: 0.9, y: 0.78, z: 1.05 }, 'idle'),
+  being('exhibition_creature_snail', 'exhibition_animal_snail', 'marble lobby snail', 'creature', ['hotel', 'garden', 'wet', 'liminal'], { x: 0.92, y: 0.82, z: 1.55 }, 'wander'),
   being('exhibition_creature_stag', 'detail_animal_stag', 'ballroom stag', 'creature', ['hotel', 'garden', 'ceremonial', 'uncanny'], { x: 1.45, y: 2.65, z: 2.2 }, 'stare'),
   being('exhibition_creature_seahorse', 'detail_animal_seahorse', 'air-swimming seahorse', 'creature', ['aquarium', 'hotel', 'wet', 'dream'], { x: 0.85, y: 1.65, z: 0.68 }, 'orbit'),
   being('exhibition_creature_mantis', 'detail_animal_mantis', 'reception-desk mantis', 'creature', ['garden', 'office', 'uncanny', 'night'], { x: 1.0, y: 1.55, z: 0.82 }, 'stare'),
-  being('exhibition_creature_goat', 'detail_animal_goat', 'service-corridor goat', 'creature', ['service', 'outdoor', 'industrial', 'liminal'], { x: 1.15, y: 1.55, z: 1.75 }, 'wander'),
+  being('exhibition_creature_goat', 'exhibition_animal_goat', 'service-corridor goat', 'creature', ['service', 'outdoor', 'industrial', 'liminal'], { x: 1.15, y: 1.55, z: 1.75 }, 'wander'),
   being('exhibition_creature_swan', 'detail_animal_swan', 'carpet-gliding swan', 'creature', ['hotel', 'water', 'garden', 'ceremonial'], { x: 1.35, y: 1.5, z: 1.75 }, 'orbit'),
 ];
 

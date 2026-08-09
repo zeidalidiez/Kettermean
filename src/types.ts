@@ -178,7 +178,19 @@ export type RoomShaderStyle =
   | 'emboss'
   | 'aurora'
   | 'xray'
-  | 'frostedglass';
+  | 'frostedglass'
+  | 'filmgrain'
+  | 'chromatic'
+  | 'sepia'
+  | 'contour'
+  | 'ripple'
+  | 'pixelshift'
+  | 'paper'
+  | 'neonfog'
+  | 'doublevision'
+  | 'verticalhold'
+  | 'lenticular'
+  | 'risograph';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'
@@ -211,6 +223,14 @@ export interface RoomVisuals {
   angleOffset: number;
   /** Brightness modulation used only by explicit strobing treatments. */
   flashStrength: number;
+  /** Fine analog texture and surface-noise intensity. */
+  grainAmount: number;
+  /** RGB channel separation used by optical and print treatments. */
+  channelShift: number;
+  /** Seeded darkening or diffusion toward the frame boundary. */
+  edgeFade: number;
+  /** Horizontal/vertical band density for print and analog treatments. */
+  banding: number;
   /** Accessibility preference: lighting must not pulse or flash. */
   flashingDisabled?: boolean;
   /** Accessibility preference: add a stronger neutral visibility floor. */

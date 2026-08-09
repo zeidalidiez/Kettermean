@@ -414,6 +414,18 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
   'aurora',
   'xray',
   'frostedglass',
+  'filmgrain',
+  'chromatic',
+  'sepia',
+  'contour',
+  'ripple',
+  'pixelshift',
+  'paper',
+  'neonfog',
+  'doublevision',
+  'verticalhold',
+  'lenticular',
+  'risograph',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
@@ -437,21 +449,21 @@ const EFFECT_TINTS = [
   '#75f0df',
 ];
 const CONDITION_SHADER_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['shader'][]>> = {
-  bloodied: ['solarize', 'tint', 'noir'],
-  slimed: ['smear', 'acid', 'underwater', 'oilfilm', 'frostedglass'],
-  scorched: ['heatwave', 'dither', 'noir'],
-  burning: ['heatwave', 'thermal', 'smear', 'bloom', 'lightleak'],
-  ruined: ['halftone', 'dither', 'noir', 'negative', 'fracture', 'emboss', 'crosshatch'],
-  overgrown: ['dream', 'tint', 'duotone', 'watercolor', 'aurora'],
-  frozen: ['negative', 'duotone', 'prism', 'cellophane', 'frostedglass', 'softfocus'],
-  flooded: ['rain', 'underwater', 'smear', 'cellophane', 'frostedglass', 'watercolor'],
-  dusty: ['halftone', 'dither', 'tint', 'crosshatch', 'lightleak'],
-  moldy: ['smear', 'duotone', 'acid', 'watercolor'],
-  electrified: ['edgeglow', 'prism', 'vhs', 'datamosh', 'xray'],
-  haunted: ['spectral', 'negative', 'dream', 'afterimage', 'softfocus', 'xray'],
-  gilded: ['mosaic', 'posterize', 'duotone', 'oilfilm', 'lightleak', 'emboss'],
-  bioluminescent: ['edgeglow', 'dream', 'prism', 'bloom', 'aurora', 'softfocus'],
-  stormbound: ['rain', 'noir', 'vhs', 'nightvision', 'frostedglass', 'emboss'],
+  bloodied: ['solarize', 'tint', 'noir', 'risograph'],
+  slimed: ['smear', 'acid', 'underwater', 'oilfilm', 'frostedglass', 'ripple', 'neonfog'],
+  scorched: ['heatwave', 'dither', 'noir', 'sepia', 'filmgrain', 'risograph'],
+  burning: ['heatwave', 'thermal', 'smear', 'bloom', 'lightleak', 'neonfog', 'chromatic'],
+  ruined: ['halftone', 'dither', 'noir', 'negative', 'fracture', 'emboss', 'crosshatch', 'contour', 'paper', 'filmgrain', 'verticalhold'],
+  overgrown: ['dream', 'tint', 'duotone', 'watercolor', 'aurora', 'paper', 'neonfog'],
+  frozen: ['negative', 'duotone', 'prism', 'cellophane', 'frostedglass', 'softfocus', 'lenticular', 'chromatic'],
+  flooded: ['rain', 'underwater', 'smear', 'cellophane', 'frostedglass', 'watercolor', 'ripple', 'doublevision'],
+  dusty: ['halftone', 'dither', 'tint', 'crosshatch', 'lightleak', 'sepia', 'paper', 'filmgrain'],
+  moldy: ['smear', 'duotone', 'acid', 'watercolor', 'paper', 'ripple'],
+  electrified: ['edgeglow', 'prism', 'vhs', 'datamosh', 'xray', 'chromatic', 'pixelshift', 'neonfog', 'verticalhold'],
+  haunted: ['spectral', 'negative', 'dream', 'afterimage', 'softfocus', 'xray', 'doublevision', 'filmgrain', 'contour'],
+  gilded: ['mosaic', 'posterize', 'duotone', 'oilfilm', 'lightleak', 'emboss', 'lenticular', 'sepia', 'risograph'],
+  bioluminescent: ['edgeglow', 'dream', 'prism', 'bloom', 'aurora', 'softfocus', 'neonfog', 'chromatic', 'lenticular'],
+  stormbound: ['rain', 'noir', 'vhs', 'nightvision', 'frostedglass', 'emboss', 'filmgrain', 'verticalhold', 'contour'],
 };
 const CONDITION_LIGHTING_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['lighting'][]>> = {
   bloodied: ['emergency', 'warm'],
@@ -582,6 +594,10 @@ export function resolveRoomVisuals(
     flashStrength: flashingDisabled
       ? 0
       : clamp(override?.flashStrength ?? rng.float(0.08, 0.2), 0, 0.24),
+    grainAmount: clamp(override?.grainAmount ?? rng.float(0.12, 0.82), 0, 1),
+    channelShift: clamp(override?.channelShift ?? rng.float(0.08, 0.88), 0, 1),
+    edgeFade: clamp(override?.edgeFade ?? rng.float(0.04, 0.72), 0, 1),
+    banding: clamp(override?.banding ?? rng.float(0.12, 0.92), 0, 1),
     flashingDisabled,
     highVisibility,
   };
@@ -976,7 +992,8 @@ const SHADER_VALUES = [
   'mosaic', 'edgeglow', 'oilfilm', 'datamosh', 'cellophane', 'afterimage', 'moire',
   'bloom', 'fracture', 'nightvision',
   'softfocus', 'watercolor', 'crosshatch', 'lightleak', 'emboss', 'aurora', 'xray',
-  'frostedglass',
+  'frostedglass', 'filmgrain', 'chromatic', 'sepia', 'contour', 'ripple', 'pixelshift',
+  'paper', 'neonfog', 'doublevision', 'verticalhold', 'lenticular', 'risograph',
 ] as const;
 const LIGHTING_VALUES = ['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse'] as const;
 const BEHAVIOR_VALUES = ['idle', 'wander', 'orbit', 'stare'] as const;
@@ -1076,6 +1093,10 @@ function parseVisualSteer(value: unknown): Partial<RoomVisuals> {
     ...numberField(raw, 'mirrorSegments', 2, 12),
     ...numberField(raw, 'rotationSpeed', -0.22, 0.22),
     ...numberField(raw, 'flashStrength', 0, 0.24),
+    ...numberField(raw, 'grainAmount', 0, 1),
+    ...numberField(raw, 'channelShift', 0, 1),
+    ...numberField(raw, 'edgeFade', 0, 1),
+    ...numberField(raw, 'banding', 0, 1),
   };
 }
 

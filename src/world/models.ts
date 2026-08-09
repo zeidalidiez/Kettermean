@@ -2755,12 +2755,14 @@ function faceHostForKind(kind: PropKind): FaceHostContext {
   if (
     value.startsWith('figure_') ||
     value.startsWith('detail_figure_') ||
+    value.startsWith('exhibition_figure_') ||
     value === 'lowpoly_person' ||
     value === 'voxel_watcher'
   ) return 'humanoid';
   if (
     value.startsWith('animal_') ||
     value.startsWith('detail_animal_') ||
+    value.startsWith('exhibition_animal_') ||
     value.includes('dog') ||
     value.includes('cat') ||
     value.includes('bird') ||

@@ -2260,6 +2260,10 @@ function defaultVisuals(): RoomVisuals {
     rotationSpeed: 0,
     angleOffset: 0,
     flashStrength: 0,
+    grainAmount: 0,
+    channelShift: 0,
+    edgeFade: 0,
+    banding: 0,
   };
 }
 

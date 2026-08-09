@@ -30,12 +30,12 @@ export interface SteeringResult {
 
 const MOODS: MoodAxis[] = ['static', 'upper', 'downer', 'dynamic'];
 const SHADER_FAMILIES: readonly (readonly RoomShaderStyle[])[] = [
-  ['none', 'fisheye', 'posterize', 'halftone', 'mosaic', 'moire', 'softfocus', 'watercolor'],
-  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision', 'lightleak', 'crosshatch'],
-  ['tint', 'thermal', 'prism', 'duotone', 'spectral', 'oilfilm', 'aurora', 'xray'],
-  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane', 'watercolor', 'frostedglass'],
-  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture', 'emboss', 'xray'],
-  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom', 'crosshatch', 'lightleak'],
+  ['none', 'fisheye', 'posterize', 'halftone', 'mosaic', 'moire', 'softfocus', 'watercolor', 'sepia', 'paper'],
+  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision', 'lightleak', 'crosshatch', 'filmgrain', 'verticalhold', 'risograph'],
+  ['tint', 'thermal', 'prism', 'duotone', 'spectral', 'oilfilm', 'aurora', 'xray', 'chromatic', 'lenticular'],
+  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane', 'watercolor', 'frostedglass', 'ripple', 'neonfog'],
+  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture', 'emboss', 'xray', 'contour', 'doublevision'],
+  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom', 'crosshatch', 'lightleak', 'pixelshift'],
 ];
 const LIGHTING: RoomLightingStyle[] = [
   'fluorescent',
@@ -66,7 +66,7 @@ export function browserSteeringPrompt(
     ...themes.map((theme, index) => `${index} = ${theme}`),
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
-    `Shader family digit: 0 clean/soft-focus/watercolor, 1 retro/light-leak/crosshatch, 2 tint/aurora/x-ray, 3 dream/rain/frosted-glass, 4 noir/emboss/afterimage, 5 ${ctx.noFlashingLights ? 'CRT/prism/edge-glow/bloom' : 'CRT/prism/strobe/edge-glow/bloom'}.`,
+    `Shader family digit: 0 clean/soft-focus/paper, 1 retro/film-grain/risograph, 2 tint/chromatic/lenticular, 3 dream/ripple/neon-fog, 4 noir/contour/double-vision, 5 ${ctx.noFlashingLights ? 'CRT/pixel-shift/edge-glow' : 'CRT/pixel-shift/strobe/edge-glow'}.`,
     `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',

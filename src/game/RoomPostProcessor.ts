@@ -46,6 +46,18 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   aurora: 41,
   xray: 42,
   frostedglass: 43,
+  filmgrain: 44,
+  chromatic: 45,
+  sepia: 46,
+  contour: 47,
+  ripple: 48,
+  pixelshift: 49,
+  paper: 50,
+  neonfog: 51,
+  doublevision: 52,
+  verticalhold: 53,
+  lenticular: 54,
+  risograph: 55,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -81,6 +93,10 @@ export class RoomPostProcessor {
       uAngleOffset: { value: 0 },
       uFlashStrength: { value: 0 },
       uFlashingDisabled: { value: 0 },
+      uGrainAmount: { value: 0 },
+      uChannelShift: { value: 0 },
+      uEdgeFade: { value: 0 },
+      uBanding: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -110,6 +126,10 @@ export class RoomPostProcessor {
       uniform float uAngleOffset;
       uniform float uFlashStrength;
       uniform float uFlashingDisabled;
+      uniform float uGrainAmount;
+      uniform float uChannelShift;
+      uniform float uEdgeFade;
+      uniform float uBanding;
       varying vec2 vUv;
 
       float luma(vec3 color) {
@@ -251,22 +271,41 @@ export class RoomPostProcessor {
           ) - 0.5;
           float breathing = 0.72 + 0.28 * sin(time * 0.35 + hash21(pane) * 6.2831);
           uv += refraction * (0.003 + uDistortion * 0.009) * breathing;
+        } else if (uMode == 48.0) {
+          vec2 rippleCenter = uv - 0.5;
+          vec2 rippleDirection = normalize(rippleCenter + vec2(0.0001, 0.0));
+          float rippleRadius = length(rippleCenter * vec2(aspect, 1.0));
+          float wave = sin(rippleRadius * mix(34.0, 78.0, uBanding) - time * 1.25);
+          uv += rippleDirection * wave * (0.0015 + uDistortion * 0.0085) * uStrength;
+        } else if (uMode == 49.0) {
+          float shiftBand = floor(uv.y * mix(22.0, 96.0, uBanding));
+          float shiftNoise = hash21(vec2(shiftBand, floor(time * 3.4)));
+          float activeShift = step(0.63, shiftNoise);
+          uv.x += (shiftNoise - 0.5) * (0.012 + uDistortion * 0.048) * activeShift;
+          uv.y = mix(uv.y, (floor(uv.y * 180.0) + 0.5) / 180.0, activeShift * 0.34);
+        } else if (uMode == 53.0) {
+          float holdOffset = sin(time * 0.38 + uAngleOffset) * 0.012 * uDistortion;
+          uv.y = fract(uv.y + holdOffset);
+          float rollPosition = fract(time * 0.075 + uAngleOffset * 0.159);
+          float rollDistance = abs(fract(uv.y - rollPosition + 0.5) - 0.5);
+          float syncTear = 1.0 - smoothstep(0.008, 0.045, rollDistance);
+          uv.x += sin(uv.y * 92.0 + time) * syncTear * (0.004 + uBanding * 0.022);
         }
 
-        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0 || uMode == 29.0;
+        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0 || uMode == 29.0 || uMode == 49.0;
         if (pixelated) {
           vec2 cells = max(uResolution / max(2.0, uPixelSize), vec2(1.0));
           uv = (floor(uv * cells) + 0.5) / cells;
         }
 
         vec2 radial = normalize((uv - 0.5) + vec2(0.0001, 0.0));
-        vec2 offset = radial * (0.0012 + uDistortion * 0.006) * uStrength;
+        vec2 offset = radial * (0.0012 + uDistortion * 0.006 + uChannelShift * 0.007) * uStrength;
         vec3 color;
         if (
           uMode == 3.0 || uMode == 5.0 || uMode == 8.0 ||
           uMode == 11.0 || uMode == 12.0 || uMode == 15.0 || uMode == 23.0 ||
           uMode == 25.0 || uMode == 28.0 || uMode == 29.0 || uMode == 30.0 ||
-          uMode == 31.0 || uMode == 34.0
+          uMode == 31.0 || uMode == 34.0 || uMode == 45.0
         ) {
           color = vec3(
             texture2D(tDiffuse, safeUv(uv + offset)).r,
@@ -592,11 +631,133 @@ export class RoomPostProcessor {
           frost = mix(frost, frost * mix(vec3(0.82, 0.94, 1.0), uTint, 0.18), 0.28);
           frost += crystal * 0.035 + etching * 0.035;
           color = mix(color, frost, 0.48 + uStrength * 0.32);
+        } else if (uMode == 44.0) {
+          float filmFrame = floor(time * mix(9.0, 28.0, uGrainAmount));
+          float grainNoise = hash21(gl_FragCoord.xy + vec2(filmFrame * 17.13, filmFrame * 3.71)) - 0.5;
+          float scratchSeed = hash21(vec2(floor(gl_FragCoord.x * 0.18), filmFrame * 0.07));
+          float scratch = step(0.992 - uGrainAmount * 0.004, scratchSeed)
+            * (0.45 + 0.55 * sin(gl_FragCoord.y * 0.07 + filmFrame));
+          vec3 fadedFilm = mix(vec3(luma(color)), color * vec3(1.05, 0.99, 0.91), 0.72);
+          fadedFilm += grainNoise * (0.018 + uGrainAmount * 0.085);
+          fadedFilm += scratch * vec3(0.12, 0.105, 0.08);
+          color = mix(color, fadedFilm, 0.4 + uStrength * 0.38);
+        } else if (uMode == 45.0) {
+          float fringe = smoothstep(0.08, 0.9, length(vUv - 0.5) * 1.5);
+          vec3 separated = color;
+          separated.r *= 1.0 + fringe * uChannelShift * 0.08;
+          separated.b *= 1.0 + fringe * uChannelShift * 0.12;
+          separated = hueShift(separated, (vUv.x - 0.5) * uColorCycle * 0.22);
+          color = mix(color, separated * mix(vec3(1.0), uTint, 0.1), 0.52 + uStrength * 0.28);
+        } else if (uMode == 46.0) {
+          vec3 sepiaPlate = vec3(
+            dot(color, vec3(0.393, 0.769, 0.189)),
+            dot(color, vec3(0.349, 0.686, 0.168)),
+            dot(color, vec3(0.272, 0.534, 0.131))
+          );
+          float dust = hash21(floor(gl_FragCoord.xy * 0.32) + floor(time * 0.8)) - 0.5;
+          sepiaPlate = clamp(sepiaPlate, 0.0, 1.08) + dust * 0.025 * uGrainAmount;
+          sepiaPlate *= mix(vec3(1.0), uTint * 1.05, 0.08);
+          color = mix(color, sepiaPlate, 0.48 + uStrength * 0.38);
+        } else if (uMode == 47.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          float value = luma(color);
+          float rightValue = luma(texture2D(tDiffuse, safeUv(uv + vec2(texel.x * 2.0, 0.0))).rgb);
+          float upperValue = luma(texture2D(tDiffuse, safeUv(uv + vec2(0.0, texel.y * 2.0))).rgb);
+          float edge = smoothstep(0.018, 0.16, abs(value - rightValue) + abs(value - upperValue));
+          float contourCount = mix(6.0, 18.0, uBanding);
+          float contourLine = 1.0 - smoothstep(0.02, 0.1, abs(fract(value * contourCount) - 0.5));
+          vec3 contourPaper = mix(vec3(0.08, 0.095, 0.11), uTint * 0.22, 0.35);
+          vec3 contourLight = mix(vec3(0.76, 0.83, 0.82), uTint, 0.22);
+          vec3 mapped = mix(contourPaper, contourLight, floor(value * contourCount) / contourCount);
+          mapped += mix(vec3(0.18, 0.78, 0.7), uTint, 0.45) * max(edge, contourLine * 0.38);
+          color = mix(color, mapped, 0.44 + uStrength * 0.38);
+        } else if (uMode == 48.0) {
+          float rippleRadius = length((vUv - 0.5) * vec2(uResolution.x / max(uResolution.y, 1.0), 1.0));
+          float rippleLight = sin(rippleRadius * mix(34.0, 78.0, uBanding) - time * 1.25);
+          vec3 liquid = color * mix(vec3(0.82, 0.96, 1.08), uTint * 1.22, 0.18);
+          liquid += max(rippleLight, 0.0) * vec3(0.028, 0.045, 0.055) * uDistortion;
+          color = mix(color, liquid, 0.34 + uStrength * 0.34);
+        } else if (uMode == 49.0) {
+          vec2 block = floor(vUv * vec2(mix(20.0, 64.0, uBanding), mix(14.0, 48.0, uBanding)));
+          float blockSeed = hash21(block + floor(time * 3.0));
+          float channelSwap = step(0.67, blockSeed);
+          vec3 shiftedBlock = mix(color, color.gbr, channelSwap * (0.32 + uChannelShift * 0.42));
+          float lineNoise = hash21(vec2(floor(vUv.y * 120.0), floor(time * 6.0))) - 0.5;
+          shiftedBlock += lineNoise * 0.045 * uGrainAmount;
+          color = mix(color, shiftedBlock * mix(vec3(1.0), uTint, 0.12), 0.46 + uStrength * 0.34);
+        } else if (uMode == 50.0) {
+          float broadFiber = hash21(floor(gl_FragCoord.xy * vec2(0.16, 0.7))) - 0.5;
+          float fineFiber = hash21(floor(gl_FragCoord.yx * vec2(0.48, 0.21)) + 19.7) - 0.5;
+          float paperValue = pow(luma(color), 0.82);
+          vec3 paperBase = mix(vec3(0.88, 0.84, 0.72), uTint, 0.1);
+          vec3 paperInk = mix(vec3(paperValue), color, 0.38) * paperBase * 1.18;
+          paperInk += (broadFiber * 0.038 + fineFiber * 0.024) * uGrainAmount;
+          color = mix(color, paperInk, 0.46 + uStrength * 0.36);
+        } else if (uMode == 51.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 fogRadius = texel * (3.0 + uDistortion * 7.0);
+          vec3 fogBlur = texture2D(tDiffuse, safeUv(uv + vec2(fogRadius.x, 0.0))).rgb;
+          fogBlur += texture2D(tDiffuse, safeUv(uv - vec2(fogRadius.x, 0.0))).rgb;
+          fogBlur += texture2D(tDiffuse, safeUv(uv + vec2(0.0, fogRadius.y))).rgb;
+          fogBlur += texture2D(tDiffuse, safeUv(uv - vec2(0.0, fogRadius.y))).rgb;
+          fogBlur *= 0.25;
+          float brightFog = smoothstep(0.34, 0.86, luma(fogBlur));
+          float floorFog = pow(1.0 - vUv.y, 2.3) * (0.5 + 0.5 * sin(vUv.x * 8.0 + time * 0.42));
+          vec3 neon = max(color, fogBlur * mix(vec3(0.15, 0.92, 0.78), uTint * 1.4, 0.52) * brightFog);
+          neon += mix(vec3(0.08, 0.24, 0.3), uTint * 0.32, 0.5) * floorFog * (0.16 + uStrength * 0.3);
+          color = mix(color, neon, 0.42 + uStrength * 0.34);
+        } else if (uMode == 52.0) {
+          vec2 echoDirection = vec2(cos(uAngleOffset), sin(uAngleOffset));
+          vec2 echoOffset = echoDirection * (0.004 + uChannelShift * 0.025 + uDistortion * 0.008);
+          vec3 echoA = texture2D(tDiffuse, safeUv(uv + echoOffset)).rgb;
+          vec3 echoB = texture2D(tDiffuse, safeUv(uv - echoOffset * 0.72)).rgb;
+          vec3 doubled = max(color * 0.72, echoA * mix(vec3(0.58, 0.86, 1.0), uTint, 0.28));
+          doubled = max(doubled, echoB * vec3(0.92, 0.55, 0.7) * 0.72);
+          color = mix(color, doubled, 0.34 + uStrength * 0.42);
+        } else if (uMode == 53.0) {
+          float scanline = 0.9 + 0.1 * sin(gl_FragCoord.y * mix(1.2, 3.6, uBanding));
+          float rollPosition = fract(time * 0.075 + uAngleOffset * 0.159);
+          float rollDistance = abs(fract(vUv.y - rollPosition + 0.5) - 0.5);
+          float syncBar = 1.0 - smoothstep(0.008, 0.04, rollDistance);
+          float analogNoise = hash21(vec2(floor(gl_FragCoord.y), floor(time * 12.0))) - 0.5;
+          vec3 held = color * scanline;
+          held += analogNoise * 0.045 * uGrainAmount;
+          held = mix(held, uTint * max(luma(held), 0.12), syncBar * 0.24 * uStrength);
+          color = mix(color, held, 0.5 + uStrength * 0.28);
+        } else if (uMode == 54.0) {
+          float lensFrequency = mix(80.0, 230.0, uBanding);
+          float lens = 0.5 + 0.5 * sin(gl_FragCoord.x * lensFrequency / max(uResolution.x, 1.0) + uAngleOffset);
+          vec3 viewA = hueShift(color, -0.22 * uColorCycle);
+          vec3 viewB = hueShift(color * mix(vec3(1.0), uTint * 1.18, 0.24), 0.34 * uColorCycle);
+          vec3 ridged = mix(viewA, viewB, smoothstep(0.28, 0.72, lens));
+          float highlight = pow(abs(lens * 2.0 - 1.0), 10.0) * 0.045;
+          color = mix(color, ridged + highlight, 0.42 + uStrength * 0.36);
+        } else if (uMode == 55.0) {
+          vec2 printShift = vec2(1.0, -0.65) / max(uResolution, vec2(1.0))
+            * (1.0 + uChannelShift * 5.0);
+          vec3 registered = vec3(
+            texture2D(tDiffuse, safeUv(uv + printShift)).r,
+            texture2D(tDiffuse, safeUv(uv)).g,
+            texture2D(tDiffuse, safeUv(uv - printShift)).b
+          );
+          float printLevels = mix(5.0, 2.5, uStrength);
+          vec3 flatInk = floor(registered * printLevels + 0.5) / printLevels;
+          float dotNoise = hash21(floor(gl_FragCoord.xy / mix(2.0, 5.0, uBanding))) - 0.5;
+          vec3 printPaper = mix(vec3(0.94, 0.88, 0.76), uTint, 0.08);
+          vec3 printed = mix(printPaper, flatInk * mix(vec3(0.82, 0.9, 0.94), uTint, 0.18), 0.84);
+          printed += dotNoise * 0.035 * uGrainAmount;
+          color = mix(color, printed, 0.5 + uStrength * 0.34);
         }
+
+        float frameDistance = max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)) * 2.0;
+        float frameEdge = smoothstep(0.46, 1.0, frameDistance);
+        float effectiveEdgeFade = uEdgeFade * mix(1.0, 0.35, uHighVisibility);
+        color *= mix(1.0, 1.0 - effectiveEdgeFade * 0.28, frameEdge);
 
         if (
           uMode == 4.0 || uMode == 5.0 || uMode == 9.0 ||
-          uMode == 12.0 || uMode == 15.0 || uMode == 35.0
+          uMode == 12.0 || uMode == 15.0 || uMode == 35.0 ||
+          uMode == 44.0 || uMode == 46.0 || uMode == 53.0
         ) {
           vec2 centered = vUv * 2.0 - 1.0;
           float vignette = 1.0 - smoothstep(0.35, 1.35, dot(centered, centered));
@@ -607,7 +768,7 @@ export class RoomPostProcessor {
         // Preserve mood without allowing a treatment to erase navigation detail.
         float targetShadow = (
           uMode == 4.0 || uMode == 5.0 || uMode == 12.0 || uMode == 15.0 ||
-          uMode == 35.0
+          uMode == 35.0 || uMode == 44.0 || uMode == 46.0 || uMode == 53.0
         ) ? 0.17 : 0.13;
         targetShadow = mix(targetShadow, 0.27, uHighVisibility);
         float shadowLift = max(0.0, targetShadow - luma(color));
@@ -644,6 +805,10 @@ export class RoomPostProcessor {
     this.material.uniforms.uAngleOffset!.value = visuals?.angleOffset ?? 0;
     this.material.uniforms.uFlashStrength!.value = visuals?.flashStrength ?? 0;
     this.material.uniforms.uFlashingDisabled!.value = visuals?.flashingDisabled ? 1 : 0;
+    this.material.uniforms.uGrainAmount!.value = visuals?.grainAmount ?? 0;
+    this.material.uniforms.uChannelShift!.value = visuals?.channelShift ?? 0;
+    this.material.uniforms.uEdgeFade!.value = visuals?.edgeFade ?? 0;
+    this.material.uniforms.uBanding!.value = visuals?.banding ?? 0;
   }
 
   setSize(width: number, height: number, pixelRatio: number): void {

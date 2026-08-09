@@ -41,6 +41,12 @@ describe('third high-detail exhibition expansion', () => {
     expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(366);
     expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(1_362);
 
+    const exhibitionIds = new Set(EXHIBITION_ASSETS.map((asset) => asset.id));
+    const exhibitionKinds = new Set(EXHIBITION_ASSETS.map((asset) => asset.kind));
+    expect(ASSETS.filter(
+      (asset) => !exhibitionIds.has(asset.id) && exhibitionKinds.has(asset.kind),
+    )).toEqual([]);
+
     const families = Map.groupBy(EXHIBITION_ASSETS, (asset) => asset.family);
     expect(families.size).toBe(75);
     for (const variants of families.values()) {

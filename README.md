@@ -6,7 +6,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated all-3D catalog with 2,328 composed furniture, fixture, animal, and NPC variants across 291 multi-variant families, plus the original one-off kit pieces
+- Three.js first-person rooms assembled from a curated all-3D catalog with 2,778 composed furniture, fixture, animal, and NPC variants across 366 multi-variant families, plus the original one-off kit pieces
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
@@ -15,12 +15,12 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Explicit next-dream navigation with mood-tinted fades through keyboard, gamepad, and touch input
 - Coherent whole-scene blood, slime, scorch, fire, ruin, overgrowth, ice, flood, dust, mold, electricity, haunting, gilding, bioluminescence, and storm modifiers, with gore gated by the player setting
 - Per-room gravity, movement, friction, bounce, and sway
-- Seeded lighting plus forty-four randomized visual treatments, including soft focus, watercolor, crosshatching, light leaks, embossed relief, aurora curtains, X-ray plates, frosted glass, oil film, datamosh, cellophane refraction, afterimages, moiré, bloom, fractured glass, night vision, rain glass, spectral trails, mosaic, edge glow, underwater caustics, rare kaleidoscope, acid melt, heatwave, negative, halftone, smear, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and rare wireframe modes
+- Seeded lighting plus fifty-five post-processing treatments, including film grain, chromatic separation, sepia, contour mapping, ripples, pixel shifting, paper texture, neon fog, double vision, vertical hold, lenticular color, risograph ink, soft focus, watercolor, light leaks, embossed relief, aurora curtains, X-ray plates, frosted glass, oil film, datamosh, afterimages, moiré, bloom, fractured glass, night vision, spectral trails, edge glow, underwater caustics, rare kaleidoscope, and rare wireframe modes
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - A player flashlight on **F**, gamepad X, and touch, independent of room lighting
 - Billboards that interleave model-authored notices with longer tagged procedural notices from a 584-entry semantic lexicon, so neither writing source replaces the other
-- Two high-detail expansion rounds contribute 608 props and 304 NPC/animal variants across 114 artisan families, with geometry changes—not palette swaps—between all eight variants in each family
+- Three high-detail expansion rounds contribute 908 props and 454 NPC/animal variants across 189 artisan families, with geometry changes—not palette swaps—between variants in every family
 - Every selectable actor and prop is built as 3D geometry; the former prerendered character cutouts are excluded from the catalog and production bundle
 - Deliberately cheap low-poly forms and room-scale voxel giants remain as intentional contrasts to the increasingly intricate catalog
 - Body-independent face kits that cross-mount animal faces on people, human faces on animals, and both kinds on furniture, fixtures, and other objects
@@ -75,7 +75,7 @@ AI depth changes how much authorship the selected model attempts, not the proced
 
 Every later pass is additive: if it fails, the game retains the valid AI direction from earlier passes and procedurally fills only the missing fields.
 
-The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, twenty dedicated high-detail animal families, eighteen high-detail humanoid roles, and the broader legacy catalog. The newer families range from upholstered furniture, scientific instruments, workshop machinery, ritual displays, and medical apparatus to foxes, octopuses, ravens, axolotls, spiders, tortoises, clockmakers, divers, undertakers, and lamplighters. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. Actors range from articulated, role-equipped people and species-specific animals to intentionally crude low-poly figures and giant voxel apparitions. Catalog metadata remains separate from geometry builders so future families can be added without turning either system into a monolith.
+The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, thirty dedicated high-detail animal families, thirty-three high-detail humanoid roles, and the broader legacy catalog. The newer families range from upholstered furniture, scientific instruments, workshop machinery, ritual displays, medical apparatus, magic lanterns, switchboards, seismographs, phoropters, and observatory equipment to foxes, octopuses, ravens, axolotls, mantises, seahorses, projectionists, conservators, astronomers, and stationmasters. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. Actors range from articulated, role-equipped people and species-specific animals to intentionally crude low-poly figures and giant voxel apparitions. Catalog metadata remains separate from geometry builders so future families can be added without turning either system into a monolith.
 
 ## Cost and lifecycle controls
 

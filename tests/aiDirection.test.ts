@@ -20,10 +20,14 @@ describe('AI room direction contract', () => {
       fogFar: 120,
       linkColor: '#ff5522',
       visuals: {
-        shader: 'heatwave',
+        shader: 'neonfog',
         lighting: 'warm',
         tint: '#ff8844',
         distortion: 0.72,
+        grainAmount: 0.63,
+        channelShift: 0.48,
+        edgeFade: 0.31,
+        banding: 0.77,
         wireframe: false,
       },
       roomRule: 'Every inhabitant must apologize to the nearest flame.',
@@ -62,9 +66,13 @@ describe('AI room direction contract', () => {
       linkColor: '#ff5522',
       roomRule: 'Every inhabitant must apologize to the nearest flame.',
       visuals: expect.objectContaining({
-        shader: 'heatwave',
+        shader: 'neonfog',
         lighting: 'warm',
         tint: '#ff8844',
+        grainAmount: 0.63,
+        channelShift: 0.48,
+        edgeFade: 0.31,
+        banding: 0.77,
       }),
     });
 
