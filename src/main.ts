@@ -27,6 +27,8 @@ const browserModelSelect = qs<HTMLSelectElement>('browser-model-select');
 const modelFieldBrowser = qs<HTMLElement>('model-field-browser');
 const modelFieldCloud = qs<HTMLElement>('model-field-cloud');
 const goreToggle = qs<HTMLInputElement>('gore-toggle');
+const noFlashingToggle = qs<HTMLInputElement>('no-flashing-toggle');
+const noLowLightToggle = qs<HTMLInputElement>('no-low-light-toggle');
 const startBtn = qs<HTMLButtonElement>('start-btn');
 const clearKeyBtn = qs<HTMLButtonElement>('clear-key-btn');
 const resumeBtn = qs<HTMLButtonElement>('resume-btn');
@@ -43,6 +45,8 @@ function applyForm(s: AppSettings): void {
   modelInput.value = s.model;
   setBrowserModelValue(s.model);
   goreToggle.checked = s.allowGore;
+  noFlashingToggle.checked = s.noFlashingLights;
+  noLowLightToggle.checked = s.noLowLight;
   syncModeUi();
   syncProviderUi();
 }
@@ -61,6 +65,8 @@ function readForm(): AppSettings {
     baseUrl: baseUrlInput.value.trim(),
     model,
     allowGore: goreToggle.checked,
+    noFlashingLights: noFlashingToggle.checked,
+    noLowLight: noLowLightToggle.checked,
   };
 }
 

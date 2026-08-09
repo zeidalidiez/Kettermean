@@ -12,6 +12,8 @@ const settings: AppSettings = {
   baseUrl: 'https://example.test/v1',
   model: 'test-model',
   allowGore: false,
+  noFlashingLights: false,
+  noLowLight: false,
 };
 
 function context(seed: string): GenerationContext {
@@ -118,5 +120,68 @@ describe('RoomGenerator cost controls', () => {
     expect(local.getItem('kettermean.roomCache.v10')).toBeNull();
     expect(local.getItem(STORAGE_KEYS.roomCache)).toBe('{}');
     expect(local.getItem('another-app')).toBe('keep-me');
+  });
+
+  it('separates comfort-constrained cache entries and enforces settings locally', () => {
+    const constrainedSettings: AppSettings = {
+      ...settings,
+      provider: 'offline',
+      noFlashingLights: true,
+      noLowLight: true,
+    };
+    const generator = new RoomGenerator(constrainedSettings);
+    const safe = generator.getOrOffline(context('comfort-cache'));
+
+    expect(safe.visuals).toMatchObject({
+      flashingDisabled: true,
+      highVisibility: true,
+    });
+    expect(safe.visuals?.lighting).not.toBe('pulse');
+    expect(safe.visuals?.lighting).not.toBe('dim');
+
+    generator.updateSettings({
+      ...constrainedSettings,
+      noFlashingLights: false,
+      noLowLight: false,
+    });
+    const atmospheric = generator.getOrOffline(context('comfort-cache'));
+
+    expect(atmospheric).not.toBe(safe);
+    expect(atmospheric.visuals).toMatchObject({
+      flashingDisabled: false,
+      highVisibility: false,
+    });
+  });
+
+  it('adds comfort constraints to cloud prompts and validates the returned room', async () => {
+    let requestBody: Record<string, unknown> | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return response(
+          '{"themeId":"fluorescent_lobby","title":"Clear Lobby","blurb":"Every corner is visible.","mood":"dynamic"}',
+        );
+      }),
+    );
+
+    const generator = new RoomGenerator({
+      ...settings,
+      noFlashingLights: true,
+      noLowLight: true,
+    });
+    generator.beginSession();
+    const room = await generator.get(context('cloud-comfort'));
+    const messages = requestBody?.messages as Array<{ content?: string }>;
+    const prompt = messages.map((message) => message.content ?? '').join('\n');
+
+    expect(prompt).toContain('Do not request flashing');
+    expect(prompt).toContain('do not request dim or low-light');
+    expect(room.visuals?.lighting).not.toBe('pulse');
+    expect(room.visuals?.lighting).not.toBe('dim');
+    expect(room.visuals).toMatchObject({
+      flashingDisabled: true,
+      highVisibility: true,
+    });
   });
 });

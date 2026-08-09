@@ -25,6 +25,8 @@ export function defaultSettings(): AppSettings {
     baseUrl: DEFAULT_OPENAI_BASE,
     model: DEFAULT_OPENAI_MODEL,
     allowGore: false,
+    noFlashingLights: false,
+    noLowLight: false,
   };
 }
 
@@ -61,6 +63,8 @@ export function loadSettings(): AppSettings {
       baseUrl: cleanBaseUrl(parsed.baseUrl, defaults.baseUrl),
       model,
       allowGore: parsed.allowGore === true,
+      noFlashingLights: parsed.noFlashingLights === true,
+      noLowLight: parsed.noLowLight === true,
     };
 
     if ('apiKey' in parsed) {
@@ -126,6 +130,8 @@ function persistNonSecretSettings(settings: AppSettings): void {
     model: settings.model,
     browserModelDefaultsRevision: BROWSER_MODEL_DEFAULTS_REVISION,
     allowGore: settings.allowGore,
+    noFlashingLights: settings.noFlashingLights,
+    noLowLight: settings.noLowLight,
   };
   try {
     localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(persistent));

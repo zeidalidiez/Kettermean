@@ -22,6 +22,8 @@ const settings: AppSettings = {
   baseUrl: '',
   model: 'tiny-test-model',
   allowGore: false,
+  noFlashingLights: false,
+  noLowLight: false,
 };
 
 function context(index: number): GenerationContext {

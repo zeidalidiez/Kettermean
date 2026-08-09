@@ -33,6 +33,7 @@ export class RoomPostProcessor {
       uTint: { value: new THREE.Color('#ffffff') },
       uStrength: { value: 0.5 },
       uPixelSize: { value: 4 },
+      uHighVisibility: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -52,6 +53,7 @@ export class RoomPostProcessor {
       uniform vec3 uTint;
       uniform float uStrength;
       uniform float uPixelSize;
+      uniform float uHighVisibility;
       varying vec2 vUv;
 
       float luma(vec3 color) {
@@ -112,11 +114,13 @@ export class RoomPostProcessor {
         if (uMode == 4.0 || uMode == 5.0) {
           vec2 centered = vUv * 2.0 - 1.0;
           float vignette = 1.0 - smoothstep(0.35, 1.35, dot(centered, centered));
-          color *= mix(1.0, vignette, 0.35 + uStrength * 0.25);
+          float vignetteStrength = (0.35 + uStrength * 0.25) * mix(1.0, 0.4, uHighVisibility);
+          color *= mix(1.0, vignette, vignetteStrength);
         }
 
         // Preserve mood without allowing a treatment to erase navigation detail.
         float targetShadow = (uMode == 4.0 || uMode == 5.0) ? 0.17 : 0.13;
+        targetShadow = mix(targetShadow, 0.24, uHighVisibility);
         float shadowLift = max(0.0, targetShadow - luma(color));
         color += vec3(shadowLift * 0.9);
 
@@ -139,6 +143,7 @@ export class RoomPostProcessor {
     this.material.uniforms.uTint!.value.set(visuals?.tint ?? '#ffffff');
     this.material.uniforms.uStrength!.value = visuals?.effectStrength ?? 0;
     this.material.uniforms.uPixelSize!.value = visuals?.pixelSize ?? 4;
+    this.material.uniforms.uHighVisibility!.value = visuals?.highVisibility ? 1 : 0;
   }
 
   setSize(width: number, height: number, pixelRatio: number): void {

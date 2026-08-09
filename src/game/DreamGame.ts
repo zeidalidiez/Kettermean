@@ -217,7 +217,18 @@ export class DreamGame {
   }
 
   private applyRoom(spec: RoomSpec): void {
-    spec.visuals ??= resolveRoomVisuals(spec.seed, spec.mood);
+    // Comfort preferences are a client-side invariant. Re-resolve even model and
+    // cached rooms so a stale or hostile visual steer cannot bypass them.
+    spec.visuals = resolveRoomVisuals(
+      spec.seed,
+      spec.mood,
+      spec.visuals,
+      this.recentRooms,
+      {
+        noFlashingLights: this.settings.noFlashingLights,
+        noLowLight: this.settings.noLowLight,
+      },
+    );
     const built = this.roomWorld.build(spec, this.scene);
     this.player.setPhysics(spec.physics);
     this.player.spawnAt(built.spawn.x, built.spawn.y, built.spawn.z, 0);
@@ -253,6 +264,8 @@ export class DreamGame {
       previousTitles: [...this.previousTitles],
       moodBias: this.moodBias,
       allowGore: this.settings.allowGore,
+      noFlashingLights: this.settings.noFlashingLights,
+      noLowLight: this.settings.noLowLight,
       linkIndex,
       recentRooms: this.recentRooms.map((room) => ({
         ...room,

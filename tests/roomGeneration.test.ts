@@ -112,6 +112,48 @@ describe('offline room invariants', () => {
       generateOfflineRoom(context).visuals,
     );
   });
+
+  it('keeps atmospheric lighting by default but removes flashing when requested', () => {
+    const defaultLighting = new Set<string>();
+
+    for (let index = 0; index < 500; index += 1) {
+      const base = {
+        seed: `no-flashing-${index}`,
+        previousTitles: [],
+        moodBias: 'dynamic' as const,
+        allowGore: false,
+        linkIndex: index,
+      };
+      defaultLighting.add(generateOfflineRoom(base).visuals?.lighting ?? '');
+      const safeRoom = generateOfflineRoom({
+        ...base,
+        noFlashingLights: true,
+      });
+
+      expect(safeRoom.visuals?.lighting).not.toBe('pulse');
+      expect(safeRoom.visuals?.flashingDisabled).toBe(true);
+    }
+
+    expect(defaultLighting).toContain('pulse');
+    expect(defaultLighting).toContain('emergency');
+  });
+
+  it('removes dim rooms and raises the visibility floor when requested', () => {
+    for (let index = 0; index < 500; index += 1) {
+      const room = generateOfflineRoom({
+        seed: `no-low-light-${index}`,
+        previousTitles: [],
+        moodBias: 'downer',
+        allowGore: false,
+        noLowLight: true,
+        linkIndex: index,
+      });
+
+      expect(room.visuals?.lighting).not.toBe('dim');
+      expect(room.visuals?.highVisibility).toBe(true);
+      expect(room.visuals?.exposure).toBeGreaterThanOrEqual(1.2);
+    }
+  });
 });
 
 describe('random run seeds', () => {

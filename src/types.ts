@@ -13,6 +13,8 @@ export interface AppSettings {
   baseUrl: string;
   model: string;
   allowGore: boolean;
+  noFlashingLights: boolean;
+  noLowLight: boolean;
 }
 
 export interface Vec3 {
@@ -101,6 +103,10 @@ export interface RoomVisuals {
   pixelSize: number;
   wireframe: boolean;
   exposure: number;
+  /** Accessibility preference: lighting must not pulse or flash. */
+  flashingDisabled?: boolean;
+  /** Accessibility preference: add a stronger neutral visibility floor. */
+  highVisibility?: boolean;
 }
 
 export interface RoomSpec {
@@ -175,6 +181,8 @@ export interface GenerationContext {
   previousTitles: string[];
   moodBias: MoodAxis;
   allowGore: boolean;
+  noFlashingLights?: boolean;
+  noLowLight?: boolean;
   linkIndex: number;
   recentRooms?: RoomHistoryEntry[];
 }

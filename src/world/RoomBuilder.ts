@@ -84,7 +84,9 @@ export class RoomWorld {
     const tags = spec.themeTags ?? [];
     const visuals = spec.visuals ?? defaultVisuals();
     const lighting = lightingProfile(visuals, spec.palette);
+    if (visuals.flashingDisabled) lighting.pulseAmplitude = 0;
     const outdoor = spec.environment === 'outdoor';
+    const highVisibility = visuals.highVisibility === true;
 
     const floorMat = surfaceMaterial(styleForMood('floor', spec.mood, tags), spec.palette.floor, seedKey);
     const ceilMat = surfaceMaterial(styleForMood('ceiling', spec.mood, tags), spec.palette.ceiling, seedKey);
@@ -242,7 +244,16 @@ export class RoomWorld {
       lighting.ambient,
       lighting.ambientIntensity * (outdoor ? 1.15 : 1),
     );
-    const readabilityAmbient = new THREE.AmbientLight('#ffffff', outdoor ? 0.3 : 0.38);
+    const readabilityAmbient = new THREE.AmbientLight(
+      '#ffffff',
+      highVisibility
+        ? outdoor
+          ? 0.42
+          : 0.5
+        : outdoor
+          ? 0.14
+          : 0.18,
+    );
     const hemi = new THREE.HemisphereLight(
       lighting.primary,
       lighting.ground,
@@ -260,8 +271,20 @@ export class RoomWorld {
     fill.position.set(-halfW * 0.5, h * 0.6, -halfD * 0.3);
     this.navigationLight = new THREE.PointLight(
       spec.palette.light,
-      outdoor ? 1.65 : 2.15,
-      outdoor ? 22 : 18,
+      highVisibility
+        ? outdoor
+          ? 1.85
+          : 2.4
+        : outdoor
+          ? 1.1
+          : 1.35,
+      highVisibility
+        ? outdoor
+          ? 24
+          : 20
+        : outdoor
+          ? 17
+          : 14,
       1.25,
     );
     this.navigationLight.position.set(0, PLAYER.eyeHeight + 0.35, 0);

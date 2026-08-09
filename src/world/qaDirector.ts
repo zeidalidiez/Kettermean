@@ -20,7 +20,16 @@ export type QaFallbackField = 'THEME_ID' | 'TITLE' | 'MOOD' | 'GIANT' | 'BLURB';
 export function parseQaDirection(
   text: string,
   seed: string,
-  ctx?: Pick<GenerationContext, 'previousTitles' | 'moodBias' | 'allowGore' | 'linkIndex'>,
+  ctx?: Pick<
+    GenerationContext,
+    | 'previousTitles'
+    | 'moodBias'
+    | 'allowGore'
+    | 'noFlashingLights'
+    | 'noLowLight'
+    | 'linkIndex'
+    | 'recentRooms'
+  >,
   onFieldFallback?: (fields: QaFallbackField[]) => void,
 ): RoomDirection | null {
   if (!text?.trim()) return null;
@@ -101,7 +110,10 @@ export function parseQaDirection(
       previousTitles: ctx?.previousTitles ?? [],
       moodBias: ctx?.moodBias ?? mood,
       allowGore: ctx?.allowGore ?? false,
+      noFlashingLights: ctx?.noFlashingLights ?? false,
+      noLowLight: ctx?.noLowLight ?? false,
       linkIndex: ctx?.linkIndex ?? 0,
+      recentRooms: ctx?.recentRooms,
     },
     steer,
   );

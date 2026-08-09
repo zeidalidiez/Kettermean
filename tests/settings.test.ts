@@ -27,6 +27,8 @@ describe('settings persistence', () => {
     expect(loaded.provider).toBe('offline');
     expect(loaded.baseUrl).toMatch(/^https:/);
     expect(loaded.allowGore).toBe(false);
+    expect(loaded.noFlashingLights).toBe(false);
+    expect(loaded.noLowLight).toBe(false);
     expect(loaded.apiKey).toBe('legacy-key');
     expect(local.getItem(STORAGE_KEYS.settings)).not.toContain('legacy-key');
   });
@@ -44,11 +46,17 @@ describe('settings persistence', () => {
       baseUrl: 'https://openrouter.ai/api/v1',
       model: 'openrouter/free',
       allowGore: false,
+      noFlashingLights: true,
+      noLowLight: true,
     };
 
     saveSettings(value);
     expect(local.getItem(STORAGE_KEYS.settings)).not.toContain('temporary-key');
     expect(session.getItem(STORAGE_KEYS.sessionApiKey)).toBe('temporary-key');
+    expect(loadSettings()).toMatchObject({
+      noFlashingLights: true,
+      noLowLight: true,
+    });
   });
 
   it('moves the former browser default to the lightweight model once', () => {
@@ -84,6 +92,8 @@ describe('settings persistence', () => {
       baseUrl: 'https://example.test/v1',
       model: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
       allowGore: false,
+      noFlashingLights: false,
+      noLowLight: false,
     };
 
     saveSettings(explicit);
@@ -114,6 +124,8 @@ describe('settings persistence', () => {
       baseUrl: 'https://example.test/v1',
       model: 'model',
       allowGore: false,
+      noFlashingLights: false,
+      noLowLight: false,
     })).not.toThrow();
   });
 });

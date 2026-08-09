@@ -63,4 +63,37 @@ describe('compact browser-model steering', () => {
     expect(prompt.user.match(/^\d\s=/gm)).toHaveLength(5);
     expect(full.length).toBeLessThan(1_200);
   });
+
+  it('locally replaces model-requested pulse and dim modes when opted out', () => {
+    const noFlashing = parseSteeringDirection('KMR00005000', {
+      ...context,
+      noFlashingLights: true,
+    });
+    const noLowLight = parseSteeringDirection('KMR00001000', {
+      ...context,
+      noLowLight: true,
+    });
+
+    expect(noFlashing.direction.visuals).toMatchObject({
+      lighting: 'emergency',
+      flashingDisabled: true,
+    });
+    expect(noLowLight.direction.visuals).toMatchObject({
+      lighting: 'fluorescent',
+      highVisibility: true,
+    });
+    expect(noLowLight.direction.visuals?.exposure).toBeGreaterThanOrEqual(1.2);
+  });
+
+  it('describes only safe lighting choices to the tiny model when constrained', () => {
+    const prompt = browserSteeringPrompt({
+      ...context,
+      noFlashingLights: true,
+      noLowLight: true,
+    });
+
+    expect(prompt.user).not.toContain('1 dim');
+    expect(prompt.user).not.toContain('5 pulse');
+    expect(prompt.user).toContain('static emergency');
+  });
 });

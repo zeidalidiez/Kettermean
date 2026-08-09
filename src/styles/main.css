@@ -175,6 +175,10 @@ button:focus-visible {
   margin-top: 3px;
 }
 
+.check + .check {
+  margin-top: 9px;
+}
+
 .controls-list {
   margin: 0;
   padding-left: 18px;

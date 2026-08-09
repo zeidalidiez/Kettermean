@@ -13,6 +13,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 - Door-only room links with mood-tinted fades and fog-independent exit beacons
 - Per-room gravity, movement, friction, bounce, and sway
 - Seeded lighting, tint, retro, dream, noir, CRT, and wireframe treatments
+- Opt-in comfort controls for static lighting and consistently well-lit rooms
 - Keyboard/mouse, gamepad, and complete touch controls
 - Optional OpenAI-compatible, OpenRouter, Anthropic, and WebLLM providers
 - Provider-scoped room cache and strict one-request-at-a-time generation
@@ -45,7 +46,7 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 3. At a door, Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
 4. A late provider result is cached for its seed; it never replaces a room underneath the player.
 
-Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets. Recent-room fingerprints actively steer the director away from repeated themes, layouts, treatments, moods, and assets.
+Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets. Recent-room fingerprints actively steer the director away from repeated themes, layouts, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
 
 The procedural catalog includes furniture, public-space fixtures, outdoor objects, and ten richer humanoid families. NPCs use composed heads, faces, torsos, limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders.
 
@@ -57,7 +58,7 @@ The procedural catalog includes furniture, public-space fixtures, outdoor object
 | Global single flight | At most one generation runs at a time, even across different seeds |
 | Prefetch depth one | Only the exact next transition seed is warmed |
 | No automatic retry | Invalid cloud fields fall back procedurally for that seed; malformed browser output becomes a complete procedural steering code without disabling later model calls |
-| Provider-aware cache | Cache keys include provider, base URL, model, schema version, seed, and gore flag |
+| Provider-aware cache | Cache keys include provider, base URL, model, schema version, seed, and content/comfort flags |
 | Request timeout | Cloud calls abort after 90 seconds |
 | Session fail-open | Repeated provider errors stop further calls and keep the dream offline |
 | Session-only key | API keys use `sessionStorage`, never persistent `localStorage` or the build output |

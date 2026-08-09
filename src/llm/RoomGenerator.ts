@@ -25,6 +25,7 @@ import {
   browserSteeringPrompt,
   parseSteeringDirection,
 } from '../world/steeringCode';
+import { resolveRoomVisuals } from '../world/roomDirector';
 
 interface CacheEntry {
   spec: RoomSpec;
@@ -61,12 +62,16 @@ export class RoomGenerator {
       settings.model !== previous.model ||
       settings.baseUrl !== previous.baseUrl ||
       settings.apiKey !== previous.apiKey;
+    const constraintsChanged =
+      settings.allowGore !== previous.allowGore ||
+      settings.noFlashingLights !== previous.noFlashingLights ||
+      settings.noLowLight !== previous.noLowLight;
     this.settings = { ...settings };
-    if (providerChanged) {
+    if (providerChanged || constraintsChanged) {
       this.invalidateInFlight();
       this.sessionFailures = 0;
       this.failedKeys.clear();
-      if (previous.provider === 'browser') void disposeBrowserEngine();
+      if (providerChanged && previous.provider === 'browser') void disposeBrowserEngine();
     }
   }
 
@@ -88,33 +93,36 @@ export class RoomGenerator {
   }
 
   getOrOffline(ctx: GenerationContext): RoomSpec {
-    const key = cacheKey(ctx, this.settings);
+    const effectiveCtx = withSettingsConstraints(ctx, this.settings);
+    const key = cacheKey(effectiveCtx, this.settings);
     const cached = this.memory.get(key);
     if (cached) return cached;
-    const offline = generateOfflineRoom(ctx);
+    const offline = generateOfflineRoom(effectiveCtx);
     if (!this.inflight.has(key)) this.remember(key, offline);
     return offline;
   }
 
   hasLlmRoom(ctx: GenerationContext): boolean {
-    const spec = this.memory.get(cacheKey(ctx, this.settings));
+    const effectiveCtx = withSettingsConstraints(ctx, this.settings);
+    const spec = this.memory.get(cacheKey(effectiveCtx, this.settings));
     return Boolean(spec && !spec.offline);
   }
 
   async get(ctx: GenerationContext): Promise<RoomSpec> {
     const jobSettings = { ...this.settings };
+    const effectiveCtx = withSettingsConstraints(ctx, jobSettings);
     const epoch = this.sessionEpoch;
-    const key = cacheKey(ctx, jobSettings);
+    const key = cacheKey(effectiveCtx, jobSettings);
     const cached = this.memory.get(key);
     if (cached && (!cached.offline || this.settings.provider === 'offline')) {
       return cached;
     }
-    if (this.failedKeys.has(key)) return cached ?? generateOfflineRoom(ctx);
+    if (this.failedKeys.has(key)) return cached ?? generateOfflineRoom(effectiveCtx);
 
     const pending = this.inflight.get(key);
     if (pending) return pending;
 
-    const job = this.enqueueGeneration(() => this.generate(ctx, jobSettings, epoch, key))
+    const job = this.enqueueGeneration(() => this.generate(effectiveCtx, jobSettings, epoch, key))
       .then((spec) => {
         if (epoch === this.sessionEpoch) this.remember(key, spec);
         return spec;
@@ -135,13 +143,14 @@ export class RoomGenerator {
     ) {
       return;
     }
-    const key = cacheKey(ctx, this.settings);
+    const effectiveCtx = withSettingsConstraints(ctx, this.settings);
+    const key = cacheKey(effectiveCtx, this.settings);
     const existing = this.memory.get(key);
     if (existing && !existing.offline) return;
     if (this.failedKeys.has(key)) return;
     if (this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures) return;
     const epoch = this.sessionEpoch;
-    void this.get(ctx)
+    void this.get(effectiveCtx)
       .then((spec) => {
         if (epoch !== this.sessionEpoch) return;
         this.onStatus?.(
@@ -185,13 +194,20 @@ export class RoomGenerator {
       const normalized =
         settings.provider === 'browser'
           ? parseBrowserDirection(text, ctx)
-          : parseDirectedOrLegacy(text, ctx.seed);
+          : parseDirectedOrLegacy(text, ctx);
 
       if (!normalized) {
         throw new Error(
           `LLM room direction was unusable. Preview: ${text.slice(0, 220)}`,
         );
       }
+      normalized.visuals = resolveRoomVisuals(
+        normalized.seed,
+        normalized.mood,
+        normalized.visuals,
+        ctx.recentRooms,
+        ctx,
+      );
       normalized.offline = false;
       this.sessionFailures = 0;
       return normalized;
@@ -206,7 +222,7 @@ export class RoomGenerator {
   }
 
   private async callProvider(ctx: GenerationContext, settings: AppSettings): Promise<string> {
-    const { system, user } = buildPrompt(ctx, settings.allowGore);
+    const { system, user } = buildPrompt(ctx);
     if (settings.provider === 'browser') return this.callBrowser(ctx, settings);
 
     const controller = new AbortController();
@@ -416,19 +432,34 @@ export class RoomGenerator {
   }
 }
 
+function withSettingsConstraints(
+  ctx: GenerationContext,
+  settings: AppSettings,
+): GenerationContext {
+  return {
+    ...ctx,
+    allowGore: settings.allowGore,
+    noFlashingLights: settings.noFlashingLights,
+    noLowLight: settings.noLowLight,
+  };
+}
+
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v13|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
+  return `v14|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
-function buildPrompt(
-  ctx: GenerationContext,
-  allowGore: boolean,
-): { system: string; user: string } {
-  const goreLine = allowGore
+function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
+  const goreLine = ctx.allowGore
     ? 'Mild blood/gore allowed sparingly.'
     : 'No blood or gore.';
+  const flashingLine = ctx.noFlashingLights
+    ? 'Do not request flashing, flickering, strobing, or pulsing lights.'
+    : 'Atmospheric pulsing light is permitted.';
+  const lowLightLine = ctx.noLowLight
+    ? 'Keep the room clearly illuminated; do not request dim or low-light treatment.'
+    : 'Low-light atmosphere is permitted.';
 
   // Director mode: pick catalog assets + atmospheric scale. Client builds meshes.
   const system = [
@@ -441,6 +472,8 @@ function buildPrompt(
     'mood: upper|downer|static|dynamic. Keep spawn center clear (no solid near 0,0 within 1.8).',
     '6-12 placements. Include at least one portal/link asset (door_fake often).',
     goreLine,
+    flashingLine,
+    lowLightLine,
     'Never sexual or obscene.',
   ].join(' ');
 
@@ -480,13 +513,13 @@ function buildPrompt(
   return { system, user };
 }
 
-function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
+function parseDirectedOrLegacy(text: string, ctx: GenerationContext): RoomSpec | null {
   const json = extractJsonObject(text);
   if (!json) return null;
-  const directed = parseRoomDirection(json, seed);
+  const directed = parseRoomDirection(json, ctx.seed, ctx);
   if (directed) return assembleRoomSpec(directed);
   // Legacy full RoomSpec path still accepted.
-  return normalizeRoomSpec(json, seed);
+  return normalizeRoomSpec(json, ctx.seed);
 }
 
 function parseBrowserDirection(text: string, ctx: GenerationContext): RoomSpec | null {
@@ -513,7 +546,7 @@ function parseBrowserDirection(text: string, ctx: GenerationContext): RoomSpec |
   if (qa) return assembleRoomSpec(qa);
 
   // JSON salvage also goes through director via parseRoomDirection.
-  const legacy = parseDirectedOrLegacy(text, ctx.seed);
+  const legacy = parseDirectedOrLegacy(text, ctx);
   if (legacy && !isBadDisplayText(legacy.title) && !isBadDisplayText(legacy.blurb)) {
     return legacy;
   }

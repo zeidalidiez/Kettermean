@@ -131,7 +131,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     linkColor: moodLinkColor(mood),
     palette: tintPalette(rng, theme.palette, mood),
     physics: physicsForMood(rng, mood),
-    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms),
+    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms, ctx),
     placements,
     offline: !steer,
   };
@@ -302,11 +302,19 @@ export function resolveRoomVisuals(
   mood: MoodAxis,
   override?: Partial<RoomVisuals>,
   recentRooms: RoomHistoryEntry[] = [],
+  preferences: Pick<GenerationContext, 'noFlashingLights' | 'noLowLight'> = {},
 ): RoomVisuals {
   const rng = new SeededRng(`${seed}:visuals`);
   const recentShaders = recentRooms.slice(-2).map((room) => room.shader);
   const recentLighting = recentRooms.slice(-2).map((room) => room.lighting);
   const shader = pickNovelVisual(rng, SHADER_STYLES, recentShaders, override?.shader);
+  const flashingDisabled = preferences.noFlashingLights === true;
+  const highVisibility = preferences.noLowLight === true;
+  const availableLighting = LIGHTING_STYLES.filter(
+    (style) =>
+      (!flashingDisabled || style !== 'pulse') &&
+      (!highVisibility || style !== 'dim'),
+  );
   const moodLighting: RoomVisuals['lighting'] =
     mood === 'downer'
       ? 'cold'
@@ -318,7 +326,7 @@ export function resolveRoomVisuals(
   const proposedLighting = rng.chance(0.32) ? moodLighting : undefined;
   const lighting = pickNovelVisual(
     rng,
-    LIGHTING_STYLES,
+    availableLighting,
     recentLighting,
     override?.lighting ?? proposedLighting,
   );
@@ -350,12 +358,22 @@ export function resolveRoomVisuals(
     effectStrength: clamp(override?.effectStrength ?? rng.float(0.36, 0.68), 0, 0.78),
     pixelSize: clamp(Math.round(override?.pixelSize ?? rng.int(3, 8)), 2, 12),
     wireframe,
-    exposure: clamp(override?.exposure ?? defaultExposure + rng.float(-0.03, 0.07), 1.02, 1.35),
+    exposure: clamp(
+      override?.exposure ?? defaultExposure + rng.float(-0.03, 0.07),
+      highVisibility ? 1.2 : 1.02,
+      highVisibility ? 1.38 : 1.35,
+    ),
+    flashingDisabled,
+    highVisibility,
   };
 }
 
 /** Convert LLM JSON into a steer, then rebuild with pack director. */
-export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | null {
+export function parseRoomDirection(
+  raw: unknown,
+  seed: string,
+  ctx?: Partial<GenerationContext>,
+): RoomDirection | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
 
@@ -399,10 +417,13 @@ export function parseRoomDirection(raw: unknown, seed: string): RoomDirection | 
   return generateOfflineDirection(
     {
       seed,
-      previousTitles: [],
-      moodBias: mood,
-      allowGore: false,
-      linkIndex: 0,
+      previousTitles: ctx?.previousTitles ?? [],
+      moodBias: ctx?.moodBias ?? mood,
+      allowGore: ctx?.allowGore ?? false,
+      noFlashingLights: ctx?.noFlashingLights ?? false,
+      noLowLight: ctx?.noLowLight ?? false,
+      linkIndex: ctx?.linkIndex ?? 0,
+      recentRooms: ctx?.recentRooms,
     },
     steer,
   );
@@ -576,8 +597,8 @@ function pickNovelVisual<T extends string>(
   preferred?: T,
 ): T {
   const recentSet = new Set(recent);
-  if (preferred && !recentSet.has(preferred)) return preferred;
   const unique = [...new Set(source)];
+  if (preferred && unique.includes(preferred) && !recentSet.has(preferred)) return preferred;
   const fresh = unique.filter((value) => !recentSet.has(value));
   return rng.pick(fresh.length ? fresh : unique);
 }

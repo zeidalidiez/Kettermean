@@ -45,6 +45,9 @@ export function browserSteeringPrompt(
   ctx: GenerationContext,
 ): { system: string; user: string } {
   const themes = themeShortlist(ctx.seed);
+  const dimChoice = ctx.noLowLight ? 'fluorescent' : 'dim';
+  const pulseChoice = ctx.noFlashingLights ? 'static emergency' : 'pulse';
+  const emergencyChoice = ctx.noFlashingLights ? 'static emergency' : 'emergency';
   const system = [
     'Choose eight controls for one liminal room.',
     'Reply on one line with KMR immediately followed by exactly eight digits.',
@@ -57,7 +60,7 @@ export function browserSteeringPrompt(
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
     'Shader digit: 0 clean, 1 retro, 2 tinted, 3 dream, 4 noir, 5 CRT.',
-    'Lighting digit: 0 fluorescent, 1 dim, 2 cold, 3 warm, 4 emergency, 5 pulse.',
+    `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',
     'Wireframe digit: 0 solid, 1 wireframe.',
@@ -81,7 +84,10 @@ export function parseSteeringDirection(
   );
   const themes = themeShortlist(ctx.seed);
   const shader = SHADERS[digits[3]! % SHADERS.length]!;
-  const lighting = LIGHTING[digits[4]! % LIGHTING.length]!;
+  const lighting = constrainLighting(
+    LIGHTING[digits[4]! % LIGHTING.length]!,
+    ctx,
+  );
   const density = DENSITIES[digits[6]! % DENSITIES.length]!;
   const direction = generateOfflineDirection(ctx, {
     themeId: themes[digits[0]! % themes.length],
@@ -106,6 +112,15 @@ export function parseSteeringDirection(
     modelDigitCount: modelDigits.length,
     fallbackFields: STEERING_FIELDS.slice(modelDigits.length),
   };
+}
+
+function constrainLighting(
+  lighting: RoomLightingStyle,
+  ctx: GenerationContext,
+): RoomLightingStyle {
+  if (ctx.noLowLight && lighting === 'dim') return 'fluorescent';
+  if (ctx.noFlashingLights && lighting === 'pulse') return 'emergency';
+  return lighting;
 }
 
 function extractSteeringDigits(text: string): number[] {
