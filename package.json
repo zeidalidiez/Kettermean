@@ -2,6 +2,7 @@
   "name": "kettermean",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "description": "Liminal first-person dream walker inspired by LSD: Dream Emulator, with optional LLM-generated rooms.",
   "scripts": {

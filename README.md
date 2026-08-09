@@ -143,4 +143,6 @@ The Vite build uses relative asset paths. To publish, enable **Settings → Page
 
 ## License
 
-Private repository for now.
+Kettermean is released under the [MIT License](LICENSE).
+
+Copyright © 2026 Zeid Diez.
