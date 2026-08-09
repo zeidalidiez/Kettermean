@@ -2264,6 +2264,12 @@ function defaultVisuals(): RoomVisuals {
     channelShift: 0,
     edgeFade: 0,
     banding: 0,
+    textureScale: 0,
+    inkSpread: 0,
+    highlightBloom: 0,
+    colorBleed: 0,
+    speckleAmount: 0,
+    weaveAmount: 0,
   };
 }
 

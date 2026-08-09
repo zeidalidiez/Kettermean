@@ -58,6 +58,22 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   verticalhold: 53,
   lenticular: 54,
   risograph: 55,
+  cyanotype: 56,
+  infrared: 57,
+  stainedglass: 58,
+  inkbleed: 59,
+  pointillism: 60,
+  hologram: 61,
+  tiltshift: 62,
+  daguerreotype: 63,
+  velvet: 64,
+  blueprint: 65,
+  prismshadow: 66,
+  wax: 67,
+  snowglobe: 68,
+  anamorphic: 69,
+  ultraviolet: 70,
+  woven: 71,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -97,6 +113,12 @@ export class RoomPostProcessor {
       uChannelShift: { value: 0 },
       uEdgeFade: { value: 0 },
       uBanding: { value: 0 },
+      uTextureScale: { value: 0 },
+      uInkSpread: { value: 0 },
+      uHighlightBloom: { value: 0 },
+      uColorBleed: { value: 0 },
+      uSpeckleAmount: { value: 0 },
+      uWeaveAmount: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -130,6 +152,12 @@ export class RoomPostProcessor {
       uniform float uChannelShift;
       uniform float uEdgeFade;
       uniform float uBanding;
+      uniform float uTextureScale;
+      uniform float uInkSpread;
+      uniform float uHighlightBloom;
+      uniform float uColorBleed;
+      uniform float uSpeckleAmount;
+      uniform float uWeaveAmount;
       varying vec2 vUv;
 
       float luma(vec3 color) {
@@ -290,9 +318,34 @@ export class RoomPostProcessor {
           float rollDistance = abs(fract(uv.y - rollPosition + 0.5) - 0.5);
           float syncTear = 1.0 - smoothstep(0.008, 0.045, rollDistance);
           uv.x += sin(uv.y * 92.0 + time) * syncTear * (0.004 + uBanding * 0.022);
+        } else if (uMode == 58.0) {
+          vec2 paneCount = vec2(
+            mix(13.0, 31.0, uTextureScale),
+            mix(9.0, 23.0, uTextureScale)
+          );
+          vec2 pane = floor(uv * paneCount);
+          vec2 paneCenter = (pane + 0.5) / paneCount;
+          vec2 paneJitter = vec2(hash21(pane + 4.7), hash21(pane.yx + 8.1)) - 0.5;
+          paneCenter += paneJitter / paneCount * 0.34;
+          uv = mix(uv, paneCenter + (uv - paneCenter) * 0.72, 0.38 + uDistortion * 0.24);
+        } else if (uMode == 61.0) {
+          float holoLine = floor(uv.y * mix(90.0, 260.0, uTextureScale));
+          float lineDrift = hash21(vec2(holoLine, floor(time * 0.7))) - 0.5;
+          uv.x += lineDrift * (0.001 + uColorBleed * 0.0045);
+        } else if (uMode == 67.0) {
+          float melt = sin(uv.x * mix(13.0, 31.0, uTextureScale) + time * 0.22 + uAngleOffset);
+          uv.y += melt * (0.001 + uInkSpread * 0.006) * uDistortion;
+        } else if (uMode == 68.0) {
+          vec2 globe = uv - 0.5;
+          globe.x *= aspect;
+          float globeRadius2 = dot(globe, globe);
+          globe *= 1.0 - globeRadius2 * (0.05 + uDistortion * 0.13);
+          globe.x /= aspect;
+          uv = globe + 0.5;
         }
 
-        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0 || uMode == 29.0 || uMode == 49.0;
+        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 ||
+          uMode == 18.0 || uMode == 29.0 || uMode == 49.0;
         if (pixelated) {
           vec2 cells = max(uResolution / max(2.0, uPixelSize), vec2(1.0));
           uv = (floor(uv * cells) + 0.5) / cells;
@@ -747,6 +800,232 @@ export class RoomPostProcessor {
           vec3 printed = mix(printPaper, flatInk * mix(vec3(0.82, 0.9, 0.94), uTint, 0.18), 0.84);
           printed += dotNoise * 0.035 * uGrainAmount;
           color = mix(color, printed, 0.5 + uStrength * 0.34);
+        } else if (uMode == 56.0) {
+          float value = pow(luma(color), 0.78);
+          float plateGrain = hash21(
+            floor(gl_FragCoord.xy * mix(0.16, 0.48, uTextureScale)) + 17.3
+          ) - 0.5;
+          vec3 cyanShadow = mix(vec3(0.008, 0.055, 0.11), uTint * 0.08, 0.2);
+          vec3 cyanMid = mix(vec3(0.025, 0.36, 0.58), uTint * 0.72, 0.2);
+          vec3 paperWhite = vec3(0.83, 0.95, 0.92);
+          vec3 cyanPlate = mix(cyanShadow, cyanMid, smoothstep(0.02, 0.68, value));
+          cyanPlate = mix(cyanPlate, paperWhite, smoothstep(0.67, 0.98, value));
+          cyanPlate += plateGrain * (0.012 + uSpeckleAmount * 0.042);
+          color = mix(color, cyanPlate, 0.5 + uStrength * 0.36);
+        } else if (uMode == 57.0) {
+          float value = pow(luma(color), 0.58);
+          float chroma = max(color.r, max(color.g, color.b)) - min(color.r, min(color.g, color.b));
+          vec3 infraredShadow = vec3(0.045, 0.006, 0.075);
+          vec3 infraredMid = mix(vec3(0.68, 0.035, 0.24), uTint * 0.86, 0.15);
+          vec3 infraredHot = vec3(1.0, 0.84, 0.57);
+          vec3 infraredPlate = mix(infraredShadow, infraredMid, smoothstep(0.06, 0.58, value));
+          infraredPlate = mix(infraredPlate, infraredHot, smoothstep(0.56, 0.94, value));
+          infraredPlate += vec3(0.12, -0.035, 0.1) * chroma * uColorBleed;
+          color = mix(color, infraredPlate, 0.52 + uStrength * 0.34);
+        } else if (uMode == 58.0) {
+          vec2 paneCount = vec2(
+            mix(13.0, 31.0, uTextureScale),
+            mix(9.0, 23.0, uTextureScale)
+          );
+          vec2 paneCell = floor(vUv * paneCount);
+          vec2 paneUv = fract(vUv * paneCount);
+          float paneEdge = min(min(paneUv.x, 1.0 - paneUv.x), min(paneUv.y, 1.0 - paneUv.y));
+          float lead = 1.0 - smoothstep(0.045, 0.14, paneEdge);
+          float paneHue = hash21(paneCell + 6.2) - 0.5;
+          vec3 glass = hueShift(color, paneHue * (1.2 + uColorBleed * 2.2));
+          glass = floor(glass * 5.0 + 0.5) / 5.0;
+          glass *= mix(vec3(0.86, 1.04, 1.12), uTint * 1.22, 0.18);
+          glass += (1.0 - lead) * pow(luma(glass), 3.0) * 0.075 * uHighlightBloom;
+          vec3 stained = mix(glass, vec3(0.018, 0.021, 0.026), lead * 0.88);
+          color = mix(color, stained, 0.48 + uStrength * 0.36);
+        } else if (uMode == 59.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 bleedRadius = texel * (1.2 + uInkSpread * 7.5);
+          vec3 bleed = color * 2.0;
+          bleed += texture2D(tDiffuse, safeUv(uv + vec2(bleedRadius.x, 0.0))).rgb;
+          bleed += texture2D(tDiffuse, safeUv(uv - vec2(bleedRadius.x, 0.0))).rgb;
+          bleed += texture2D(tDiffuse, safeUv(uv + vec2(0.0, bleedRadius.y))).rgb;
+          bleed += texture2D(tDiffuse, safeUv(uv - vec2(0.0, bleedRadius.y))).rgb;
+          bleed /= 6.0;
+          float inkValue = smoothstep(0.04, 0.92, luma(bleed));
+          float feather = hash21(floor(gl_FragCoord.xy * mix(0.12, 0.42, uTextureScale))) - 0.5;
+          vec3 inkPaper = mix(vec3(0.91, 0.88, 0.79), uTint, 0.08);
+          vec3 liquidInk = mix(vec3(0.012, 0.018, 0.026), uTint * 0.18, 0.34);
+          vec3 inkwash = mix(liquidInk, inkPaper, inkValue + feather * uInkSpread * 0.09);
+          inkwash = mix(inkwash, color * inkPaper * 1.18, 0.18 + inkValue * 0.18);
+          color = mix(color, inkwash, 0.5 + uStrength * 0.34);
+        } else if (uMode == 60.0) {
+          float dotSize = mix(3.0, 10.0, uTextureScale);
+          vec2 dotCell = floor(gl_FragCoord.xy / dotSize);
+          vec2 dotCenter = (dotCell + 0.5) * dotSize / max(uResolution, vec2(1.0));
+          vec3 pigment = texture2D(tDiffuse, safeUv(dotCenter)).rgb;
+          vec2 dotLocal = fract(gl_FragCoord.xy / dotSize) - 0.5;
+          float dotRadius = mix(0.46, 0.16, luma(pigment));
+          float pigmentDot = 1.0 - smoothstep(dotRadius - 0.07, dotRadius + 0.07, length(dotLocal));
+          vec3 dotPaper = mix(vec3(0.93, 0.9, 0.82), uTint, 0.07);
+          vec3 dotInk = pigment * mix(vec3(0.78, 0.86, 1.06), uTint * 1.1, 0.13);
+          vec3 stippled = mix(dotPaper * (0.78 + luma(pigment) * 0.24), dotInk, pigmentDot);
+          color = mix(color, stippled, 0.48 + uStrength * 0.36);
+        } else if (uMode == 61.0) {
+          float scanDensity = mix(1.25, 4.4, uBanding);
+          float holoScan = 0.88 + 0.12 * sin(gl_FragCoord.y * scanDensity + time * 0.8);
+          float diffraction = sin((vUv.x * 1.6 + vUv.y) * mix(45.0, 120.0, uTextureScale));
+          vec3 spectralA = hueShift(color, -0.32 - uColorBleed * 0.4);
+          vec3 spectralB = hueShift(color, 0.46 + uColorBleed * 0.55);
+          vec3 holographic = mix(spectralA, spectralB, diffraction * 0.5 + 0.5) * holoScan;
+          float holoEdge = pow(max(0.0, luma(color) - 0.52), 2.0);
+          holographic += mix(vec3(0.08, 0.68, 0.82), uTint, 0.4)
+            * holoEdge * (0.18 + uHighlightBloom * 0.42);
+          color = mix(color, holographic, 0.44 + uStrength * 0.36);
+        } else if (uMode == 62.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          float focusSlope = sin(uAngleOffset) * 0.28;
+          float focusDistance = abs((vUv.y - 0.5) + (vUv.x - 0.5) * focusSlope);
+          float blurMask = smoothstep(0.08, 0.4, focusDistance);
+          vec2 blurRadius = texel * (2.0 + uInkSpread * 8.0) * blurMask;
+          vec3 miniature = color * 2.0;
+          miniature += texture2D(tDiffuse, safeUv(uv + vec2(blurRadius.x, 0.0))).rgb;
+          miniature += texture2D(tDiffuse, safeUv(uv - vec2(blurRadius.x, 0.0))).rgb;
+          miniature += texture2D(tDiffuse, safeUv(uv + vec2(0.0, blurRadius.y))).rgb;
+          miniature += texture2D(tDiffuse, safeUv(uv - vec2(0.0, blurRadius.y))).rgb;
+          miniature /= 6.0;
+          float miniatureValue = luma(miniature);
+          miniature = mix(vec3(miniatureValue), miniature, 1.12 + uColorBleed * 0.18);
+          miniature *= mix(vec3(1.0), uTint * 1.08, 0.08);
+          color = mix(color, miniature, 0.42 + uStrength * 0.32);
+        } else if (uMode == 63.0) {
+          float value = pow(luma(color), 0.84);
+          float plateNoise = hash21(
+            floor(gl_FragCoord.xy * mix(0.09, 0.34, uTextureScale)) + 41.8
+          ) - 0.5;
+          float scratchSeed = hash21(vec2(floor(gl_FragCoord.x * 0.11), 91.7));
+          float plateScratch = step(0.995 - uSpeckleAmount * 0.006, scratchSeed);
+          float tarnish = smoothstep(0.28, 1.12, length((vUv - 0.5) * vec2(1.2, 1.0)));
+          vec3 silverDark = mix(vec3(0.055, 0.052, 0.046), uTint * 0.11, 0.22);
+          vec3 silverLight = vec3(0.87, 0.84, 0.74);
+          vec3 silverPlate = mix(silverDark, silverLight, value);
+          silverPlate += plateNoise * (0.012 + uSpeckleAmount * 0.052);
+          silverPlate += plateScratch * vec3(0.14, 0.125, 0.1);
+          silverPlate *= 1.0 - tarnish * (0.08 + uEdgeFade * 0.2);
+          color = mix(color, silverPlate, 0.52 + uStrength * 0.34);
+        } else if (uMode == 64.0) {
+          float pileA = sin((gl_FragCoord.x + gl_FragCoord.y * 0.37) * mix(0.12, 0.42, uTextureScale));
+          float pileB = sin((gl_FragCoord.y - gl_FragCoord.x * 0.21) * mix(0.18, 0.58, uTextureScale));
+          float pile = pileA * pileB;
+          float value = pow(luma(color), 0.82);
+          vec3 velvetDye = mix(color * vec3(0.78, 0.62, 0.88), uTint * value, 0.32);
+          velvetDye = hueShift(velvetDye, pile * uColorCycle * 0.12);
+          float velvetSheen = pow(max(0.0, pile * 0.5 + 0.5), 5.0) * value;
+          velvetDye += mix(vec3(0.08, 0.025, 0.12), uTint * 0.16, 0.42)
+            * velvetSheen * (0.12 + uWeaveAmount * 0.28);
+          color = mix(color, velvetDye, 0.46 + uStrength * 0.34);
+        } else if (uMode == 65.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          float leftValue = luma(texture2D(tDiffuse, safeUv(uv - vec2(texel.x * 2.0, 0.0))).rgb);
+          float rightValue = luma(texture2D(tDiffuse, safeUv(uv + vec2(texel.x * 2.0, 0.0))).rgb);
+          float downValue = luma(texture2D(tDiffuse, safeUv(uv - vec2(0.0, texel.y * 2.0))).rgb);
+          float upValue = luma(texture2D(tDiffuse, safeUv(uv + vec2(0.0, texel.y * 2.0))).rgb);
+          float drawingEdge = smoothstep(0.025, 0.17, abs(leftValue - rightValue) + abs(downValue - upValue));
+          float gridScale = mix(18.0, 54.0, uTextureScale);
+          vec2 gridUv = abs(fract(vUv * gridScale) - 0.5);
+          float drawingGrid = 1.0 - smoothstep(0.46, 0.495, max(gridUv.x, gridUv.y));
+          vec3 blueprintPaper = mix(vec3(0.012, 0.12, 0.26), uTint * 0.24, 0.24);
+          vec3 blueprintInk = vec3(0.78, 0.96, 1.0);
+          vec3 drafted = blueprintPaper + blueprintInk * drawingEdge * (0.56 + uStrength * 0.42);
+          drafted += mix(vec3(0.07, 0.42, 0.62), uTint * 0.3, 0.25) * drawingGrid * 0.18;
+          drafted += blueprintInk * luma(color) * 0.12;
+          color = mix(color, drafted, 0.5 + uStrength * 0.34);
+        } else if (uMode == 66.0) {
+          vec2 shadowDirection = vec2(cos(uAngleOffset), sin(uAngleOffset));
+          vec2 shadowOffset = shadowDirection * (0.004 + uColorBleed * 0.026);
+          vec3 shadowA = texture2D(tDiffuse, safeUv(uv + shadowOffset)).rgb;
+          vec3 shadowB = texture2D(tDiffuse, safeUv(uv - shadowOffset * 0.8)).rgb;
+          vec3 shadowC = texture2D(tDiffuse, safeUv(uv + shadowOffset.yx * vec2(-0.55, 0.55))).rgb;
+          vec3 prismCast = color * 0.74;
+          prismCast += shadowA * vec3(0.42, 0.03, 0.08) * (0.18 + uColorBleed * 0.35);
+          prismCast += shadowB * vec3(0.02, 0.36, 0.46) * (0.18 + uColorBleed * 0.35);
+          prismCast += shadowC * vec3(0.28, 0.08, 0.5) * (0.12 + uColorBleed * 0.28);
+          prismCast *= mix(vec3(1.0), uTint * 1.12, 0.1);
+          color = mix(color, prismCast, 0.46 + uStrength * 0.34);
+        } else if (uMode == 67.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 waxRadius = texel * (1.5 + uInkSpread * 6.0);
+          vec3 waxSoft = color * 2.0;
+          waxSoft += texture2D(tDiffuse, safeUv(uv + waxRadius)).rgb;
+          waxSoft += texture2D(tDiffuse, safeUv(uv - waxRadius)).rgb;
+          waxSoft += texture2D(tDiffuse, safeUv(uv + vec2(waxRadius.x, -waxRadius.y))).rgb;
+          waxSoft += texture2D(tDiffuse, safeUv(uv + vec2(-waxRadius.x, waxRadius.y))).rgb;
+          waxSoft /= 6.0;
+          float waxLevels = mix(9.0, 4.0, uInkSpread);
+          waxSoft = floor(waxSoft * waxLevels + 0.5) / waxLevels;
+          float waxPool = 0.5 + 0.5 * sin((vUv.x * 0.8 + vUv.y) * mix(18.0, 44.0, uTextureScale));
+          waxSoft *= mix(vec3(1.04, 0.92, 0.78), uTint * 1.15, 0.18);
+          waxSoft += pow(waxPool, 8.0) * 0.055 * uHighlightBloom;
+          color = mix(color, waxSoft, 0.46 + uStrength * 0.34);
+        } else if (uMode == 68.0) {
+          vec2 snowGrid = vec2(
+            mix(34.0, 78.0, uTextureScale),
+            mix(24.0, 58.0, uTextureScale)
+          );
+          vec2 snowUv = vec2(
+            vUv.x + sin(time * 0.08 + vUv.y * 9.0) * 0.008,
+            fract(vUv.y + time * 0.018)
+          );
+          vec2 snowCell = floor(snowUv * snowGrid);
+          vec2 snowLocal = fract(snowUv * snowGrid);
+          vec2 flakeCenter = vec2(hash21(snowCell + 2.4), hash21(snowCell.yx + 7.6));
+          float flake = 1.0 - smoothstep(0.045, 0.16, distance(snowLocal, flakeCenter));
+          flake *= step(0.78 - uSpeckleAmount * 0.18, hash21(snowCell + 19.2));
+          vec2 globeCenter = (vUv - 0.5) * vec2(aspect, 1.0);
+          float globeRadius = length(globeCenter);
+          float glassRim = 1.0 - smoothstep(0.012, 0.055, abs(globeRadius - 0.48));
+          vec3 globeGlass = color * mix(vec3(0.86, 0.95, 1.08), uTint * 1.18, 0.16);
+          globeGlass += vec3(0.88, 0.96, 1.0) * flake * (0.12 + uSpeckleAmount * 0.34);
+          globeGlass += vec3(0.42, 0.68, 0.82) * glassRim * (0.08 + uHighlightBloom * 0.16);
+          color = mix(color, globeGlass, 0.42 + uStrength * 0.34);
+        } else if (uMode == 69.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec3 streak = vec3(0.0);
+          streak += texture2D(tDiffuse, safeUv(uv + vec2(texel.x * 5.0, 0.0))).rgb;
+          streak += texture2D(tDiffuse, safeUv(uv - vec2(texel.x * 5.0, 0.0))).rgb;
+          streak += texture2D(tDiffuse, safeUv(uv + vec2(texel.x * 13.0, 0.0))).rgb;
+          streak += texture2D(tDiffuse, safeUv(uv - vec2(texel.x * 13.0, 0.0))).rgb;
+          streak *= 0.25;
+          float streakBright = smoothstep(0.48, 0.9, luma(streak));
+          vec3 coolStreak = streak * mix(vec3(0.18, 0.62, 1.0), uTint * 1.3, 0.36);
+          vec3 warmStreak = streak * vec3(1.0, 0.42, 0.14);
+          vec3 anamorphicLight = color;
+          anamorphicLight += mix(coolStreak, warmStreak, vUv.x)
+            * streakBright * (0.16 + uHighlightBloom * 0.72);
+          color = mix(color, anamorphicLight, 0.56 + uStrength * 0.24);
+        } else if (uMode == 70.0) {
+          float value = luma(color);
+          float chroma = max(color.r, max(color.g, color.b)) - min(color.r, min(color.g, color.b));
+          float fluorescence = smoothstep(0.08, 0.72, chroma + value * 0.28);
+          vec3 uvShadow = mix(vec3(0.018, 0.004, 0.06), uTint * 0.08, 0.2);
+          vec3 uvCyan = vec3(0.02, 0.82, 0.92);
+          vec3 uvMagenta = vec3(0.94, 0.035, 0.68);
+          vec3 fluorescentInk = mix(uvCyan, uvMagenta, smoothstep(0.22, 0.8, color.r + color.b));
+          vec3 blacklight = mix(uvShadow, fluorescentInk, fluorescence);
+          blacklight += fluorescentInk * pow(value, 3.0) * (0.08 + uHighlightBloom * 0.24);
+          blacklight = hueShift(blacklight, (color.g - color.r) * uColorBleed * 0.32);
+          color = mix(color, blacklight, 0.5 + uStrength * 0.34);
+        } else if (uMode == 71.0) {
+          float threadScale = mix(0.28, 0.86, uTextureScale);
+          float warp = 0.5 + 0.5 * sin(gl_FragCoord.x * threadScale);
+          float weft = 0.5 + 0.5 * sin(gl_FragCoord.y * threadScale * 0.82);
+          float overUnder = step(0.5, fract(
+            floor(gl_FragCoord.x * threadScale / 3.14159) * 0.5 +
+            floor(gl_FragCoord.y * threadScale / 3.14159) * 0.5
+          ));
+          float threadLight = mix(warp, weft, overUnder);
+          float fiberNoise = hash21(floor(gl_FragCoord.xy * vec2(0.7, 0.18))) - 0.5;
+          vec3 textile = floor(color * mix(9.0, 5.0, uWeaveAmount) + 0.5)
+            / mix(9.0, 5.0, uWeaveAmount);
+          textile *= 0.88 + threadLight * (0.08 + uWeaveAmount * 0.18);
+          textile += fiberNoise * uSpeckleAmount * 0.024;
+          textile *= mix(vec3(1.0), uTint * 1.12, 0.1 + uWeaveAmount * 0.08);
+          color = mix(color, textile, 0.48 + uStrength * 0.34);
         }
 
         float frameDistance = max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)) * 2.0;
@@ -809,6 +1088,12 @@ export class RoomPostProcessor {
     this.material.uniforms.uChannelShift!.value = visuals?.channelShift ?? 0;
     this.material.uniforms.uEdgeFade!.value = visuals?.edgeFade ?? 0;
     this.material.uniforms.uBanding!.value = visuals?.banding ?? 0;
+    this.material.uniforms.uTextureScale!.value = visuals?.textureScale ?? 0;
+    this.material.uniforms.uInkSpread!.value = visuals?.inkSpread ?? 0;
+    this.material.uniforms.uHighlightBloom!.value = visuals?.highlightBloom ?? 0;
+    this.material.uniforms.uColorBleed!.value = visuals?.colorBleed ?? 0;
+    this.material.uniforms.uSpeckleAmount!.value = visuals?.speckleAmount ?? 0;
+    this.material.uniforms.uWeaveAmount!.value = visuals?.weaveAmount ?? 0;
   }
 
   setSize(width: number, height: number, pixelRatio: number): void {

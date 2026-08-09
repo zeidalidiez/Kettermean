@@ -26,7 +26,7 @@ import {
   browserSteeringPrompt,
   parseSteeringDirection,
 } from '../world/steeringCode';
-import { resolveRoomVisuals } from '../world/roomDirector';
+import { resolveRoomVisuals, ROOM_SHADER_VALUES } from '../world/roomDirector';
 import {
   applyNarrativePatch,
   browserNarrativePrompt,
@@ -724,7 +724,7 @@ function withSettingsConstraints(
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v28|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
+  return `v29|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
 function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; user: string } {
@@ -737,6 +737,21 @@ function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; 
   const lowLightLine = ctx.noLowLight
     ? 'Keep the room clearly illuminated; do not request dim or low-light treatment.'
     : 'Low-light atmosphere is permitted.';
+  const shaderOptions = ROOM_SHADER_VALUES
+    .filter((shader) => !ctx.noFlashingLights || shader !== 'strobe')
+    .join('|');
+  const modifierFields = [
+    'grainAmount',
+    'channelShift',
+    'edgeFade',
+    'banding',
+    'textureScale',
+    'inkSpread',
+    'highlightBloom',
+    'colorBleed',
+    'speckleAmount',
+    'weaveAmount',
+  ].join(', ');
 
   if (depth === 'light') {
     return {
@@ -745,7 +760,8 @@ function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; 
         'Schema: themeId, title, blurb, mood, environment, condition, visuals.',
         'mood: upper|downer|static|dynamic.',
         'environment: interior|open-hall|outdoor.',
-        'visuals may contain shader, lighting, tint, wireframe, grainAmount, channelShift, edgeFade, banding.',
+        `visuals.shader must be one of ${shaderOptions}.`,
+        `visuals may also contain lighting, tint, wireframe, ${modifierFields}; modifier values range from 0 to 1.`,
         goreLine,
         flashingLine,
         lowLightLine,
@@ -773,7 +789,8 @@ function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; 
     'architecture: chamber|colonnade|atrium|arena|concourse|courtyard|causeway|field|basin.',
     'scaleProfile: closet|human|grand|monumental|colossal. condition: normal|bloodied|slimed|scorched|burning|ruined|overgrown|frozen|flooded|dusty|moldy|electrified|haunted|gilded|bioluminescent|stormbound.',
     'mood: upper|downer|static|dynamic. npcBehavior: idle|wander|orbit|stare.',
-    'visuals: shader, lighting, tint, effectStrength, distortion, colorCycle, grainAmount, channelShift, edgeFade, banding, wireframe.',
+    `visuals.shader must be one of ${shaderOptions}.`,
+    `visuals: lighting, tint, effectStrength, distortion, colorCycle, ${modifierFields}, wireframe. Modifier values range from 0 to 1.`,
     'Write a complete 40-65 word blurb in three unnumbered atmospheric sentences, a strange roomRule, 2-4 signs with a 3-7 word headline and an 8-18 word informational caption, and 1-4 short npcLines.',
     'Choose 4-10 preferredAssets. Do not select doors or portals; the player changes dreams with R.',
     goreLine,

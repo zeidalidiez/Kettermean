@@ -190,7 +190,23 @@ export type RoomShaderStyle =
   | 'doublevision'
   | 'verticalhold'
   | 'lenticular'
-  | 'risograph';
+  | 'risograph'
+  | 'cyanotype'
+  | 'infrared'
+  | 'stainedglass'
+  | 'inkbleed'
+  | 'pointillism'
+  | 'hologram'
+  | 'tiltshift'
+  | 'daguerreotype'
+  | 'velvet'
+  | 'blueprint'
+  | 'prismshadow'
+  | 'wax'
+  | 'snowglobe'
+  | 'anamorphic'
+  | 'ultraviolet'
+  | 'woven';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'
@@ -231,6 +247,18 @@ export interface RoomVisuals {
   edgeFade: number;
   /** Horizontal/vertical band density for print and analog treatments. */
   banding: number;
+  /** Seeded scale for cells, dots, fibers, and other surface patterns. */
+  textureScale: number;
+  /** Seeded soft expansion used by liquid, ink, and wax treatments. */
+  inkSpread: number;
+  /** Seeded intensity for highlight halos and optical streaks. */
+  highlightBloom: number;
+  /** Seeded amount of neighboring color migration and print registration drift. */
+  colorBleed: number;
+  /** Seeded density of dust, snow, plate tarnish, and pigment flecks. */
+  speckleAmount: number;
+  /** Seeded strength of textile-like warp and weft detail. */
+  weaveAmount: number;
   /** Accessibility preference: lighting must not pulse or flash. */
   flashingDisabled?: boolean;
   /** Accessibility preference: add a stronger neutral visibility floor. */

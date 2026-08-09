@@ -137,6 +137,22 @@ describe('offline room invariants', () => {
         'verticalhold',
         'lenticular',
         'risograph',
+        'cyanotype',
+        'infrared',
+        'stainedglass',
+        'inkbleed',
+        'pointillism',
+        'hologram',
+        'tiltshift',
+        'daguerreotype',
+        'velvet',
+        'blueprint',
+        'prismshadow',
+        'wax',
+        'snowglobe',
+        'anamorphic',
+        'ultraviolet',
+        'woven',
       ]),
     );
     expect(lightingStyles).toEqual(
@@ -376,6 +392,11 @@ describe('offline room invariants', () => {
       expect(room.visuals?.lighting).not.toBe('dim');
       expect(room.visuals?.highVisibility).toBe(true);
       expect(room.visuals?.exposure).toBeGreaterThanOrEqual(1.2);
+      expect(room.visuals?.inkSpread).toBeLessThanOrEqual(0.58);
+      expect(room.visuals?.highlightBloom).toBeLessThanOrEqual(0.68);
+      expect(room.visuals?.colorBleed).toBeLessThanOrEqual(0.65);
+      expect(room.visuals?.speckleAmount).toBeLessThanOrEqual(0.54);
+      expect(room.visuals?.weaveAmount).toBeLessThanOrEqual(0.7);
     }
   });
 
@@ -402,6 +423,12 @@ describe('offline room invariants', () => {
           visuals?.channelShift.toFixed(3),
           visuals?.edgeFade.toFixed(3),
           visuals?.banding.toFixed(3),
+          visuals?.textureScale.toFixed(3),
+          visuals?.inkSpread.toFixed(3),
+          visuals?.highlightBloom.toFixed(3),
+          visuals?.colorBleed.toFixed(3),
+          visuals?.speckleAmount.toFixed(3),
+          visuals?.weaveAmount.toFixed(3),
         ].join('|'),
       ),
     );
@@ -416,6 +443,18 @@ describe('offline room invariants', () => {
       expect(visuals?.edgeFade).toBeLessThanOrEqual(1);
       expect(visuals?.banding).toBeGreaterThanOrEqual(0);
       expect(visuals?.banding).toBeLessThanOrEqual(1);
+      expect(visuals?.textureScale).toBeGreaterThanOrEqual(0);
+      expect(visuals?.textureScale).toBeLessThanOrEqual(1);
+      expect(visuals?.inkSpread).toBeGreaterThanOrEqual(0);
+      expect(visuals?.inkSpread).toBeLessThanOrEqual(1);
+      expect(visuals?.highlightBloom).toBeGreaterThanOrEqual(0);
+      expect(visuals?.highlightBloom).toBeLessThanOrEqual(1);
+      expect(visuals?.colorBleed).toBeGreaterThanOrEqual(0);
+      expect(visuals?.colorBleed).toBeLessThanOrEqual(1);
+      expect(visuals?.speckleAmount).toBeGreaterThanOrEqual(0);
+      expect(visuals?.speckleAmount).toBeLessThanOrEqual(1);
+      expect(visuals?.weaveAmount).toBeGreaterThanOrEqual(0);
+      expect(visuals?.weaveAmount).toBeLessThanOrEqual(1);
     }
     expect(generateOfflineRoom({
       seed: 'stable-treatment-values',
@@ -430,6 +469,26 @@ describe('offline room invariants', () => {
       allowGore: false,
       linkIndex: 0,
     }).visuals);
+  });
+
+  it('lets each new seeded modifier vary without shifting its siblings', () => {
+    const base = resolveRoomVisuals('independent-modifiers', 'dynamic');
+    const modifierKeys = [
+      'textureScale',
+      'inkSpread',
+      'highlightBloom',
+      'colorBleed',
+      'speckleAmount',
+      'weaveAmount',
+    ] as const;
+
+    for (const key of modifierKeys) {
+      const changed = resolveRoomVisuals('independent-modifiers', 'dynamic', { [key]: 0 });
+      expect(changed[key]).toBe(0);
+      for (const sibling of modifierKeys.filter((candidate) => candidate !== key)) {
+        expect(changed[sibling]).toBe(base[sibling]);
+      }
+    }
   });
 });
 

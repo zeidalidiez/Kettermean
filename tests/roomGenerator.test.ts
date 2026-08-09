@@ -232,6 +232,10 @@ describe('RoomGenerator cost controls', () => {
 
     expect(prompt).toContain('Do not request flashing');
     expect(prompt).toContain('do not request dim or low-light');
+    expect(prompt).toContain('hologram');
+    expect(prompt).toContain('textureScale');
+    expect(prompt).toContain('weaveAmount');
+    expect(prompt).not.toMatch(/shader must be one of[^.]*\bstrobe\b/);
     expect(room.visuals?.lighting).not.toBe('pulse');
     expect(room.visuals?.lighting).not.toBe('dim');
     expect(room.visuals).toMatchObject({

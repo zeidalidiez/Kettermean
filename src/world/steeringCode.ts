@@ -30,12 +30,12 @@ export interface SteeringResult {
 
 const MOODS: MoodAxis[] = ['static', 'upper', 'downer', 'dynamic'];
 const SHADER_FAMILIES: readonly (readonly RoomShaderStyle[])[] = [
-  ['none', 'fisheye', 'posterize', 'halftone', 'mosaic', 'moire', 'softfocus', 'watercolor', 'sepia', 'paper'],
-  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision', 'lightleak', 'crosshatch', 'filmgrain', 'verticalhold', 'risograph'],
-  ['tint', 'thermal', 'prism', 'duotone', 'spectral', 'oilfilm', 'aurora', 'xray', 'chromatic', 'lenticular'],
-  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane', 'watercolor', 'frostedglass', 'ripple', 'neonfog'],
-  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture', 'emboss', 'xray', 'contour', 'doublevision'],
-  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom', 'crosshatch', 'lightleak', 'pixelshift'],
+  ['none', 'fisheye', 'posterize', 'halftone', 'mosaic', 'moire', 'softfocus', 'watercolor', 'sepia', 'paper', 'tiltshift', 'pointillism', 'wax'],
+  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision', 'lightleak', 'crosshatch', 'filmgrain', 'verticalhold', 'risograph', 'daguerreotype', 'blueprint', 'woven'],
+  ['tint', 'thermal', 'prism', 'duotone', 'spectral', 'oilfilm', 'aurora', 'xray', 'chromatic', 'lenticular', 'cyanotype', 'infrared', 'ultraviolet', 'prismshadow'],
+  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane', 'watercolor', 'frostedglass', 'ripple', 'neonfog', 'stainedglass', 'wax', 'snowglobe', 'velvet'],
+  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture', 'emboss', 'xray', 'contour', 'doublevision', 'inkbleed', 'blueprint', 'tiltshift', 'daguerreotype'],
+  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom', 'crosshatch', 'lightleak', 'pixelshift', 'hologram', 'pointillism', 'anamorphic', 'woven'],
 ];
 const LIGHTING: RoomLightingStyle[] = [
   'fluorescent',
@@ -66,7 +66,7 @@ export function browserSteeringPrompt(
     ...themes.map((theme, index) => `${index} = ${theme}`),
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
-    `Shader family digit: 0 clean/soft-focus/paper, 1 retro/film-grain/risograph, 2 tint/chromatic/lenticular, 3 dream/ripple/neon-fog, 4 noir/contour/double-vision, 5 ${ctx.noFlashingLights ? 'CRT/pixel-shift/edge-glow' : 'CRT/pixel-shift/strobe/edge-glow'}.`,
+    `Shader family digit: 0 clean/tilt-shift/pointillism, 1 retro/daguerreotype/woven, 2 tint/infrared/ultraviolet, 3 dream/stained-glass/snow-globe, 4 noir/ink-bleed/blueprint, 5 ${ctx.noFlashingLights ? 'hologram/anamorphic/edge-glow' : 'hologram/anamorphic/strobe'}.`,
     `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',
