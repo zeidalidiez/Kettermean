@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { STORAGE_KEYS } from '../src/config';
+import { DEFAULT_BROWSER_MODEL, STORAGE_KEYS } from '../src/config';
 import { loadSettings, saveSettings } from '../src/core/settings';
 import type { AppSettings } from '../src/types';
 import { memoryStorage } from './storage';
@@ -49,6 +49,45 @@ describe('settings persistence', () => {
     saveSettings(value);
     expect(local.getItem(STORAGE_KEYS.settings)).not.toContain('temporary-key');
     expect(session.getItem(STORAGE_KEYS.sessionApiKey)).toBe('temporary-key');
+  });
+
+  it('moves the former browser default to the lightweight model once', () => {
+    const local = memoryStorage({
+      [STORAGE_KEYS.settings]: JSON.stringify({
+        mode: 'seeded',
+        seed: 'migrate-browser-default',
+        provider: 'browser',
+        baseUrl: 'https://example.test/v1',
+        model: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+        allowGore: false,
+      }),
+    });
+    vi.stubGlobal('localStorage', local);
+    vi.stubGlobal('sessionStorage', memoryStorage());
+
+    expect(loadSettings().model).toBe(DEFAULT_BROWSER_MODEL);
+    expect(JSON.parse(local.getItem(STORAGE_KEYS.settings) ?? '{}')).toMatchObject({
+      model: DEFAULT_BROWSER_MODEL,
+      browserModelDefaultsRevision: 2,
+    });
+  });
+
+  it('preserves an explicitly saved 1.5B browser model', () => {
+    const local = memoryStorage();
+    vi.stubGlobal('localStorage', local);
+    vi.stubGlobal('sessionStorage', memoryStorage());
+    const explicit: AppSettings = {
+      mode: 'seeded',
+      seed: 'explicit-browser-model',
+      provider: 'browser',
+      apiKey: '',
+      baseUrl: 'https://example.test/v1',
+      model: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+      allowGore: false,
+    };
+
+    saveSettings(explicit);
+    expect(loadSettings().model).toBe(explicit.model);
   });
 
   it('keeps working when browser storage is disabled', () => {

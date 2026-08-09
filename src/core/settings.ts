@@ -11,6 +11,10 @@ import { randomSeed } from './rng';
 
 const MODES = new Set<DreamMode>(['random', 'seeded']);
 const PROVIDERS = new Set<LlmProvider>(['offline', 'openai', 'anthropic', 'browser']);
+const BROWSER_MODEL_DEFAULTS_REVISION = 2;
+const LEGACY_BROWSER_DEFAULTS = new Set([
+  'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+]);
 
 export function defaultSettings(): AppSettings {
   return {
@@ -39,19 +43,31 @@ export function loadSettings(): AppSettings {
     const legacyKey = cleanString(parsed.apiKey, '', 512);
     if (legacyKey && !readSessionKey()) writeSessionKey(legacyKey);
 
+    const provider = isProvider(parsed.provider) ? parsed.provider : defaults.provider;
+    const storedModel = cleanString(parsed.model, defaults.model, 180);
+    const needsBrowserDefaultsRevision =
+      provider === 'browser' &&
+      parsed.browserModelDefaultsRevision !== BROWSER_MODEL_DEFAULTS_REVISION;
+    const model =
+      needsBrowserDefaultsRevision && LEGACY_BROWSER_DEFAULTS.has(storedModel)
+        ? DEFAULT_BROWSER_MODEL
+        : storedModel;
+
     const settings: AppSettings = {
       mode: isMode(parsed.mode) ? parsed.mode : defaults.mode,
       seed: cleanString(parsed.seed, defaults.seed, 120),
-      provider: isProvider(parsed.provider) ? parsed.provider : defaults.provider,
+      provider,
       apiKey: readSessionKey(),
       baseUrl: cleanBaseUrl(parsed.baseUrl, defaults.baseUrl),
-      model: cleanString(parsed.model, defaults.model, 180),
+      model,
       allowGore: parsed.allowGore === true,
     };
 
     if ('apiKey' in parsed) {
       // Remove first so a quota error cannot leave the legacy secret behind.
       removePersistentSettings();
+    }
+    if ('apiKey' in parsed || needsBrowserDefaultsRevision) {
       persistNonSecretSettings(settings);
     }
     return settings;
@@ -108,6 +124,7 @@ function persistNonSecretSettings(settings: AppSettings): void {
     provider: settings.provider,
     baseUrl: settings.baseUrl,
     model: settings.model,
+    browserModelDefaultsRevision: BROWSER_MODEL_DEFAULTS_REVISION,
     allowGore: settings.allowGore,
   };
   try {
