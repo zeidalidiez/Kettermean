@@ -49,6 +49,26 @@ export type PropKind =
   | 'bleacher'
   | 'tree'
   | 'fountain'
+  | 'dining_chair'
+  | 'office_chair'
+  | 'coffee_table'
+  | 'side_table'
+  | 'filing_cabinet'
+  | 'reception_desk'
+  | 'wardrobe'
+  | 'sectional'
+  | 'hotel_bed'
+  | 'nightstand'
+  | 'washer'
+  | 'phone_booth'
+  | 'bus_shelter'
+  | 'swing_set'
+  | 'pool_lounger'
+  | 'lifeguard_chair'
+  | 'streetlight'
+  | 'pallet_stack'
+  | 'server_rack'
+  | 'aquarium_tank'
   | 'figure_nurse'
   | 'figure_janitor'
   | 'figure_commuter'
@@ -58,7 +78,17 @@ export type PropKind =
   | 'figure_guard'
   | 'figure_worker'
   | 'figure_patient'
-  | 'figure_conductor';
+  | 'figure_conductor'
+  | 'figure_teacher'
+  | 'figure_cook'
+  | 'figure_swimmer'
+  | 'figure_groundskeeper'
+  | 'figure_receptionist'
+  | 'figure_courier'
+  | 'figure_usher'
+  | 'figure_tourist'
+  | 'figure_mechanic'
+  | 'figure_lifeguard';
 
 interface PartSpec {
   w: number;
@@ -72,7 +102,7 @@ interface PartSpec {
   emissiveIntensity?: number;
   metalness?: number;
   roughness?: number;
-  shape?: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus';
+  shape?: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'capsule';
   rx?: number;
   ry?: number;
   rz?: number;
@@ -119,16 +149,19 @@ function part(p: PartSpec): THREE.Mesh {
   let geom: THREE.BufferGeometry;
   switch (p.shape) {
     case 'sphere':
-      geom = new THREE.SphereGeometry(0.5, 16, 12);
+      geom = new THREE.SphereGeometry(0.5, 20, 16);
       break;
     case 'cylinder':
-      geom = new THREE.CylinderGeometry(0.5, 0.5, 1, 14);
+      geom = new THREE.CylinderGeometry(0.5, 0.5, 1, 18);
       break;
     case 'cone':
-      geom = new THREE.ConeGeometry(0.5, 1, 14);
+      geom = new THREE.ConeGeometry(0.5, 1, 18);
       break;
     case 'torus':
-      geom = new THREE.TorusGeometry(0.5, 0.14, 8, 18);
+      geom = new THREE.TorusGeometry(0.5, 0.14, 10, 24);
+      break;
+    case 'capsule':
+      geom = new THREE.CapsuleGeometry(0.36, 0.28, 6, 14);
       break;
     default:
       geom = new THREE.BoxGeometry(1, 1, 1);
@@ -216,6 +249,46 @@ function buildExpandedModel(
       return buildTree(variant, accent);
     case 'fountain':
       return buildFountain(variant, accent);
+    case 'dining_chair':
+      return buildDiningChair(variant, accent, body);
+    case 'office_chair':
+      return buildOfficeChair(variant, accent);
+    case 'coffee_table':
+      return buildLowTable('coffee-table', variant, accent, body, 1.38, 0.76, 0.52);
+    case 'side_table':
+      return buildLowTable('side-table', variant, accent, body, 0.62, 0.62, 0.68);
+    case 'filing_cabinet':
+      return buildFilingCabinet(variant, accent);
+    case 'reception_desk':
+      return buildReceptionDesk(variant, accent, body);
+    case 'wardrobe':
+      return buildWardrobe(variant, accent, body);
+    case 'sectional':
+      return buildSectional(variant, accent, body);
+    case 'hotel_bed':
+      return buildHotelBed(variant, accent, body);
+    case 'nightstand':
+      return buildNightstand(variant, accent, body);
+    case 'washer':
+      return buildWasher(variant, accent);
+    case 'phone_booth':
+      return buildPhoneBooth(variant, accent);
+    case 'bus_shelter':
+      return buildBusShelter(variant, accent);
+    case 'swing_set':
+      return buildSwingSet(variant, accent);
+    case 'pool_lounger':
+      return buildPoolLounger(variant, accent);
+    case 'lifeguard_chair':
+      return buildLifeguardChair(variant, accent);
+    case 'streetlight':
+      return buildStreetlight(variant, accent);
+    case 'pallet_stack':
+      return buildPalletStack(variant, accent, body);
+    case 'server_rack':
+      return buildServerRack(variant, accent);
+    case 'aquarium_tank':
+      return buildAquariumTank(variant, accent);
     case 'figure_nurse':
     case 'figure_janitor':
     case 'figure_commuter':
@@ -226,6 +299,16 @@ function buildExpandedModel(
     case 'figure_worker':
     case 'figure_patient':
     case 'figure_conductor':
+    case 'figure_teacher':
+    case 'figure_cook':
+    case 'figure_swimmer':
+    case 'figure_groundskeeper':
+    case 'figure_receptionist':
+    case 'figure_courier':
+    case 'figure_usher':
+    case 'figure_tourist':
+    case 'figure_mechanic':
+    case 'figure_lifeguard':
       return buildHumanoid(kind, variant, accent);
     default:
       return null;
@@ -535,6 +618,348 @@ function buildFountain(variant: number, accent: string): THREE.Group {
   ], `fountain-${variant}`);
 }
 
+function buildDiningChair(variant: number, accent: string, body: string): THREE.Group {
+  const wood = variantColor(body, variant, 0.06);
+  const upholstery = variantColor(accent, variant);
+  const parts: PartSpec[] = [
+    { w: 0.58, h: 0.12, d: 0.58, x: 0, y: 0.48, z: 0, color: upholstery },
+    { w: 0.08, h: 0.97, d: 0.08, x: -0.24, y: 0.78, z: -0.25, color: wood, shape: variant % 2 ? 'cylinder' : 'box' },
+    { w: 0.08, h: 0.97, d: 0.08, x: 0.24, y: 0.78, z: -0.25, color: wood, shape: variant % 2 ? 'cylinder' : 'box' },
+    { w: 0.08, h: 0.48, d: 0.08, x: -0.24, y: 0.24, z: 0.24, color: wood, shape: variant % 2 ? 'cylinder' : 'box' },
+    { w: 0.08, h: 0.48, d: 0.08, x: 0.24, y: 0.24, z: 0.24, color: wood, shape: variant % 2 ? 'cylinder' : 'box' },
+    { w: 0.54, h: 0.09, d: 0.09, x: 0, y: 1.04, z: -0.25, color: wood },
+  ];
+  for (const x of [-0.18, 0, 0.18]) {
+    parts.push({ w: 0.055, h: 0.48 + (variant % 3) * 0.04, d: 0.055, x, y: 0.8, z: -0.25, color: variantColor(wood, variant, x), shape: 'cylinder' });
+  }
+  parts.push({ w: 0.48, h: 0.05, d: 0.04, x: 0, y: 0.27, z: -0.25, color: wood });
+  return group(parts, `dining-chair-${variant}`);
+}
+
+function buildOfficeChair(variant: number, accent: string): THREE.Group {
+  const fabric = variantColor(accent, variant);
+  const frame = variantColor('#3d454d', variant);
+  const parts: PartSpec[] = [
+    { w: 0.66, h: 0.16, d: 0.62, x: 0, y: 0.63, z: 0.02, color: fabric, shape: variant % 3 === 0 ? 'cylinder' : 'box' },
+    { w: 0.58, h: 0.62 + variant * 0.025, d: 0.14, x: 0, y: 1.0, z: -0.25, color: fabric, rx: -0.08 },
+    { w: 0.11, h: 0.5, d: 0.11, x: 0, y: 0.34, z: 0, color: frame, metalness: 0.72, shape: 'cylinder' },
+    { w: 0.08, h: 0.58, d: 0.08, x: -0.4, y: 0.78, z: 0, color: frame, metalness: 0.65, shape: 'cylinder' },
+    { w: 0.08, h: 0.58, d: 0.08, x: 0.4, y: 0.78, z: 0, color: frame, metalness: 0.65, shape: 'cylinder' },
+    { w: 0.32, h: 0.07, d: 0.1, x: -0.4, y: 1.0, z: 0, color: frame },
+    { w: 0.32, h: 0.07, d: 0.1, x: 0.4, y: 1.0, z: 0, color: frame },
+  ];
+  for (let index = 0; index < 5; index += 1) {
+    const angle = (index / 5) * Math.PI * 2 + variant * 0.08;
+    parts.push({ w: 0.06, h: 0.05, d: 0.45, x: Math.sin(angle) * 0.18, y: 0.12, z: Math.cos(angle) * 0.18, color: frame, ry: angle });
+    parts.push({ w: 0.12, h: 0.12, d: 0.08, x: Math.sin(angle) * 0.38, y: 0.055, z: Math.cos(angle) * 0.38, color: '#171b20', shape: 'torus', ry: angle });
+  }
+  return group(parts, `office-chair-${variant}`);
+}
+
+function buildLowTable(
+  name: string,
+  variant: number,
+  accent: string,
+  body: string,
+  width: number,
+  depth: number,
+  height: number,
+): THREE.Group {
+  const top = variantColor(body, variant, 0.05);
+  const frame = variantColor(accent, variant);
+  const round = variant % 4 === 3;
+  const parts: PartSpec[] = [
+    { w: width, h: 0.1, d: depth, x: 0, y: height, z: 0, color: top, shape: round ? 'cylinder' : 'box' },
+    { w: width * 0.72, h: 0.06, d: depth * 0.72, x: 0, y: height * 0.44, z: 0, color: variantColor(top, variant, 0.1), shape: round ? 'cylinder' : 'box' },
+  ];
+  for (const x of [-width * 0.4, width * 0.4]) {
+    for (const z of [-depth * 0.38, depth * 0.38]) {
+      parts.push({ w: 0.075, h: height - 0.04, d: 0.075, x, y: height * 0.5, z, color: frame, metalness: variant % 2 ? 0.6 : 0.12, shape: variant % 2 ? 'cylinder' : 'box' });
+    }
+  }
+  parts.push({ w: 0.22, h: 0.055 + variant * 0.008, d: 0.16, x: (variant % 3 - 1) * width * 0.2, y: height + 0.08, z: 0.03, color: variantColor(accent, variant, 0.14) });
+  return group(parts, `${name}-${variant}`);
+}
+
+function buildFilingCabinet(variant: number, accent: string): THREE.Group {
+  const shell = variantColor(accent, variant);
+  const trim = variantColor('#c3c8c9', variant);
+  const parts: PartSpec[] = [
+    { w: 0.68, h: 1.38, d: 0.66, x: 0, y: 0.69, z: 0, color: shell, metalness: 0.42 },
+    { w: 0.72, h: 0.07, d: 0.7, x: 0, y: 1.41, z: 0, color: trim, metalness: 0.55 },
+  ];
+  for (let drawer = 0; drawer < 4; drawer += 1) {
+    const y = 0.22 + drawer * 0.32;
+    parts.push({ w: 0.59, h: 0.27, d: 0.035, x: 0, y, z: 0.345, color: variantColor(shell, variant, drawer * 0.025) });
+    parts.push({ w: 0.24, h: 0.035, d: 0.055, x: 0, y: y + 0.04, z: 0.38, color: trim, metalness: 0.82 });
+    parts.push({ w: 0.18, h: 0.065, d: 0.025, x: 0, y: y - 0.07, z: 0.382, color: '#e8e3d3' });
+  }
+  return group(parts, `filing-cabinet-${variant}`);
+}
+
+function buildReceptionDesk(variant: number, accent: string, body: string): THREE.Group {
+  const shell = variantColor(body, variant, 0.05);
+  const trim = variantColor(accent, variant);
+  const parts: PartSpec[] = [
+    { w: 2.7, h: 0.82, d: 0.95, x: 0, y: 0.41, z: 0, color: shell },
+    { w: 2.82, h: 0.11, d: 1.04, x: 0, y: 0.88, z: 0, color: trim },
+    { w: 1.1, h: 0.48, d: 0.14, x: variant % 2 ? -0.66 : 0.66, y: 1.13, z: -0.39, color: shell },
+    { w: 1.18, h: 0.09, d: 0.44, x: variant % 2 ? -0.66 : 0.66, y: 1.39, z: -0.23, color: trim },
+    { w: 0.5, h: 0.34, d: 0.08, x: variant % 2 ? 0.52 : -0.52, y: 1.13, z: 0.5, color: '#87d4e8', emissive: '#397384', emissiveIntensity: 0.38 },
+    { w: 0.08, h: 0.36, d: 0.08, x: variant % 2 ? 0.52 : -0.52, y: 0.95, z: 0.34, color: '#4c555c', metalness: 0.55 },
+    { w: 0.62, h: 0.14, d: 0.36, x: 0, y: 0.98, z: 0.1, color: '#23282d' },
+    { w: 0.44, h: 0.08, d: 0.26, x: 0, y: 1.08, z: 0.13, color: '#d6d0bc' },
+  ];
+  for (const x of [-1.08, 1.08]) parts.push({ w: 0.07, h: 0.66, d: 0.07, x, y: 0.42, z: 0.49, color: trim });
+  return group(parts, `reception-desk-${variant}`);
+}
+
+function buildWardrobe(variant: number, accent: string, body: string): THREE.Group {
+  const wood = variantColor(body, variant, 0.07);
+  const trim = variantColor(accent, variant);
+  const parts: PartSpec[] = [
+    { w: 1.48, h: 2.16, d: 0.67, x: 0, y: 1.08, z: 0, color: wood },
+    { w: 0.045, h: 2.0, d: 0.045, x: 0, y: 1.1, z: 0.345, color: trim },
+    { w: 1.54, h: 0.1, d: 0.72, x: 0, y: 2.18, z: 0, color: trim },
+    { w: 1.54, h: 0.1, d: 0.72, x: 0, y: 0.06, z: 0, color: trim },
+  ];
+  for (const x of [-0.37, 0.37]) {
+    parts.push({ w: 0.63, h: 1.92, d: 0.04, x, y: 1.1, z: 0.355, color: variantColor(wood, variant, x) });
+    parts.push({ w: 0.07, h: 0.18, d: 0.06, x: x < 0 ? -0.08 : 0.08, y: 1.08, z: 0.39, color: '#d6b85f', metalness: 0.68, shape: 'cylinder' });
+  }
+  for (const x of [-0.58, 0.58]) parts.push({ w: 0.11, h: 0.12, d: 0.11, x, y: 0.06, z: 0, color: trim });
+  if (variant % 2) parts.push({ w: 0.5, h: 0.72, d: 0.025, x: -0.37, y: 1.25, z: 0.385, color: '#91afbd', metalness: 0.65, roughness: 0.2 });
+  return group(parts, `wardrobe-${variant}`);
+}
+
+function buildSectional(variant: number, accent: string, body: string): THREE.Group {
+  const fabric = variantColor(accent, variant);
+  const leg = variantColor(body, variant, 0.1);
+  const chaiseRight = variant % 2 === 0;
+  const parts: PartSpec[] = [];
+  for (const x of [-0.82, 0, 0.82]) {
+    parts.push({ w: 0.74, h: 0.22, d: x === (chaiseRight ? 0.82 : -0.82) ? 1.55 : 0.78, x, y: 0.43, z: x === (chaiseRight ? 0.82 : -0.82) ? 0.34 : 0, color: fabric });
+    parts.push({ w: 0.7, h: 0.13, d: 0.62, x, y: 0.62, z: -0.02, color: variantColor(fabric, variant, x * 0.03) });
+    parts.push({ w: 0.72, h: 0.62, d: 0.16, x, y: 0.87, z: -0.34, color: fabric, rx: -0.05 });
+  }
+  for (const x of [-1.25, 1.25]) parts.push({ w: 0.22, h: 0.58, d: 0.86, x, y: 0.55, z: 0, color: fabric });
+  for (const x of [-1.0, 1.0]) for (const z of [-0.26, 0.54]) parts.push({ w: 0.09, h: 0.25, d: 0.09, x, y: 0.125, z, color: leg, shape: variant % 3 ? 'cylinder' : 'box' });
+  return group(parts, `sectional-${variant}`);
+}
+
+function buildHotelBed(variant: number, accent: string, body: string): THREE.Group {
+  const frame = variantColor(body, variant, 0.06);
+  const linen = variantColor('#e8e3d7', variant);
+  const blanket = variantColor(accent, variant);
+  return group([
+    { w: 2.15, h: 0.32, d: 1.62, x: 0, y: 0.3, z: 0, color: frame },
+    { w: 2.08, h: 0.28, d: 1.54, x: 0, y: 0.58, z: 0, color: linen },
+    { w: 0.95, h: 0.18, d: 0.58, x: -0.52, y: 0.82, z: -0.42, color: '#f3efe7', rx: -0.06 },
+    { w: 0.95, h: 0.18, d: 0.58, x: 0.52, y: 0.82, z: -0.42, color: '#f3efe7', rx: -0.06 },
+    { w: 2.08, h: 0.13, d: 0.88 + (variant % 3) * 0.1, x: 0, y: 0.79, z: 0.28, color: blanket },
+    { w: 2.2, h: 1.12 + variant * 0.02, d: 0.14, x: 0, y: 0.92, z: -0.78, color: frame },
+    { w: 1.9, h: 0.66, d: 0.08, x: 0, y: 1.02, z: -0.86, color: variantColor(accent, variant, 0.08) },
+    { w: 0.13, h: 0.32, d: 0.13, x: -0.9, y: 0.16, z: 0.64, color: frame },
+    { w: 0.13, h: 0.32, d: 0.13, x: 0.9, y: 0.16, z: 0.64, color: frame },
+  ], `hotel-bed-${variant}`);
+}
+
+function buildNightstand(variant: number, accent: string, body: string): THREE.Group {
+  const shell = variantColor(body, variant, 0.06);
+  const trim = variantColor(accent, variant);
+  const parts: PartSpec[] = [
+    { w: 0.62, h: 0.62, d: 0.56, x: 0, y: 0.36, z: 0, color: shell },
+    { w: 0.68, h: 0.08, d: 0.62, x: 0, y: 0.7, z: 0, color: trim },
+    { w: 0.54, h: 0.23, d: 0.035, x: 0, y: 0.49, z: 0.3, color: variantColor(shell, variant, 0.05) },
+    { w: 0.2, h: 0.035, d: 0.05, x: 0, y: 0.49, z: 0.34, color: '#bfc4c7', metalness: 0.75 },
+    { w: 0.52, h: 0.2, d: 0.035, x: 0, y: 0.19, z: 0.3, color: variantColor(shell, variant, 0.1) },
+    { w: 0.055, h: 0.46, d: 0.055, x: 0, y: 0.95, z: 0, color: '#4b5055', shape: 'cylinder' },
+    { w: 0.4, h: 0.34, d: 0.4, x: 0, y: 1.25, z: 0, color: '#f1d6a4', emissive: '#e5a948', emissiveIntensity: 0.48, shape: 'cone' },
+  ];
+  for (const x of [-0.24, 0.24]) for (const z of [-0.2, 0.2]) parts.push({ w: 0.06, h: 0.12, d: 0.06, x, y: 0.06, z, color: trim });
+  return group(parts, `nightstand-${variant}`);
+}
+
+function buildWasher(variant: number, accent: string): THREE.Group {
+  const shell = variantColor('#d8dadd', variant);
+  const trim = variantColor(accent, variant);
+  const parts: PartSpec[] = [
+    { w: 0.9, h: 1.2, d: 0.84, x: 0, y: 0.6, z: 0, color: shell, metalness: 0.22 },
+    { w: 0.7, h: 0.7, d: 0.07, x: 0, y: 0.55, z: 0.44, color: '#2d343c', shape: 'cylinder', rx: Math.PI / 2, metalness: 0.55 },
+    { w: 0.52, h: 0.52, d: 0.085, x: 0, y: 0.55, z: 0.48, color: '#6fa6b6', emissive: '#244956', emissiveIntensity: 0.16, shape: 'cylinder', rx: Math.PI / 2, metalness: 0.65, roughness: 0.18 },
+    { w: 0.8, h: 0.25, d: 0.06, x: 0, y: 1.04, z: 0.45, color: trim },
+    { w: 0.16, h: 0.16, d: 0.05, x: -0.27, y: 1.06, z: 0.5, color: '#343b42', shape: 'cylinder', rx: Math.PI / 2 },
+    { w: 0.28, h: 0.1, d: 0.045, x: 0.18, y: 1.08, z: 0.5, color: '#8fe1ec', emissive: '#3f9ead', emissiveIntensity: 0.42 },
+  ];
+  for (let index = 0; index < 3; index += 1) parts.push({ w: 0.06, h: 0.06, d: 0.04, x: 0.12 + index * 0.13, y: 0.98, z: 0.5, color: index === variant % 3 ? '#f5c949' : '#3f464b', shape: 'sphere' });
+  for (const x of [-0.34, 0.34]) parts.push({ w: 0.09, h: 0.08, d: 0.09, x, y: 0.04, z: 0.28, color: '#25292d' });
+  return group(parts, `washer-${variant}`);
+}
+
+function buildPhoneBooth(variant: number, accent: string): THREE.Group {
+  const frame = variantColor(accent, variant);
+  const glass = variantColor('#8db7c5', variant);
+  const parts: PartSpec[] = [
+    { w: 1.12, h: 0.13, d: 1.05, x: 0, y: 0.065, z: 0, color: frame },
+    { w: 1.18, h: 0.2, d: 1.1, x: 0, y: 2.35, z: 0, color: frame },
+    { w: 0.92, h: 0.22, d: 0.06, x: 0, y: 2.18, z: 0.55, color: '#f4e6b9', emissive: '#d8ae56', emissiveIntensity: 0.45 },
+    { w: 0.86, h: 1.88, d: 0.035, x: 0, y: 1.1, z: -0.52, color: glass, metalness: 0.55, roughness: 0.12 },
+    { w: 0.035, h: 1.88, d: 0.82, x: -0.54, y: 1.1, z: 0, color: glass, metalness: 0.55, roughness: 0.12 },
+    { w: 0.035, h: 1.88, d: 0.82, x: 0.54, y: 1.1, z: 0, color: glass, metalness: 0.55, roughness: 0.12 },
+  ];
+  for (const x of [-0.52, 0.52]) for (const z of [-0.5, 0.5]) parts.push({ w: 0.08, h: 2.22, d: 0.08, x, y: 1.13, z, color: frame, metalness: 0.62 });
+  parts.push(
+    { w: 0.46, h: 0.82, d: 0.18, x: -0.18, y: 1.2, z: -0.39, color: '#252a30' },
+    { w: 0.12, h: 0.5, d: 0.13, x: -0.36, y: 1.28, z: -0.27, color: frame, shape: 'capsule', rz: -0.08 },
+    { w: 0.26, h: 0.3, d: 0.04, x: -0.08, y: 1.05, z: -0.28, color: '#ddd5bc' },
+  );
+  return group(parts, `phone-booth-${variant}`);
+}
+
+function buildBusShelter(variant: number, accent: string): THREE.Group {
+  const frame = variantColor(accent, variant);
+  const glass = variantColor('#7fa8b5', variant);
+  const parts: PartSpec[] = [
+    { w: 3.35, h: 0.16, d: 1.35, x: 0, y: 2.42, z: 0, color: frame, metalness: 0.48 },
+    { w: 3.18, h: 2.12, d: 0.035, x: 0, y: 1.18, z: -0.68, color: glass, metalness: 0.55, roughness: 0.18 },
+    { w: 1.85, h: 0.13, d: 0.5, x: 0, y: 0.55, z: -0.18, color: variantColor(frame, variant, 0.1) },
+    { w: 1.85, h: 0.46, d: 0.1, x: 0, y: 0.82, z: -0.43, color: variantColor(frame, variant, 0.1) },
+    { w: 0.55, h: 0.78, d: 0.04, x: variant % 2 ? -1.18 : 1.18, y: 1.45, z: -0.62, color: '#e1dbbd' },
+  ];
+  for (const x of [-1.58, 0, 1.58]) parts.push({ w: 0.09, h: 2.42, d: 0.09, x, y: 1.21, z: -0.64, color: frame, metalness: 0.62 });
+  for (const x of [-0.72, 0.72]) parts.push({ w: 0.09, h: 0.55, d: 0.09, x, y: 0.275, z: -0.2, color: frame, metalness: 0.62 });
+  parts.push({ w: 0.66, h: 0.18, d: 0.05, x: variant % 2 ? -1.18 : 1.18, y: 2.18, z: 0.02, color: '#e9d95f', emissive: '#917f24', emissiveIntensity: 0.3 });
+  return group(parts, `bus-shelter-${variant}`);
+}
+
+function buildSwingSet(variant: number, accent: string): THREE.Group {
+  const frame = variantColor(accent, variant);
+  const chain = variantColor('#8b9297', variant);
+  const parts: PartSpec[] = [
+    { w: 0.13, h: 3.0, d: 0.13, x: 0, y: 2.42, z: 0, color: frame, metalness: 0.55, shape: 'cylinder', rz: Math.PI / 2 },
+  ];
+  for (const x of [-1.42, 1.42]) {
+    parts.push({ w: 0.13, h: 2.58, d: 0.13, x, y: 1.2, z: -0.62, color: frame, metalness: 0.55, shape: 'cylinder', rz: x < 0 ? -0.14 : 0.14 });
+    parts.push({ w: 0.13, h: 2.58, d: 0.13, x, y: 1.2, z: 0.62, color: frame, metalness: 0.55, shape: 'cylinder', rz: x < 0 ? -0.14 : 0.14 });
+  }
+  for (const center of [-0.68, 0.68]) {
+    const sway = (variant % 3 - 1) * 0.08 * (center < 0 ? 1 : -1);
+    for (const x of [center - 0.22, center + 0.22]) parts.push({ w: 0.035, h: 1.24, d: 0.035, x: x + sway, y: 1.77, z: 0, color: chain, metalness: 0.8, shape: 'cylinder', rz: sway });
+    parts.push({ w: 0.56, h: 0.1, d: 0.36, x: center + sway * 2, y: 1.13, z: 0, color: variantColor(accent, variant, center), rx: sway });
+  }
+  return group(parts, `swing-set-${variant}`);
+}
+
+function buildPoolLounger(variant: number, accent: string): THREE.Group {
+  const fabric = variantColor(accent, variant);
+  const frame = variantColor('#d3d8d8', variant);
+  const recline = -0.34 - (variant % 3) * 0.08;
+  return group([
+    { w: 1.18, h: 0.1, d: 0.62, x: 0.4, y: 0.43, z: 0, color: fabric, rx: -0.02 },
+    { w: 0.85, h: 0.1, d: 0.62, x: -0.58, y: 0.67, z: 0, color: fabric, rz: recline },
+    { w: 2.0, h: 0.07, d: 0.07, x: 0, y: 0.33, z: -0.31, color: frame, metalness: 0.7 },
+    { w: 2.0, h: 0.07, d: 0.07, x: 0, y: 0.33, z: 0.31, color: frame, metalness: 0.7 },
+    { w: 0.07, h: 0.5, d: 0.07, x: -0.78, y: 0.25, z: -0.27, color: frame, shape: 'cylinder' },
+    { w: 0.07, h: 0.5, d: 0.07, x: -0.78, y: 0.25, z: 0.27, color: frame, shape: 'cylinder' },
+    { w: 0.07, h: 0.5, d: 0.07, x: 0.82, y: 0.25, z: -0.27, color: frame, shape: 'cylinder' },
+    { w: 0.07, h: 0.5, d: 0.07, x: 0.82, y: 0.25, z: 0.27, color: frame, shape: 'cylinder' },
+    { w: 0.24, h: 0.24, d: 0.12, x: -0.92, y: 0.18, z: -0.33, color: '#252a2e', shape: 'torus', ry: Math.PI / 2 },
+    { w: 0.24, h: 0.24, d: 0.12, x: -0.92, y: 0.18, z: 0.33, color: '#252a2e', shape: 'torus', ry: Math.PI / 2 },
+  ], `pool-lounger-${variant}`);
+}
+
+function buildLifeguardChair(variant: number, accent: string): THREE.Group {
+  const frame = variantColor(accent, variant);
+  const seat = variantColor('#e7ded0', variant);
+  const parts: PartSpec[] = [
+    { w: 0.72, h: 0.13, d: 0.64, x: 0, y: 1.92, z: 0, color: seat },
+    { w: 0.72, h: 0.72, d: 0.12, x: 0, y: 2.24, z: -0.28, color: seat },
+    { w: 1.18, h: 0.12, d: 0.78, x: 0, y: 1.7, z: 0, color: frame },
+  ];
+  for (const x of [-0.5, 0.5]) for (const z of [-0.32, 0.32]) parts.push({ w: 0.1, h: 1.72, d: 0.1, x, y: 0.86, z, color: frame, shape: 'cylinder', rz: x * 0.08 });
+  for (let step = 0; step < 4; step += 1) {
+    parts.push({ w: 0.68, h: 0.08, d: 0.14, x: 0, y: 0.4 + step * 0.35, z: 0.48, color: frame });
+  }
+  parts.push(
+    { w: 0.09, h: 0.9, d: 0.09, x: variant % 2 ? -0.52 : 0.52, y: 2.24, z: -0.15, color: frame, shape: 'cylinder' },
+    { w: 1.2, h: 0.36, d: 1.2, x: variant % 2 ? -0.52 : 0.52, y: 2.75, z: -0.15, color: variantColor(accent, variant, 0.18), shape: 'cone' },
+  );
+  return group(parts, `lifeguard-chair-${variant}`);
+}
+
+function buildStreetlight(variant: number, accent: string): THREE.Group {
+  const metal = variantColor('#414950', variant);
+  const glow = variantColor(accent, variant, 0.12);
+  const doubleLamp = variant % 3 === 2;
+  const parts: PartSpec[] = [
+    { w: 0.65, h: 0.18, d: 0.65, x: 0, y: 0.09, z: 0, color: metal, shape: 'cylinder' },
+    { w: 0.16, h: 4.55, d: 0.16, x: 0, y: 2.35, z: 0, color: metal, metalness: 0.65, shape: 'cylinder' },
+    { w: 0.28, h: 0.28, d: 0.28, x: 0, y: 4.66, z: 0, color: metal, shape: 'sphere' },
+  ];
+  for (const direction of doubleLamp ? [-1, 1] : [1]) {
+    parts.push({ w: 0.08, h: 0.82, d: 0.08, x: direction * 0.33, y: 4.8, z: 0, color: metal, shape: 'cylinder', rz: direction * Math.PI / 2 });
+    parts.push({ w: 0.48, h: 0.34, d: 0.48, x: direction * 0.72, y: 4.78, z: 0, color: glow, emissive: glow, emissiveIntensity: 1.1, shape: variant % 2 ? 'sphere' : 'cylinder' });
+    parts.push({ w: 0.58, h: 0.12, d: 0.58, x: direction * 0.72, y: 4.98, z: 0, color: metal, shape: 'cone' });
+  }
+  return group(parts, `streetlight-${variant}`);
+}
+
+function buildPalletStack(variant: number, accent: string, body: string): THREE.Group {
+  const wood = variantColor(body, variant, 0.05);
+  const cargo = variantColor(accent, variant);
+  const parts: PartSpec[] = [];
+  const levels = 2 + (variant % 3);
+  for (let level = 0; level < levels; level += 1) {
+    const y = level * 0.28;
+    for (let board = 0; board < 5; board += 1) parts.push({ w: 1.42, h: 0.07, d: 0.18, x: 0, y: y + 0.08, z: -0.48 + board * 0.24, color: variantColor(wood, variant, board * 0.015) });
+    for (const x of [-0.56, 0, 0.56]) parts.push({ w: 0.16, h: 0.12, d: 1.12, x, y: y + 0.18, z: 0, color: darkColor(wood) });
+  }
+  parts.push(
+    { w: 1.1, h: 0.58 + variant * 0.03, d: 0.92, x: 0, y: levels * 0.28 + 0.28, z: 0, color: cargo },
+    { w: 1.14, h: 0.07, d: 0.96, x: 0, y: levels * 0.28 + 0.58, z: 0, color: '#d8cfb5' },
+  );
+  return group(parts, `pallet-stack-${variant}`);
+}
+
+function buildServerRack(variant: number, accent: string): THREE.Group {
+  const shell = variantColor('#30363d', variant);
+  const glow = variantColor(accent, variant);
+  const parts: PartSpec[] = [
+    { w: 0.86, h: 2.06, d: 0.9, x: 0, y: 1.03, z: 0, color: shell, metalness: 0.45 },
+    { w: 0.72, h: 1.78, d: 0.035, x: 0, y: 1.04, z: 0.47, color: '#13181d' },
+    { w: 0.76, h: 0.12, d: 0.94, x: 0, y: 2.08, z: 0, color: variantColor(shell, variant, 0.08) },
+  ];
+  for (let row = 0; row < 8; row += 1) {
+    const y = 0.25 + row * 0.21;
+    parts.push({ w: 0.64, h: 0.14, d: 0.045, x: 0, y, z: 0.5, color: variantColor('#48515a', variant, row * 0.015), metalness: 0.55 });
+    for (let light = 0; light < 3; light += 1) parts.push({ w: 0.035, h: 0.035, d: 0.025, x: -0.24 + light * 0.1, y, z: 0.53, color: light === (row + variant) % 3 ? glow : '#4fe57f', emissive: light === (row + variant) % 3 ? glow : '#268545', emissiveIntensity: 0.8, shape: 'sphere' });
+    parts.push({ w: 0.18, h: 0.03, d: 0.025, x: 0.2, y, z: 0.53, color: '#1e2428' });
+  }
+  return group(parts, `server-rack-${variant}`);
+}
+
+function buildAquariumTank(variant: number, accent: string): THREE.Group {
+  const frame = variantColor(accent, variant);
+  const water = variantColor('#58b8c9', variant);
+  const parts: PartSpec[] = [
+    { w: 2.05, h: 0.58, d: 0.76, x: 0, y: 0.29, z: 0, color: darkColor(frame) },
+    { w: 1.98, h: 1.12, d: 0.7, x: 0, y: 1.17, z: 0, color: water, emissive: '#1e7184', emissiveIntensity: 0.26, metalness: 0.4, roughness: 0.18 },
+    { w: 2.12, h: 0.1, d: 0.8, x: 0, y: 0.62, z: 0, color: frame, metalness: 0.4 },
+    { w: 2.12, h: 0.12, d: 0.8, x: 0, y: 1.76, z: 0, color: frame, metalness: 0.4 },
+  ];
+  for (const x of [-0.97, 0.97]) parts.push({ w: 0.08, h: 1.18, d: 0.76, x, y: 1.18, z: 0, color: frame, metalness: 0.45 });
+  for (let rock = 0; rock < 5; rock += 1) {
+    parts.push({ w: 0.22 + (rock % 2) * 0.1, h: 0.18 + ((rock + variant) % 3) * 0.07, d: 0.18, x: -0.72 + rock * 0.36, y: 0.76, z: -0.12 + (rock % 2) * 0.22, color: variantColor('#806e5d', variant, rock * 0.04), shape: 'sphere' });
+  }
+  for (let fish = 0; fish < 3; fish += 1) {
+    const x = -0.56 + fish * 0.56;
+    const y = 1.05 + ((fish + variant) % 3) * 0.2;
+    parts.push({ w: 0.34, h: 0.16, d: 0.12, x, y, z: 0.38, color: variantColor(accent, variant, fish * 0.18), shape: 'sphere' });
+    parts.push({ w: 0.16, h: 0.18, d: 0.06, x: x - 0.22, y, z: 0.38, color: variantColor(accent, variant, fish * 0.18), shape: 'cone', rz: -Math.PI / 2 });
+  }
+  return group(parts, `aquarium-tank-${variant}`);
+}
+
 function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.Group {
   const outfitByKind: Partial<Record<PropKind, string>> = {
     figure_nurse: '#dbe9e7',
@@ -547,6 +972,16 @@ function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.G
     figure_worker: '#5d6673',
     figure_patient: '#9bb9b3',
     figure_conductor: '#263447',
+    figure_teacher: '#6e5f78',
+    figure_cook: '#e5e0d2',
+    figure_swimmer: '#287f94',
+    figure_groundskeeper: '#526d43',
+    figure_receptionist: '#6d4666',
+    figure_courier: '#b76534',
+    figure_usher: '#5b2335',
+    figure_tourist: '#4b7482',
+    figure_mechanic: '#35526c',
+    figure_lifeguard: '#d84e44',
   };
   const outfit = variantColor(outfitByKind[kind] ?? accent, variant);
   const secondary = variantColor(accent, variant, 0.12);
@@ -555,19 +990,30 @@ function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.G
   const dark = variantColor('#242a31', variant);
   const heightOffset = (variant - 3.5) * 0.025;
   const pose = (variant % 4 - 1.5) * 0.09;
+  const bareLegs = kind === 'figure_swimmer' || kind === 'figure_lifeguard';
+  const bareArms = bareLegs || kind === 'figure_cook';
+  const legColor = bareLegs ? skin : dark;
+  const armColor = bareArms ? skin : outfit;
   const parts: PartSpec[] = [
-    { w: 0.22, h: 0.13, d: 0.38, x: -0.18, y: 0.065, z: 0.06, color: dark, name: 'rig-shoe-left' },
-    { w: 0.22, h: 0.13, d: 0.38, x: 0.18, y: 0.065, z: 0.06, color: dark, name: 'rig-shoe-right' },
-    { w: 0.16, h: 0.68 + heightOffset, d: 0.18, x: -0.17, y: 0.46, z: 0, color: dark, shape: 'cylinder', rz: -pose * 0.35, name: 'rig-leg-left' },
-    { w: 0.16, h: 0.68 + heightOffset, d: 0.18, x: 0.17, y: 0.46, z: 0, color: dark, shape: 'cylinder', rz: pose * 0.35, name: 'rig-leg-right' },
-    { w: 0.46, h: 0.25, d: 0.34, x: 0, y: 0.82 + heightOffset, z: 0, color: outfit },
-    { w: 0.58 + (variant % 3) * 0.035, h: 0.88, d: 0.36, x: 0, y: 1.29 + heightOffset, z: 0, color: outfit, shape: kind === 'figure_hazmat' || kind === 'figure_mascot' ? 'cylinder' : 'box' },
-    { w: 0.12, h: 0.12, d: 0.12, x: 0, y: 1.78 + heightOffset, z: 0, color: skin, shape: 'cylinder' },
+    { w: 0.24, h: 0.14, d: 0.4, x: -0.18, y: 0.07, z: 0.075, color: dark, name: 'rig-shoe-left' },
+    { w: 0.24, h: 0.14, d: 0.4, x: 0.18, y: 0.07, z: 0.075, color: dark, name: 'rig-shoe-right' },
+    { w: 0.18, h: 0.7 + heightOffset, d: 0.2, x: -0.17, y: 0.47, z: 0, color: legColor, shape: 'capsule', rz: -pose * 0.35, name: 'rig-leg-left' },
+    { w: 0.18, h: 0.7 + heightOffset, d: 0.2, x: 0.17, y: 0.47, z: 0, color: legColor, shape: 'capsule', rz: pose * 0.35, name: 'rig-leg-right' },
+    { w: 0.2, h: 0.18, d: 0.2, x: -0.17, y: 0.75 + heightOffset, z: 0.01, color: legColor, shape: 'sphere' },
+    { w: 0.2, h: 0.18, d: 0.2, x: 0.17, y: 0.75 + heightOffset, z: 0.01, color: legColor, shape: 'sphere' },
+    { w: 0.48, h: 0.27, d: 0.36, x: 0, y: 0.84 + heightOffset, z: 0, color: outfit, shape: 'capsule' },
+    { w: 0.56, h: 0.1, d: 0.38, x: 0, y: 0.96 + heightOffset, z: 0.01, color: secondary },
+    { w: 0.6 + (variant % 3) * 0.035, h: 0.86, d: 0.38, x: 0, y: 1.35 + heightOffset, z: 0, color: outfit, shape: kind === 'figure_hazmat' || kind === 'figure_mascot' ? 'capsule' : 'box' },
+    { w: 0.26, h: 0.18, d: 0.28, x: -0.3, y: 1.65 + heightOffset, z: 0, color: outfit, shape: 'sphere' },
+    { w: 0.26, h: 0.18, d: 0.28, x: 0.3, y: 1.65 + heightOffset, z: 0, color: outfit, shape: 'sphere' },
+    { w: 0.14, h: 0.16, d: 0.14, x: 0, y: 1.81 + heightOffset, z: 0, color: skin, shape: 'cylinder' },
     { w: kind === 'figure_mascot' ? 0.66 : 0.42, h: kind === 'figure_mascot' ? 0.66 : 0.46, d: kind === 'figure_mascot' ? 0.62 : 0.42, x: 0, y: 2.03 + heightOffset, z: 0, color: kind === 'figure_hazmat' ? outfit : kind === 'figure_mascot' ? secondary : skin, shape: 'sphere', name: 'rig-head' },
-    { w: 0.14, h: 0.7, d: 0.15, x: -0.38, y: 1.34 + heightOffset, z: 0, color: outfit, shape: 'cylinder', rz: 0.08 + pose, name: 'rig-arm-left' },
-    { w: 0.14, h: 0.7, d: 0.15, x: 0.38, y: 1.34 + heightOffset, z: 0, color: outfit, shape: 'cylinder', rz: -0.08 - pose, name: 'rig-arm-right' },
-    { w: 0.16, h: 0.16, d: 0.16, x: -0.42, y: 0.99 + heightOffset, z: 0, color: skin, shape: 'sphere' },
-    { w: 0.16, h: 0.16, d: 0.16, x: 0.42, y: 0.99 + heightOffset, z: 0, color: skin, shape: 'sphere' },
+    { w: 0.11, h: 0.16, d: 0.08, x: -0.22, y: 2.04 + heightOffset, z: 0, color: skin, shape: 'sphere' },
+    { w: 0.11, h: 0.16, d: 0.08, x: 0.22, y: 2.04 + heightOffset, z: 0, color: skin, shape: 'sphere' },
+    { w: 0.16, h: 0.72, d: 0.17, x: -0.4, y: 1.34 + heightOffset, z: 0, color: armColor, shape: 'capsule', rz: 0.08 + pose, name: 'rig-arm-left' },
+    { w: 0.16, h: 0.72, d: 0.17, x: 0.4, y: 1.34 + heightOffset, z: 0, color: armColor, shape: 'capsule', rz: -0.08 - pose, name: 'rig-arm-right' },
+    { w: 0.18, h: 0.18, d: 0.16, x: -0.44, y: 0.98 + heightOffset, z: 0.015, color: skin, shape: 'sphere' },
+    { w: 0.18, h: 0.18, d: 0.16, x: 0.44, y: 0.98 + heightOffset, z: 0.015, color: skin, shape: 'sphere' },
   ];
   addFace(parts, kind, variant, heightOffset, dark);
   addProfessionDetails(parts, kind, variant, outfit, secondary, heightOffset);
@@ -577,11 +1023,18 @@ function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.G
 function addFace(parts: PartSpec[], kind: PropKind, variant: number, heightOffset: number, dark: string): void {
   if (kind === 'figure_hazmat') {
     parts.push({ w: 0.34, h: 0.19, d: 0.06, x: 0, y: 2.05 + heightOffset, z: 0.23, color: '#76bed0', emissive: '#356e7c', emissiveIntensity: 0.22 });
+    for (const x of [-0.2, 0.2]) for (const y of [1.94, 2.15]) parts.push({ w: 0.035, h: 0.035, d: 0.03, x, y: y + heightOffset, z: 0.25, color: '#c7c9b8', shape: 'sphere' });
     return;
   }
   const eyeColor = kind === 'figure_mascot' ? '#f8f3d8' : dark;
   for (const x of [-0.105, 0.105]) parts.push({ w: kind === 'figure_mascot' ? 0.16 : 0.055, h: kind === 'figure_mascot' ? 0.18 : 0.06, d: 0.045, x, y: 2.08 + heightOffset, z: kind === 'figure_mascot' ? 0.3 : 0.215, color: eyeColor, shape: 'sphere', emissive: variant === 7 ? eyeColor : undefined, emissiveIntensity: 0.2 });
-  parts.push({ w: 0.07, h: 0.1, d: 0.06, x: 0, y: 1.98 + heightOffset, z: kind === 'figure_mascot' ? 0.34 : 0.23, color: dark, shape: 'sphere' });
+  parts.push({ w: 0.075, h: 0.12, d: 0.075, x: 0, y: 2.0 + heightOffset, z: kind === 'figure_mascot' ? 0.34 : 0.23, color: kind === 'figure_mascot' ? dark : variantColor('#b97956', variant), shape: 'sphere' });
+  parts.push({ w: kind === 'figure_mascot' ? 0.18 : 0.12, h: 0.035, d: 0.035, x: 0, y: 1.91 + heightOffset, z: kind === 'figure_mascot' ? 0.35 : 0.225, color: kind === 'figure_mascot' ? '#f1d4d4' : dark });
+  if (kind !== 'figure_mascot') {
+    for (const x of [-0.105, 0.105]) parts.push({ w: 0.09, h: 0.018, d: 0.025, x, y: 2.14 + heightOffset, z: 0.218, color: dark, rz: x * 0.22 });
+    parts.push({ w: 0.39, h: 0.17, d: 0.36, x: 0, y: 2.23 + heightOffset, z: -0.03, color: variantColor('#302a27', variant), shape: 'sphere' });
+    if (variant % 3 === 1) parts.push({ w: 0.14, h: 0.28, d: 0.12, x: -0.18, y: 2.08 + heightOffset, z: -0.12, color: variantColor('#302a27', variant), shape: 'capsule', rz: -0.2 });
+  }
 }
 
 function addProfessionDetails(
@@ -633,6 +1086,69 @@ function addProfessionDetails(
     case 'figure_patient':
       parts.push({ w: 0.64, h: 0.12, d: 0.38, x: 0, y: 0.9 + y, z: 0.02, color: '#dde5df' });
       parts.push({ w: 0.08, h: 0.08, d: 0.08, x: variant % 2 ? -0.43 : 0.43, y: 1.02 + y, z: 0.01, color: '#f0d85e', shape: 'torus', rx: Math.PI / 2 });
+      break;
+    case 'figure_teacher':
+      for (const x of [-0.105, 0.105]) parts.push({ w: 0.14, h: 0.1, d: 0.035, x, y: 2.08 + y, z: 0.24, color: '#23282d', shape: 'torus' });
+      parts.push({ w: 0.28, h: 0.46, d: 0.06, x: 0.43, y: 1.15 + y, z: 0.18, color: '#d7c89e', rz: -0.08 });
+      parts.push({ w: 0.035, h: 0.52, d: 0.035, x: -0.43, y: 1.08 + y, z: 0.18, color: '#f1cf4d', shape: 'cylinder', rz: 0.14 });
+      break;
+    case 'figure_cook':
+      parts.push({ w: 0.44, h: 0.2, d: 0.4, x: 0, y: 2.28 + y, z: 0, color: '#f2eee4', shape: 'cylinder' });
+      for (const x of [-0.13, 0, 0.13]) parts.push({ w: 0.18, h: 0.28 + (x === 0 ? 0.08 : 0), d: 0.18, x, y: 2.42 + y, z: 0, color: '#f2eee4', shape: 'sphere' });
+      parts.push({ w: 0.45, h: 0.72, d: 0.035, x: 0, y: 1.32 + y, z: 0.21, color: '#ece5d5' });
+      parts.push({ w: 0.1, h: 0.72, d: 0.05, x: 0.52, y: 0.82 + y, z: 0.08, color: '#9ba0a3', metalness: 0.75, shape: 'cylinder' });
+      break;
+    case 'figure_swimmer':
+      parts.push({ w: 0.42, h: 0.18, d: 0.38, x: 0, y: 2.25 + y, z: 0, color: secondary, shape: 'sphere' });
+      parts.push({ w: 0.4, h: 0.09, d: 0.04, x: 0, y: 2.1 + y, z: 0.24, color: '#17272e' });
+      for (const x of [-0.105, 0.105]) parts.push({ w: 0.14, h: 0.1, d: 0.045, x, y: 2.09 + y, z: 0.25, color: '#7dd8e8', emissive: '#2f8290', emissiveIntensity: 0.18, shape: 'sphere' });
+      parts.push({ w: 0.6, h: 0.16, d: 0.36, x: 0, y: 0.94 + y, z: 0.01, color: outfit });
+      break;
+    case 'figure_groundskeeper':
+      parts.push({ w: 0.5, h: 0.12, d: 0.44, x: 0, y: 2.28 + y, z: 0, color: secondary, shape: 'cylinder' });
+      parts.push({ w: 0.38, h: 0.18, d: 0.38, x: 0, y: 2.38 + y, z: -0.02, color: outfit, shape: 'cylinder' });
+      parts.push({ w: 0.075, h: 1.65, d: 0.075, x: 0.55, y: 0.86, z: 0.08, color: '#795a3b', shape: 'cylinder', rz: -0.13 });
+      for (let tooth = 0; tooth < 5; tooth += 1) parts.push({ w: 0.035, h: 0.34, d: 0.035, x: 0.4 + tooth * 0.08, y: 0.08, z: 0.08, color: '#6d7477', shape: 'cylinder' });
+      break;
+    case 'figure_receptionist':
+      parts.push({ w: 0.055, h: 0.62, d: 0.03, x: 0, y: 1.45 + y, z: 0.21, color: secondary });
+      parts.push({ w: 0.19, h: 0.12, d: 0.035, x: 0, y: 1.2 + y, z: 0.23, color: '#e4dfcb' });
+      parts.push({ w: 0.34, h: 0.46, d: 0.055, x: 0.42, y: 1.13 + y, z: 0.17, color: '#1f2931', rz: -0.06 });
+      parts.push({ w: 0.25, h: 0.34, d: 0.03, x: 0.42, y: 1.13 + y, z: 0.205, color: '#70bfce', emissive: '#285b65', emissiveIntensity: 0.28, rz: -0.06 });
+      break;
+    case 'figure_courier':
+      parts.push({ w: 0.48, h: 0.62, d: 0.22, x: 0, y: 1.42 + y, z: -0.27, color: darkColor(outfit) });
+      parts.push({ w: 0.08, h: 1.08, d: 0.04, x: variant % 2 ? -0.27 : 0.27, y: 1.4 + y, z: 0.08, color: secondary, rz: variant % 2 ? -0.32 : 0.32 });
+      parts.push({ w: 0.38, h: 0.46, d: 0.18, x: variant % 2 ? 0.48 : -0.48, y: 1.0 + y, z: 0.06, color: secondary });
+      parts.push({ w: 0.48, h: 0.1, d: 0.42, x: 0, y: 2.29 + y, z: 0, color: outfit, shape: 'cylinder' });
+      break;
+    case 'figure_usher':
+      parts.push({ w: 0.46, h: 0.14, d: 0.42, x: 0, y: 2.29 + y, z: 0, color: darkColor(outfit), shape: 'cylinder' });
+      parts.push({ w: 0.34, h: 0.18, d: 0.34, x: 0, y: 2.39 + y, z: 0, color: outfit, shape: 'cylinder' });
+      parts.push({ w: 0.42, h: 0.68, d: 0.04, x: 0, y: 1.35 + y, z: 0.21, color: secondary });
+      parts.push({ w: 0.12, h: 0.36, d: 0.12, x: 0.47, y: 0.88 + y, z: 0.06, color: '#d9c05b', emissive: '#735d16', emissiveIntensity: 0.35, shape: 'cylinder' });
+      break;
+    case 'figure_tourist':
+      parts.push({ w: 0.62, h: 0.09, d: 0.58, x: 0, y: 2.27 + y, z: 0, color: '#d5c38f', shape: 'cylinder' });
+      parts.push({ w: 0.42, h: 0.18, d: 0.4, x: 0, y: 2.37 + y, z: 0, color: '#c7ad6e', shape: 'cylinder' });
+      parts.push({ w: 0.32, h: 0.25, d: 0.16, x: 0, y: 1.35 + y, z: 0.28, color: '#252c31' });
+      parts.push({ w: 0.14, h: 0.14, d: 0.14, x: 0, y: 1.35 + y, z: 0.39, color: '#6fc5d6', emissive: '#275c68', emissiveIntensity: 0.25, shape: 'cylinder', rx: Math.PI / 2 });
+      parts.push({ w: 0.48, h: 0.58, d: 0.22, x: 0, y: 1.38 + y, z: -0.27, color: secondary });
+      break;
+    case 'figure_mechanic':
+      parts.push({ w: 0.5, h: 0.1, d: 0.44, x: 0, y: 2.29 + y, z: 0, color: secondary, shape: 'cylinder' });
+      parts.push({ w: 0.38, h: 0.18, d: 0.36, x: 0, y: 2.38 + y, z: -0.02, color: outfit, shape: 'cylinder' });
+      parts.push({ w: 0.62, h: 0.16, d: 0.38, x: 0, y: 1.0 + y, z: 0.02, color: '#4a3627' });
+      for (const x of [-0.2, 0.2]) parts.push({ w: 0.14, h: 0.22, d: 0.07, x, y: 0.92 + y, z: 0.23, color: '#7d5b3b' });
+      parts.push({ w: 0.08, h: 0.62, d: 0.05, x: 0.49, y: 0.84 + y, z: 0.08, color: '#a9afb2', metalness: 0.8, shape: 'cylinder', rz: -0.2 });
+      parts.push({ w: 0.2, h: 0.18, d: 0.05, x: 0.54, y: 0.56 + y, z: 0.08, color: '#a9afb2', metalness: 0.8, shape: 'torus' });
+      break;
+    case 'figure_lifeguard':
+      parts.push({ w: 0.54, h: 0.08, d: 0.48, x: 0, y: 2.28 + y, z: 0, color: '#ece5ce', shape: 'cylinder' });
+      parts.push({ w: 0.3, h: 0.14, d: 0.3, x: 0, y: 2.36 + y, z: -0.03, color: outfit, shape: 'cylinder' });
+      parts.push({ w: 0.06, h: 0.44, d: 0.035, x: 0, y: 1.54 + y, z: 0.22, color: '#262c30' });
+      parts.push({ w: 0.11, h: 0.11, d: 0.07, x: 0, y: 1.35 + y, z: 0.26, color: '#d7c55f', metalness: 0.55, shape: 'cylinder', rx: Math.PI / 2 });
+      parts.push({ w: 0.48, h: 0.48, d: 0.15, x: 0.48, y: 1.02 + y, z: 0.06, color: '#efede0', shape: 'torus' });
       break;
     default:
       break;
@@ -988,6 +1504,26 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
   bleacher: { w: 2.8, h: 1.6, d: 1.7 },
   tree: { w: 1.8, h: 4.6, d: 1.8 },
   fountain: { w: 2.6, h: 2, d: 2.6 },
+  dining_chair: { w: 0.62, h: 1.12, d: 0.64 },
+  office_chair: { w: 0.72, h: 1.2, d: 0.72 },
+  coffee_table: { w: 1.45, h: 0.58, d: 0.82 },
+  side_table: { w: 0.68, h: 0.72, d: 0.68 },
+  filing_cabinet: { w: 0.72, h: 1.45, d: 0.72 },
+  reception_desk: { w: 2.8, h: 1.45, d: 1.05 },
+  wardrobe: { w: 1.55, h: 2.3, d: 0.72 },
+  sectional: { w: 2.85, h: 1.18, d: 1.75 },
+  hotel_bed: { w: 2.25, h: 1.35, d: 1.72 },
+  nightstand: { w: 0.68, h: 1.5, d: 0.62 },
+  washer: { w: 0.95, h: 1.28, d: 0.9 },
+  phone_booth: { w: 1.18, h: 2.45, d: 1.1 },
+  bus_shelter: { w: 3.5, h: 2.55, d: 1.45 },
+  swing_set: { w: 3.2, h: 2.65, d: 1.8 },
+  pool_lounger: { w: 2.05, h: 0.82, d: 0.72 },
+  lifeguard_chair: { w: 1.45, h: 2.95, d: 1.35 },
+  streetlight: { w: 1.65, h: 5.2, d: 0.9 },
+  pallet_stack: { w: 1.55, h: 1.6, d: 1.25 },
+  server_rack: { w: 0.9, h: 2.15, d: 0.95 },
+  aquarium_tank: { w: 2.15, h: 1.85, d: 0.82 },
   figure_nurse: { w: 0.78, h: 2.35, d: 0.58 },
   figure_janitor: { w: 1.1, h: 2.35, d: 0.7 },
   figure_commuter: { w: 1, h: 2.35, d: 0.7 },
@@ -998,6 +1534,16 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
   figure_worker: { w: 0.95, h: 2.35, d: 0.62 },
   figure_patient: { w: 0.82, h: 2.35, d: 0.62 },
   figure_conductor: { w: 0.82, h: 2.55, d: 0.62 },
+  figure_teacher: { w: 0.95, h: 2.45, d: 0.68 },
+  figure_cook: { w: 1.05, h: 2.65, d: 0.72 },
+  figure_swimmer: { w: 0.82, h: 2.45, d: 0.62 },
+  figure_groundskeeper: { w: 1.25, h: 2.55, d: 0.72 },
+  figure_receptionist: { w: 1.05, h: 2.45, d: 0.7 },
+  figure_courier: { w: 1.1, h: 2.55, d: 0.78 },
+  figure_usher: { w: 1.0, h: 2.55, d: 0.7 },
+  figure_tourist: { w: 1.05, h: 2.6, d: 0.78 },
+  figure_mechanic: { w: 1.1, h: 2.55, d: 0.72 },
+  figure_lifeguard: { w: 1.1, h: 2.55, d: 0.72 },
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
@@ -1075,6 +1621,16 @@ export function kindFromLabel(label: string): PropKind {
   if (l.includes('office worker')) return 'figure_worker';
   if (l.includes('patient')) return 'figure_patient';
   if (l.includes('conductor')) return 'figure_conductor';
+  if (l.includes('teacher')) return 'figure_teacher';
+  if (l.includes('cook')) return 'figure_cook';
+  if (l.includes('swimmer')) return 'figure_swimmer';
+  if (l.includes('groundskeeper')) return 'figure_groundskeeper';
+  if (l.includes('receptionist')) return 'figure_receptionist';
+  if (l.includes('courier')) return 'figure_courier';
+  if (l.includes('usher')) return 'figure_usher';
+  if (l.includes('tourist')) return 'figure_tourist';
+  if (l.includes('mechanic')) return 'figure_mechanic';
+  if (l.includes('off-duty lifeguard') || l === 'lifeguard') return 'figure_lifeguard';
   if (l.includes('giant baby') || l === 'baby') return 'figure_baby';
   if (l.includes('clerk')) return 'figure_clerk';
   if (l.includes('deer')) return 'figure_deer';
@@ -1103,6 +1659,26 @@ export function kindFromLabel(label: string): PropKind {
   if (l.includes('bleacher')) return 'bleacher';
   if (l.includes('tree')) return 'tree';
   if (l.includes('fountain')) return 'fountain';
+  if (l.includes('dining chair')) return 'dining_chair';
+  if (l.includes('rolling office chair')) return 'office_chair';
+  if (l.includes('coffee table')) return 'coffee_table';
+  if (l.includes('side table')) return 'side_table';
+  if (l.includes('drawer filing cabinet')) return 'filing_cabinet';
+  if (l.includes('reception counter')) return 'reception_desk';
+  if (l.includes('wardrobe')) return 'wardrobe';
+  if (l.includes('sectional')) return 'sectional';
+  if (l.includes('hotel bed')) return 'hotel_bed';
+  if (l.includes('nightstand')) return 'nightstand';
+  if (l.includes('washer')) return 'washer';
+  if (l.includes('phone booth')) return 'phone_booth';
+  if (l.includes('bus shelter')) return 'bus_shelter';
+  if (l.includes('swing set')) return 'swing_set';
+  if (l.includes('poolside lounger')) return 'pool_lounger';
+  if (l.includes('lifeguard chair')) return 'lifeguard_chair';
+  if (l.includes('streetlight')) return 'streetlight';
+  if (l.includes('stacked pallets')) return 'pallet_stack';
+  if (l.includes('server rack')) return 'server_rack';
+  if (l.includes('aquarium tank')) return 'aquarium_tank';
   if (l.includes('vending')) return 'vending';
   if (l.includes('desk')) return 'desk';
   if (l.includes('chair')) return 'chair';

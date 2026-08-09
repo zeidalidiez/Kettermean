@@ -183,6 +183,7 @@ export class RoomWorld {
     }
 
     if (outdoor) this.addOutdoorSky(spec);
+    this.addArchitecture(spec);
 
     for (const prop of spec.props) {
       this.addProp(prop);
@@ -248,8 +249,8 @@ export class RoomWorld {
       '#ffffff',
       highVisibility
         ? outdoor
-          ? 0.42
-          : 0.5
+          ? 0.55
+          : 0.62
         : outdoor
           ? 0.14
           : 0.18,
@@ -273,8 +274,8 @@ export class RoomWorld {
       spec.palette.light,
       highVisibility
         ? outdoor
-          ? 1.85
-          : 2.4
+          ? 2.1
+          : 2.65
         : outdoor
           ? 1.1
           : 1.35,
@@ -402,6 +403,270 @@ export class RoomWorld {
     if (scene.fog) scene.fog = null;
   }
 
+  /** Seeded large-scale structure makes rooms differ before furniture is considered. */
+  private addArchitecture(spec: RoomSpec): void {
+    const architecture = spec.architecture ?? 'chamber';
+    const rng = new SeededRng(`${spec.seed}:architecture:${architecture}`);
+    const halfW = spec.width * 0.5;
+    const halfD = spec.depth * 0.5;
+    const structural = plainMaterial(spec.palette.walls, 0.82, 0.08);
+    const trim = plainMaterial(spec.palette.accent, 0.55, 0.18);
+    const glow = new THREE.MeshBasicMaterial({
+      color: spec.palette.light,
+      transparent: true,
+      opacity: 0.58,
+      fog: false,
+      toneMapped: false,
+      side: THREE.DoubleSide,
+    });
+
+    const addBox = (
+      name: string,
+      width: number,
+      height: number,
+      depth: number,
+      x: number,
+      y: number,
+      z: number,
+      material: THREE.Material = structural,
+      solid = false,
+      rotationY = 0,
+    ): THREE.Mesh => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+      mesh.name = `architecture-${architecture}-${name}`;
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = rotationY;
+      mesh.castShadow = height > 0.2;
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+      if (solid) {
+        this.addCollider(
+          feetBounds(
+            { x, y: Math.max(0, y - height * 0.5), z },
+            { x: width, y: height, z: depth },
+            rotationY,
+          ),
+          `architecture:${architecture}:${name}`,
+        );
+      }
+      return mesh;
+    };
+
+    const addColumn = (
+      name: string,
+      x: number,
+      z: number,
+      height: number,
+      radius = 0.36,
+      solid = true,
+    ): void => {
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius * 1.08, height, 14),
+        structural,
+      );
+      shaft.name = `architecture-${architecture}-${name}`;
+      shaft.position.set(x, height * 0.5, z);
+      shaft.castShadow = true;
+      shaft.receiveShadow = true;
+      this.group.add(shaft);
+      addBox(`${name}-base`, radius * 2.5, 0.13, radius * 2.5, x, 0.065, z, trim);
+      addBox(`${name}-cap`, radius * 2.25, 0.12, radius * 2.25, x, height - 0.06, z, trim);
+      if (solid) {
+        this.addCollider(
+          {
+            minX: x - radius,
+            maxX: x + radius,
+            minY: 0,
+            maxY: height,
+            minZ: z - radius,
+            maxZ: z + radius,
+          },
+          `architecture:${architecture}:${name}`,
+        );
+      }
+    };
+
+    const addFloorMark = (
+      name: string,
+      width: number,
+      depth: number,
+      x: number,
+      z: number,
+      rotationY = 0,
+    ): void => {
+      const mark = addBox(name, width, 0.018, depth, x, 0.012, z, glow, false, rotationY);
+      mark.userData.keepSolid = true;
+    };
+
+    switch (architecture) {
+      case 'colonnade': {
+        const rows = clampInt(Math.round(spec.depth / 8), 3, 9);
+        for (let row = 0; row < rows; row += 1) {
+          const z = rows === 1 ? 0 : -halfD * 0.68 + (row / (rows - 1)) * halfD * 1.36;
+          for (const side of [-1, 1]) {
+            addColumn(`column-${row}-${side}`, side * halfW * 0.31, z, Math.min(spec.height * 0.92, 7), 0.34 + rng.float(0, 0.12));
+          }
+        }
+        addBox('entablature-left', 0.28, 0.26, spec.depth * 0.82, -halfW * 0.31, Math.min(spec.height * 0.92, 7), 0, trim);
+        addBox('entablature-right', 0.28, 0.26, spec.depth * 0.82, halfW * 0.31, Math.min(spec.height * 0.92, 7), 0, trim);
+        break;
+      }
+      case 'atrium': {
+        const x = halfW * 0.3;
+        const z = halfD * 0.3;
+        const height = Math.min(spec.height * 0.84, 8.5);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) addColumn(`atrium-${sx}-${sz}`, sx * x, sz * z, height, 0.48);
+        addBox('beam-north', x * 2, 0.28, 0.28, 0, height, -z, trim);
+        addBox('beam-south', x * 2, 0.28, 0.28, 0, height, z, trim);
+        addBox('beam-east', 0.28, 0.28, z * 2, x, height, 0, trim);
+        addBox('beam-west', 0.28, 0.28, z * 2, -x, height, 0, trim);
+        addFloorMark('atrium-center', Math.min(spec.width * 0.28, 14), Math.min(spec.depth * 0.28, 14), 0, 0, Math.PI * 0.25);
+        break;
+      }
+      case 'arena': {
+        const gap = Math.min(6, spec.width * 0.22);
+        const segment = Math.max(2.2, (spec.width - gap - 4) * 0.5);
+        for (let tier = 0; tier < 3; tier += 1) {
+          const height = 0.26 + tier * 0.28;
+          const depth = 0.82;
+          const inset = 1.1 + tier * 0.78;
+          for (const side of [-1, 1]) {
+            for (const xSide of [-1, 1]) {
+              addBox(
+                `stand-${tier}-${side}-${xSide}`,
+                segment,
+                height,
+                depth,
+                xSide * (gap * 0.5 + segment * 0.5),
+                height * 0.5,
+                side * (halfD - inset),
+                tier % 2 ? trim : structural,
+                true,
+              );
+            }
+          }
+        }
+        addFloorMark('arena-axis', Math.min(spec.width * 0.62, 42), 0.12, 0, 0);
+        addFloorMark('arena-cross', 0.12, Math.min(spec.depth * 0.58, 34), 0, 0);
+        break;
+      }
+      case 'concourse': {
+        const gantries = clampInt(Math.round(spec.depth / 14), 2, 6);
+        for (let index = 0; index < gantries; index += 1) {
+          const z = gantries === 1 ? 0 : -halfD * 0.56 + (index / (gantries - 1)) * halfD * 1.12;
+          const x = halfW * 0.36;
+          const height = Math.min(spec.height * 0.78, 6.5);
+          addColumn(`gantry-${index}-left`, -x, z, height, 0.3);
+          addColumn(`gantry-${index}-right`, x, z, height, 0.3);
+          addBox(`gantry-${index}-beam`, x * 2, 0.24, 0.24, 0, height, z, trim);
+          addBox(`gantry-${index}-sign`, Math.min(4.8, spec.width * 0.18), 0.86, 0.08, 0, height - 0.55, z, glow);
+        }
+        for (const x of [-halfW * 0.19, 0, halfW * 0.19]) addFloorMark(`lane-${x}`, 0.09, spec.depth * 0.72, x, 0);
+        break;
+      }
+      case 'courtyard': {
+        const pavilionX = halfW * 0.34;
+        const pavilionZ = halfD * 0.34;
+        const height = Math.min(spec.height * 0.52, 5.2);
+        for (const sx of [-1, 1]) {
+          for (const sz of [-1, 1]) {
+            const x = sx * pavilionX;
+            const z = sz * pavilionZ;
+            addColumn(`pavilion-${sx}-${sz}-a`, x - 0.7, z, height, 0.22);
+            addColumn(`pavilion-${sx}-${sz}-b`, x + 0.7, z, height, 0.22);
+            addBox(`pavilion-${sx}-${sz}-roof`, 2.1, 0.2, 1.65, x, height + 0.1, z, trim);
+          }
+        }
+        addFloorMark('courtyard-cross-a', spec.width * 0.68, 0.22, 0, 0);
+        addFloorMark('courtyard-cross-b', 0.22, spec.depth * 0.68, 0, 0);
+        break;
+      }
+      case 'causeway': {
+        const alongDepth = spec.depth >= spec.width;
+        const pathWidth = Math.min(7, (alongDepth ? spec.width : spec.depth) * 0.28);
+        addFloorMark(
+          'causeway-path',
+          alongDepth ? pathWidth : spec.width * 0.82,
+          alongDepth ? spec.depth * 0.82 : pathWidth,
+          0,
+          0,
+        );
+        const pairs = clampInt(Math.round((alongDepth ? spec.depth : spec.width) / 14), 3, 8);
+        for (let index = 0; index < pairs; index += 1) {
+          const along = pairs === 1 ? 0 : -0.62 + (index / (pairs - 1)) * 1.24;
+          for (const side of [-1, 1]) {
+            const x = alongDepth ? side * pathWidth * 0.7 : along * halfW;
+            const z = alongDepth ? along * halfD : side * pathWidth * 0.7;
+            addColumn(`causeway-${index}-${side}`, x, z, 2.6 + rng.float(0, 1.2), 0.16, false);
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), glow);
+            orb.position.set(x, 3 + rng.float(0, 0.5), z);
+            orb.userData.keepSolid = true;
+            this.group.add(orb);
+          }
+        }
+        break;
+      }
+      case 'field': {
+        const landmarks = clampInt(Math.round(Math.max(spec.width, spec.depth) / 8), 8, 18);
+        for (let index = 0; index < landmarks; index += 1) {
+          const angle = (index / landmarks) * Math.PI * 2 + rng.float(-0.08, 0.08);
+          const x = Math.cos(angle) * halfW * rng.float(0.56, 0.76);
+          const z = Math.sin(angle) * halfD * rng.float(0.56, 0.76);
+          const height = rng.float(1.4, Math.min(5.5, spec.height * 0.38));
+          const spire = new THREE.Mesh(
+            new THREE.ConeGeometry(rng.float(0.22, 0.55), height, rng.int(5, 9)),
+            index % 3 === 0 ? trim : structural,
+          );
+          spire.name = `architecture-field-landmark-${index}`;
+          spire.position.set(x, height * 0.5, z);
+          this.group.add(spire);
+        }
+        addFloorMark('field-meridian', 0.08, spec.depth * 0.68, 0, 0, rng.float(-0.12, 0.12));
+        break;
+      }
+      case 'basin': {
+        const radius = Math.min(spec.width, spec.depth) * 0.18;
+        for (let ring = 1; ring <= 3; ring += 1) {
+          const ringMesh = new THREE.Mesh(
+            new THREE.RingGeometry(radius * ring * 0.52, radius * ring * 0.52 + 0.08, 64),
+            ring === 2 ? glow : trim,
+          );
+          ringMesh.name = `architecture-basin-ring-${ring}`;
+          ringMesh.rotation.x = -Math.PI / 2;
+          ringMesh.position.y = 0.018 + ring * 0.004;
+          ringMesh.userData.keepSolid = true;
+          this.group.add(ringMesh);
+        }
+        for (let index = 0; index < 8; index += 1) {
+          if (index % 2 === 0) continue;
+          const angle = (index / 8) * Math.PI * 2;
+          addBox(
+            `basin-seat-${index}`,
+            radius * 0.44,
+            0.32,
+            0.42,
+            Math.cos(angle) * radius * 1.42,
+            0.16,
+            Math.sin(angle) * radius * 1.42,
+            structural,
+            true,
+            -angle,
+          );
+        }
+        break;
+      }
+      default: {
+        if (spec.environment === 'interior') {
+          const ribs = clampInt(Math.round((spec.width + spec.depth) / 18), 2, 6);
+          for (let index = 0; index < ribs; index += 1) {
+            const z = ribs === 1 ? 0 : -halfD * 0.55 + (index / (ribs - 1)) * halfD * 1.1;
+            addBox(`chamber-rib-${index}`, spec.width * 0.72, 0.08, 0.11, 0, spec.height * 0.82, z, trim);
+          }
+        }
+      }
+    }
+  }
+
   private addOutdoorSky(spec: RoomSpec): void {
     const radius = Math.max(spec.width, spec.depth) * 2.2 + 35;
     const skyMaterial = new THREE.ShaderMaterial({
@@ -443,7 +708,8 @@ export class RoomWorld {
 
     const rng = new SeededRng(`${spec.seed}:outdoor-sky`);
     const starPositions: number[] = [];
-    for (let index = 0; index < 180; index += 1) {
+    const starCount = clampInt(Math.round(radius * 1.45), 180, 460);
+    for (let index = 0; index < starCount; index += 1) {
       const angle = rng.float(0, Math.PI * 2);
       const y = rng.float(0.08, 0.96);
       const horizontal = Math.sqrt(Math.max(0, 1 - y * y));
@@ -484,14 +750,30 @@ export class RoomWorld {
     moon.userData.keepSolid = true;
     this.group.add(moon);
 
+    if (rng.chance(0.38)) {
+      const secondOrb = new THREE.Mesh(
+        new THREE.SphereGeometry(Math.max(0.8, radius * 0.018), 16, 10),
+        new THREE.MeshBasicMaterial({
+          color: spec.palette.accent,
+          fog: false,
+          toneMapped: false,
+        }),
+      );
+      secondOrb.position.set(-radius * 0.62, radius * 0.3, radius * 0.42);
+      secondOrb.name = 'secondary-sky-orb';
+      secondOrb.userData.keepSolid = true;
+      this.group.add(secondOrb);
+    }
+
     const horizonMaterial = new THREE.MeshStandardMaterial({
       color: spec.palette.ambient,
       roughness: 1,
       metalness: 0,
     });
     const horizonDistance = Math.max(spec.width, spec.depth) * 0.74;
-    for (let index = 0; index < 24; index += 1) {
-      const angle = (index / 24) * Math.PI * 2 + rng.float(-0.08, 0.08);
+    const horizonCount = clampInt(Math.round(Math.max(spec.width, spec.depth) / 2.8), 24, 48);
+    for (let index = 0; index < horizonCount; index += 1) {
+      const angle = (index / horizonCount) * Math.PI * 2 + rng.float(-0.08, 0.08);
       const height = rng.float(2.5, Math.min(13, spec.height * 0.72));
       const width = rng.float(2.5, 8.5);
       const depth = rng.float(2.5, 6.5);
@@ -976,4 +1258,8 @@ function expandBox(box: ColliderBox, x: number, y: number, z: number): ColliderB
     minZ: box.minZ - z,
     maxZ: box.maxZ + z,
   };
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
 }

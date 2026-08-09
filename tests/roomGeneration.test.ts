@@ -3,7 +3,7 @@ import { PLAYER, ROOM } from '../src/config';
 import { childSeed, randomSeed } from '../src/core/rng';
 import type { RoomHistoryEntry, RoomProp } from '../src/types';
 import { generateOfflineRoom } from '../src/world/offlineGenerator';
-import { getAsset } from '../src/world/assetCatalog';
+import { getAsset, THEME_PRESETS } from '../src/world/assetCatalog';
 import { roomHistoryEntryFor } from '../src/world/roomDirector';
 
 describe('offline room invariants', () => {
@@ -12,6 +12,7 @@ describe('offline room invariants', () => {
     const lightingStyles = new Set<string>();
     const wireframeModes = new Set<boolean>();
     const environments = new Set<string>();
+    const architectures = new Set<string>();
     let dimRooms = 0;
     let largestSide = 0;
 
@@ -41,6 +42,7 @@ describe('offline room invariants', () => {
       expect(room.props.some((prop) => prop.linksOnTouch)).toBe(true);
       expect(`${room.title} ${room.blurb}`).not.toMatch(/\bagain\b|you have been here/i);
       environments.add(room.environment ?? 'interior');
+      architectures.add(room.architecture ?? 'chamber');
       largestSide = Math.max(largestSide, room.width, room.depth);
       expect(room.visuals).toBeDefined();
       if (room.visuals) {
@@ -84,7 +86,10 @@ describe('offline room invariants', () => {
     );
     expect(wireframeModes).toEqual(new Set([false, true]));
     expect(environments).toEqual(new Set(['interior', 'open-hall', 'outdoor']));
-    expect(largestSide).toBeGreaterThan(60);
+    expect(architectures).toEqual(
+      new Set(['chamber', 'colonnade', 'atrium', 'arena', 'concourse', 'courtyard', 'causeway', 'field', 'basin']),
+    );
+    expect(largestSide).toBeGreaterThan(110);
     expect(dimRooms).toBeLessThan(150);
   });
 
@@ -106,6 +111,7 @@ describe('offline room invariants', () => {
 
       expect(lastSix.some((entry) => entry.themeId === room.themeId)).toBe(false);
       expect(lastTwo.some((entry) => entry.layoutStyle === room.layoutStyle)).toBe(false);
+      expect(lastTwo.some((entry) => entry.architecture === room.architecture)).toBe(false);
       expect(lastTwo.some((entry) => entry.shader === room.visuals?.shader)).toBe(false);
       expect(lastTwo.some((entry) => entry.lighting === room.visuals?.lighting)).toBe(false);
       expect(lastTwo.some((entry) => entry.mood === room.mood)).toBe(false);
@@ -113,6 +119,14 @@ describe('offline room invariants', () => {
       recentRooms.push(roomHistoryEntryFor(room));
       if (recentRooms.length > 12) recentRooms.shift();
       seed = childSeed(seed, `room-${index}`);
+    }
+  });
+
+  it('keeps every theme preference attached to a real catalog asset', () => {
+    for (const theme of THEME_PRESETS) {
+      for (const assetId of theme.preferredAssets) {
+        expect(getAsset(assetId), `${theme.id}:${assetId}`).toBeDefined();
+      }
     }
   });
 

@@ -6,7 +6,8 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated prop kit, including 240 additional composed prop and NPC variants
+- Three.js first-person rooms assembled from a curated prop kit, including 480 additional composed prop and NPC variants across 60 families
+- Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
 - History-aware novelty across themes, layouts, lighting, shaders, moods, and room contents
 - Indoor chambers, vast open halls, and outdoor dreamscapes with procedural skies and horizons
@@ -48,7 +49,7 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 
 Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets. Recent-room fingerprints actively steer the director away from repeated themes, layouts, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
 
-The procedural catalog includes furniture, public-space fixtures, outdoor objects, and ten richer humanoid families. NPCs use composed heads, faces, torsos, limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders.
+The procedural catalog includes furniture, public-space fixtures, outdoor objects, and twenty richer humanoid families. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders.
 
 ## Cost and lifecycle controls
 

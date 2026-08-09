@@ -1,6 +1,7 @@
 import type {
   EntityBehavior,
   MoodAxis,
+  RoomArchitecture,
   RoomEnvironment,
   RoomLayoutStyle,
   RoomVisuals,
@@ -50,6 +51,7 @@ export interface ThemePreset {
   blurb: string;
   mood: MoodAxis;
   environment?: RoomEnvironment;
+  architecture?: RoomArchitecture;
   tags: string[];
   preferredAssets: string[];
   width: number;
@@ -90,6 +92,7 @@ export interface RoomDirection {
   mood: MoodAxis;
   environment?: RoomEnvironment;
   layoutStyle?: RoomLayoutStyle;
+  architecture?: RoomArchitecture;
   tags: string[];
   width: number;
   depth: number;
@@ -173,6 +176,26 @@ const EXPANSION_THEMES: ThemePreset[] = [
   t('warehouse_cavern', 'Warehouse Cavern', 'Pallet marks continue across an otherwise empty floor.', 'downer', 'open-hall', ['warehouse', 'industrial', 'vast', 'service'], ['cabinet_util', 'cart_janitor', 'pillar_support', 'mattress_stack', 'npc_shadow'], 56, 44, 12, p('#4e5150', '#242727', '#686d6b', '#e4a655', '#323635', '#f2d4a4', '#5e6562')),
   t('glass_terminal', 'Glass Bus Terminal', 'The arrival board changes whenever you look away.', 'upper', 'open-hall', ['terminal', 'station', 'glass', 'open'], ['bench_wait', 'door_glass', 'vending_blue', 'payphone_wall', 'npc_raincoat'], 50, 30, 11, p('#607985', '#b8d5dd', '#8fb5bf', '#d7f7ff', '#8eb0bb', '#ffffff', '#71939e')),
   t('cathedral_concourse', 'Cathedral Concourse', 'Announcements arrive as chords from hidden speakers.', 'dynamic', 'open-hall', ['cathedral', 'chapel', 'echo', 'open'], ['bench_pew', 'pillar_support', 'vending_blue', 'arch_portal', 'npc_guide'], 36, 62, 18, p('#343044', '#171521', '#504768', '#c5a7ff', '#211d30', '#eee2ff', '#5b526d')),
+  t('endless_esplanade', 'Endless Esplanade', 'Streetlights divide the horizon into equal pieces.', 'static', 'outdoor', ['outdoor', 'plaza', 'vast', 'causeway'], ['streetlight_01', 'bus_shelter_03', 'planter_02', 'npc_tourist_04', 'arch_portal'], 124, 72, 24, p('#535863', '#111827', '#354155', '#d8f05b', '#172033', '#efffb0', '#59687c'), 'causeway'),
+  t('drowned_promenade', 'Drowned Promenade', 'Blue light moves across paving that has never been wet.', 'upper', 'outdoor', ['outdoor', 'wet', 'aquarium', 'basin'], ['aquarium_tank_04', 'pool_lounger_02', 'streetlight_05', 'npc_swimmer_03', 'arch_portal'], 92, 60, 22, p('#24515e', '#071d2b', '#276f7e', '#62e3d5', '#0c2c38', '#b9fff6', '#347889'), 'basin'),
+  t('radio_telescope_field', 'Silent Receiver Field', 'Every dish points toward a different empty star.', 'dynamic', 'outdoor', ['outdoor', 'field', 'tech', 'vast'], ['server_rack_07', 'streetlight_02', 'pallet_stack_05', 'npc_mechanic_06', 'door_service'], 118, 92, 28, p('#3f463d', '#080d18', '#202c3d', '#b49cff', '#111827', '#e9ddff', '#536178'), 'field'),
+  t('empty_drive_in', 'Drive-In Without Cars', 'The screen shows the room from several minutes ago.', 'downer', 'outdoor', ['outdoor', 'parking', 'night', 'vast'], ['streetlight_06', 'bus_shelter_01', 'barrier_04', 'npc_courier_08', 'door_fake'], 128, 88, 30, p('#403d42', '#090b14', '#2b2d39', '#ff7189', '#11131d', '#ffd3dc', '#525363'), 'field'),
+  t('orbital_courtyard', 'Orbital Courtyard', 'Four pavilions keep the same moon between them.', 'upper', 'outdoor', ['outdoor', 'courtyard', 'garden', 'vast'], ['fountain_06', 'planter_03', 'sectional_02', 'npc_groundskeeper_04', 'arch_portal'], 96, 96, 26, p('#55604a', '#121b2a', '#536d5c', '#b8e58b', '#1d2c37', '#eaffd4', '#668075'), 'courtyard'),
+  t('desert_pool', 'Desert Pool Complex', 'Lifeguard towers watch lanes drawn in sand.', 'static', 'outdoor', ['outdoor', 'pool', 'dry', 'basin'], ['lifeguard_chair_05', 'pool_lounger_06', 'streetlight_04', 'npc_lifeguard_02', 'arch_portal'], 82, 68, 20, p('#a7815f', '#36516e', '#c09a70', '#49cbd0', '#6f8d9a', '#e2ffff', '#927d6e'), 'basin'),
+  t('mountain_carpark', 'Car Park Above the Clouds', 'Painted bays continue past the edge of the weather.', 'dynamic', 'outdoor', ['outdoor', 'parking', 'highway', 'causeway'], ['streetlight_08', 'barrier_06', 'bus_shelter_07', 'npc_mechanic_01', 'door_service'], 112, 72, 25, p('#686d73', '#7994ae', '#77818a', '#f2c84b', '#a8bbc8', '#ffffff', '#778b99'), 'causeway'),
+  t('night_festival_grounds', 'Festival Grounds After Rain', 'Colored bulbs remain on although every cable is cut.', 'dynamic', 'outdoor', ['outdoor', 'field', 'party', 'wet'], ['streetlight_03', 'picnic_table_07', 'swing_set_02', 'npc_usher_05', 'creature_balloon'], 104, 84, 23, p('#3d384d', '#0f1020', '#463e62', '#ff6ed0', '#17172b', '#ffd3f3', '#635779'), 'field'),
+  t('brutalist_quad', 'Brutalist University Quad', 'Every classroom door opens onto the same lawn.', 'downer', 'outdoor', ['outdoor', 'courtyard', 'school', 'concrete'], ['dining_chair_07', 'planter_05', 'streetlight_01', 'npc_teacher_06', 'door_glass'], 88, 88, 21, p('#666965', '#97a3ac', '#787d78', '#d6dc7a', '#89979c', '#f6ffd2', '#727c78'), 'courtyard'),
+  t('terminal_runway', 'Terminal Runway', 'A boarding lane crosses open ground without reaching a plane.', 'upper', 'outdoor', ['outdoor', 'airport', 'terminal', 'causeway'], ['bus_shelter_05', 'pallet_stack_01', 'streetlight_07', 'npc_courier_03', 'arch_portal'], 128, 48, 24, p('#606e75', '#6f9ab5', '#8ca9b5', '#e7f08a', '#92acb8', '#ffffff', '#78939d'), 'causeway'),
+  t('megamall_atrium', 'Megamall Central Atrium', 'Escalator music arrives from floors that do not exist.', 'upper', 'open-hall', ['mall', 'atrium', 'vast', 'retail'], ['sectional_04', 'reception_desk_03', 'planter_08', 'npc_receptionist_02', 'door_glass'], 96, 82, 26, p('#c5b7aa', '#d7d5d2', '#b9aca6', '#6acfd5', '#c7c9cb', '#f4ffff', '#9ba5aa'), 'atrium'),
+  t('civic_colonnade', 'Civic Colonnade', 'Numbered counters continue beyond the visible building.', 'static', 'open-hall', ['office', 'colonnade', 'civic', 'vast'], ['reception_desk_06', 'filing_cabinet_03', 'office_chair_05', 'npc_receptionist_07', 'door_service'], 110, 54, 18, p('#8b8476', '#d4d0c6', '#aaa498', '#6c89a2', '#b5b4ae', '#f6f3e7', '#8d908d'), 'colonnade'),
+  t('flooded_concourse', 'Flooded Concourse', 'Departure screens ripple above a perfectly solid floor.', 'dynamic', 'open-hall', ['terminal', 'wet', 'concourse', 'vast'], ['aquarium_tank_02', 'bus_shelter_06', 'terminal_console_01', 'npc_commuter_05', 'door_glass'], 94, 44, 16, p('#285766', '#17313d', '#3c7684', '#57d9d2', '#24515e', '#c7fffb', '#487782'), 'concourse'),
+  t('empty_arena', 'Arena for No Event', 'Rows of seats face a circle marked only with your footprints.', 'downer', 'open-hall', ['stadium', 'arena', 'echo', 'vast'], ['bleacher_05', 'lifeguard_chair_08', 'barrier_02', 'npc_usher_03', 'arch_portal'], 118, 92, 28, p('#55423d', '#201a1b', '#76534b', '#ff935f', '#342627', '#ffd7c2', '#654c47'), 'arena'),
+  t('expo_hall_zero', 'Expo Hall Zero', 'Booths advertise products that cannot be named.', 'static', 'open-hall', ['convention', 'concourse', 'vast', 'open'], ['reception_desk_01', 'kiosk_06', 'sectional_07', 'npc_tourist_08', 'door_glass'], 128, 84, 24, p('#4f4b62', '#222230', '#6a657c', '#7be3c7', '#323143', '#dcfff5', '#68657a'), 'concourse'),
+  t('grand_hotel_lobby', 'Grand Hotel Lobby', 'The bell rings once for every room you have left.', 'upper', 'open-hall', ['motel', 'atrium', 'lobby', 'open'], ['sectional_01', 'reception_desk_05', 'nightstand_02', 'npc_bellhop_06', 'door_glass'], 78, 64, 20, p('#7b5d4b', '#2a2026', '#a47a62', '#e8ba67', '#3c2e34', '#ffe9bd', '#886d62'), 'atrium'),
+  t('transit_mezzanine', 'Transit Mezzanine', 'Ticket gates count passengers who never arrive.', 'dynamic', 'open-hall', ['station', 'terminal', 'concourse', 'vast'], ['kiosk_04', 'bus_shelter_02', 'kiosk_08', 'npc_conductor_04', 'door_service'], 104, 48, 19, p('#4a555e', '#1a232b', '#64737e', '#f3c950', '#2a343d', '#fff0a8', '#5f6f78'), 'concourse'),
+  t('indoor_waterpark', 'Indoor Waterpark at Dawn', 'Slides end in basins tiled with dry reflections.', 'dynamic', 'open-hall', ['pool', 'basin', 'wet', 'vast'], ['pool_lounger_04', 'lifeguard_chair_03', 'aquarium_tank_07', 'npc_swimmer_06', 'arch_portal'], 96, 76, 25, p('#3f7f83', '#a8d9dc', '#70b6b6', '#ff9d68', '#83bdc0', '#edffff', '#6b9fa1'), 'basin'),
+  t('data_center_nave', 'Data Center Nave', 'Status lights blink in rows longer than the building.', 'static', 'open-hall', ['server', 'tech', 'colonnade', 'vast'], ['server_rack_01', 'server_rack_06', 'terminal_console_01', 'npc_hazmat_07', 'door_service'], 110, 58, 17, p('#262c36', '#11151c', '#3b4450', '#88a7ff', '#1e2630', '#c7d5ff', '#465565'), 'colonnade'),
+  t('banquet_void', 'Banquet Hall Without Guests', 'Every place setting is arranged for a different hour.', 'downer', 'open-hall', ['banquet', 'atrium', 'motel', 'vast'], ['dining_chair_02', 'coffee_table_06', 'reception_desk_08', 'npc_cook_04', 'door_glass'], 86, 72, 18, p('#5d3e43', '#21191d', '#7e545b', '#d6b16e', '#33262b', '#ffe4af', '#71575b'), 'atrium'),
 ];
 
 export const THEME_PRESETS: ThemePreset[] = [
@@ -454,7 +477,8 @@ export function catalogPromptSummary(): string {
   const familyLines = [...families.entries()].map(([family, variants]) => {
     const first = variants[0]!;
     const last = variants.at(-1)!;
-    return `${family}|${first.category}|ids:${first.id}..${last.id}|variants:${variants.length}|tags:${first.tags.join(',')}|moods:${first.moods.join(',')}`;
+    const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
+    return `${family}|${first.category}|ids:${first.id}..${last.id}|n:${variants.length}|tags:${first.tags.join(',')}|moods:${moods}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
   return `ASSETS:\n${[...baseLines, ...familyLines].join('\n')}\nTHEMES:\n${themes.join('\n')}`;
@@ -511,6 +535,7 @@ function t(
   depth: number,
   height: number,
   palette: ThemePreset['palette'],
+  architecture?: RoomArchitecture,
 ): ThemePreset {
   return {
     id,
@@ -518,6 +543,7 @@ function t(
     blurb,
     mood,
     environment,
+    architecture,
     tags,
     preferredAssets,
     width,

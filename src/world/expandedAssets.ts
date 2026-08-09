@@ -46,6 +46,26 @@ const PROP_FAMILIES: AssetFamily[] = [
   family('bleacher', 'bleacher', 'bleacher section', 'furniture', ['stadium', 'gym', 'school', 'echo'], { x: 2.8, y: 1.6, z: 1.7 }),
   family('tree', 'tree', 'liminal tree', 'decor', ['outdoor', 'park', 'garden', 'meadow'], { x: 1.8, y: 4.6, z: 1.8 }),
   family('fountain', 'fountain', 'dry fountain', 'fixture', ['plaza', 'courtyard', 'park', 'museum'], { x: 2.6, y: 1.7, z: 2.6 }),
+  family('dining_chair', 'dining_chair', 'dining chair', 'furniture', ['food', 'motel', 'home', 'banquet'], { x: 0.62, y: 1.12, z: 0.64 }),
+  family('office_chair', 'office_chair', 'rolling office chair', 'furniture', ['office', 'terminal', 'school', 'security'], { x: 0.72, y: 1.2, z: 0.72 }),
+  family('coffee_table', 'coffee_table', 'low coffee table', 'furniture', ['lobby', 'motel', 'home', 'waiting room'], { x: 1.45, y: 0.58, z: 0.82 }),
+  family('side_table', 'side_table', 'small side table', 'furniture', ['motel', 'home', 'lobby', 'clinic'], { x: 0.68, y: 0.72, z: 0.68 }),
+  family('filing_cabinet', 'filing_cabinet', 'drawer filing cabinet', 'furniture', ['office', 'archive', 'school', 'clinic'], { x: 0.72, y: 1.45, z: 0.72 }),
+  family('reception_desk', 'reception_desk', 'reception counter', 'furniture', ['lobby', 'clinic', 'motel', 'terminal'], { x: 2.8, y: 1.35, z: 1.05 }),
+  family('wardrobe', 'wardrobe', 'freestanding wardrobe', 'furniture', ['motel', 'home', 'backrooms', 'abandoned'], { x: 1.55, y: 2.25, z: 0.72 }),
+  family('sectional', 'sectional', 'sectional sofa', 'furniture', ['lobby', 'motel', 'atrium', 'home'], { x: 2.85, y: 1.08, z: 1.75 }),
+  family('hotel_bed', 'hotel_bed', 'made hotel bed', 'furniture', ['motel', 'home', 'abandoned', 'waiting room'], { x: 2.25, y: 1.25, z: 1.72 }),
+  family('nightstand', 'nightstand', 'bedside nightstand', 'furniture', ['motel', 'home', 'clinic'], { x: 0.68, y: 0.78, z: 0.62 }),
+  family('washer', 'washer', 'laundromat washer', 'fixture', ['laundry', 'service', 'motel', 'industrial'], { x: 0.95, y: 1.28, z: 0.9 }),
+  family('phone_booth', 'phone_booth', 'glass phone booth', 'fixture', ['station', 'highway', 'outdoor', 'terminal'], { x: 1.18, y: 2.45, z: 1.1 }),
+  family('bus_shelter', 'bus_shelter', 'empty bus shelter', 'fixture', ['outdoor', 'station', 'highway', 'night'], { x: 3.5, y: 2.55, z: 1.45 }),
+  family('swing_set', 'swing_set', 'playground swing set', 'fixture', ['outdoor', 'playground', 'park', 'fog'], { x: 3.2, y: 2.65, z: 1.8 }),
+  family('pool_lounger', 'pool_lounger', 'poolside lounger', 'furniture', ['pool', 'outdoor', 'motel', 'rooftop'], { x: 2.05, y: 0.82, z: 0.72 }),
+  family('lifeguard_chair', 'lifeguard_chair', 'lifeguard chair', 'furniture', ['pool', 'outdoor', 'stadium'], { x: 1.45, y: 2.8, z: 1.35 }),
+  family('streetlight', 'streetlight', 'streetlight', 'fixture', ['outdoor', 'plaza', 'highway', 'parking'], { x: 0.9, y: 5.2, z: 0.9 }),
+  family('pallet_stack', 'pallet_stack', 'stacked pallets', 'fixture', ['warehouse', 'industrial', 'service', 'parking'], { x: 1.55, y: 1.45, z: 1.25 }),
+  family('server_rack', 'server_rack', 'active server rack', 'fixture', ['server', 'office', 'industrial', 'tech'], { x: 0.9, y: 2.15, z: 0.95 }),
+  family('aquarium_tank', 'aquarium_tank', 'lit aquarium tank', 'fixture', ['aquarium', 'museum', 'lobby', 'wet'], { x: 2.15, y: 1.85, z: 0.82 }),
 ];
 
 const NPC_FAMILIES: AssetFamily[] = [
@@ -59,6 +79,16 @@ const NPC_FAMILIES: AssetFamily[] = [
   npc('npc_worker', 'figure_worker', 'office worker', ['office', 'archive', 'terminal'], 'wander'),
   npc('npc_patient', 'figure_patient', 'waiting patient', ['clinic', 'observation', 'waiting room'], 'idle'),
   npc('npc_conductor', 'figure_conductor', 'last conductor', ['station', 'subway', 'terminal'], 'stare'),
+  npc('npc_teacher', 'figure_teacher', 'after-hours teacher', ['school', 'classroom', 'archive'], 'stare'),
+  npc('npc_cook', 'figure_cook', 'closed-kitchen cook', ['food', 'motel', 'mall'], 'wander'),
+  npc('npc_swimmer', 'figure_swimmer', 'dry-pool swimmer', ['pool', 'aquarium', 'outdoor'], 'idle'),
+  npc('npc_groundskeeper', 'figure_groundskeeper', 'night groundskeeper', ['outdoor', 'park', 'garden'], 'wander'),
+  npc('npc_receptionist', 'figure_receptionist', 'late receptionist', ['lobby', 'clinic', 'motel'], 'stare'),
+  npc('npc_courier', 'figure_courier', 'lost courier', ['office', 'terminal', 'service'], 'wander'),
+  npc('npc_usher', 'figure_usher', 'silent usher', ['stadium', 'museum', 'chapel'], 'orbit'),
+  npc('npc_tourist', 'figure_tourist', 'stranded tourist', ['museum', 'plaza', 'terminal'], 'idle'),
+  npc('npc_mechanic', 'figure_mechanic', 'parking mechanic', ['parking', 'industrial', 'highway'], 'wander'),
+  npc('npc_lifeguard', 'figure_lifeguard', 'off-duty lifeguard', ['pool', 'outdoor', 'motel'], 'stare'),
 ];
 
 export const EXPANDED_ASSETS: AssetDef[] = [...PROP_FAMILIES, ...NPC_FAMILIES].flatMap(
@@ -104,9 +134,9 @@ function family(
 }
 
 function renderCostFor(kind: string, category: AssetCategory): number {
-  if (category === 'npc') return 4;
-  if (kind === 'bookcase') return 5;
-  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree'].includes(kind)) {
+  if (category === 'npc') return 5;
+  if (['bookcase', 'bus_shelter', 'swing_set', 'server_rack', 'aquarium_tank'].includes(kind)) return 5;
+  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree', 'reception_desk', 'sectional', 'hotel_bed', 'phone_booth', 'lifeguard_chair', 'pallet_stack'].includes(kind)) {
     return 3;
   }
   return 2;

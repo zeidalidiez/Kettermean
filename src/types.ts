@@ -3,6 +3,16 @@ export type LlmProvider = 'offline' | 'openai' | 'anthropic' | 'browser';
 export type MoodAxis = 'upper' | 'downer' | 'static' | 'dynamic';
 export type RoomEnvironment = 'interior' | 'open-hall' | 'outdoor';
 export type RoomLayoutStyle = 'clusters' | 'perimeter' | 'axial' | 'scattered' | 'sparse';
+export type RoomArchitecture =
+  | 'chamber'
+  | 'colonnade'
+  | 'atrium'
+  | 'arena'
+  | 'concourse'
+  | 'courtyard'
+  | 'causeway'
+  | 'field'
+  | 'basin';
 export type RoomSizeClass = 'compact' | 'standard' | 'large' | 'vast';
 
 export interface AppSettings {
@@ -151,6 +161,7 @@ export interface RoomSpec {
   mood: MoodAxis;
   environment?: RoomEnvironment;
   layoutStyle?: RoomLayoutStyle;
+  architecture?: RoomArchitecture;
   width: number;
   depth: number;
   height: number;
@@ -171,6 +182,7 @@ export interface RoomHistoryEntry {
   themeId?: string;
   environment: RoomEnvironment;
   layoutStyle: RoomLayoutStyle;
+  architecture: RoomArchitecture;
   sizeClass: RoomSizeClass;
   mood: MoodAxis;
   shader: RoomShaderStyle;

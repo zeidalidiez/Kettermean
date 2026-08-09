@@ -5,6 +5,7 @@ import type {
   EntityBehavior,
   GenerationContext,
   MoodAxis,
+  RoomArchitecture,
   RoomEnvironment,
   RoomEntity,
   RoomHistoryEntry,
@@ -37,6 +38,7 @@ export interface DirectorSteer {
   visuals?: Partial<RoomVisuals>;
   environment?: RoomEnvironment;
   layoutStyle?: RoomLayoutStyle;
+  architecture?: RoomArchitecture;
 }
 
 /**
@@ -50,6 +52,9 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
   const theme = selectNovelTheme(rng, recentRooms, steer?.themeId);
   const environment = steer?.environment ?? environmentForTheme(theme);
   const layoutStyle = steer?.layoutStyle ?? selectNovelLayout(rng, recentRooms, environment);
+  const architecture =
+    steer?.architecture ??
+    selectNovelArchitecture(rng, recentRooms, environment, theme.architecture);
 
   const proposedMood =
     steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
@@ -123,6 +128,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     height,
     environment,
     layoutStyle,
+    architecture,
     fogNear: mood === 'downer' ? 10 : mood === 'upper' ? 18 : 13,
     fogFar: Math.max(
       mood === 'downer' ? 36 : mood === 'upper' ? 68 : 48,
@@ -244,6 +250,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     mood: dir.mood,
     environment: dir.environment ?? (theme ? environmentForTheme(theme) : 'interior'),
     layoutStyle: dir.layoutStyle ?? 'clusters',
+    architecture: dir.architecture ?? theme?.architecture ?? 'chamber',
     width: dir.width,
     depth: dir.depth,
     height: dir.height,
@@ -533,6 +540,12 @@ const LAYOUT_STYLES: RoomLayoutStyle[] = [
   'sparse',
 ];
 
+const ARCHITECTURES: Record<RoomEnvironment, RoomArchitecture[]> = {
+  interior: ['chamber', 'colonnade', 'atrium', 'concourse', 'basin'],
+  'open-hall': ['colonnade', 'atrium', 'arena', 'concourse', 'courtyard', 'basin'],
+  outdoor: ['courtyard', 'causeway', 'field', 'basin', 'arena'],
+};
+
 function selectNovelTheme(
   rng: SeededRng,
   recentRooms: RoomHistoryEntry[],
@@ -589,6 +602,19 @@ function selectNovelLayout(
         : LAYOUT_STYLES;
   const recent = new Set(recentRooms.slice(-2).map((room) => room.layoutStyle));
   const fresh = suitable.filter((style) => !recent.has(style));
+  return rng.pick(fresh.length ? fresh : suitable);
+}
+
+function selectNovelArchitecture(
+  rng: SeededRng,
+  recentRooms: RoomHistoryEntry[],
+  environment: RoomEnvironment,
+  preferred?: RoomArchitecture,
+): RoomArchitecture {
+  const suitable = ARCHITECTURES[environment];
+  const recent = new Set(recentRooms.slice(-3).map((room) => room.architecture));
+  if (preferred && suitable.includes(preferred) && !recent.has(preferred)) return preferred;
+  const fresh = suitable.filter((architecture) => !recent.has(architecture));
   return rng.pick(fresh.length ? fresh : suitable);
 }
 
@@ -675,6 +701,7 @@ export function roomHistoryEntryFor(spec: RoomSpec): RoomHistoryEntry {
     themeId: spec.themeId,
     environment: spec.environment ?? 'interior',
     layoutStyle: spec.layoutStyle ?? 'clusters',
+    architecture: spec.architecture ?? 'chamber',
     sizeClass: sizeClassForDimensions(spec.width, spec.depth),
     mood: spec.mood,
     shader: spec.visuals?.shader ?? 'none',

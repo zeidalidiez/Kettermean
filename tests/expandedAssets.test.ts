@@ -13,12 +13,12 @@ import {
 afterAll(() => clearModelMaterialCache());
 
 describe('expanded procedural asset catalog', () => {
-  it('contains 240 unique variants across 30 eight-member families', () => {
-    expect(EXPANDED_ASSET_COUNT).toBe(240);
-    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(240);
+  it('contains 480 unique variants across 60 eight-member families', () => {
+    expect(EXPANDED_ASSET_COUNT).toBe(480);
+    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(480);
 
     const families = Map.groupBy(EXPANDED_ASSETS, (asset) => asset.family);
-    expect(families.size).toBe(30);
+    expect(families.size).toBe(60);
     for (const variants of families.values()) {
       expect(variants).toHaveLength(8);
       expect(new Set(variants.map((asset) => asset.variant))).toEqual(
@@ -26,8 +26,8 @@ describe('expanded procedural asset catalog', () => {
       );
     }
 
-    expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(80);
-    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(160);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(160);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(320);
     expect(ASSETS).toEqual(expect.arrayContaining(EXPANDED_ASSETS));
   });
 
@@ -43,7 +43,7 @@ describe('expanded procedural asset catalog', () => {
       });
 
       expect(meshes.length, asset.id).toBeGreaterThanOrEqual(
-        asset.category === 'npc' ? 15 : 5,
+        asset.category === 'npc' ? 24 : 5,
       );
       expect(boundsForKind(kind).h, asset.id).toBeGreaterThan(0);
 
@@ -97,7 +97,7 @@ describe('expanded procedural asset catalog', () => {
 
   it('draws broadly from the new library during procedural generation', () => {
     const used = new Set<string>();
-    for (let index = 0; index < 1_200; index += 1) {
+    for (let index = 0; index < 2_000; index += 1) {
       const room = generateOfflineRoom({
         seed: `asset-coverage-${index}`,
         previousTitles: [],
@@ -112,6 +112,6 @@ describe('expanded procedural asset catalog', () => {
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(220);
+    expect(used.size).toBeGreaterThanOrEqual(420);
   });
 });

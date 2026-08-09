@@ -153,12 +153,59 @@ function buildPackLibrary(): LayoutPack[] {
   let n = 0;
   const id = (role: string) => `pack_${role}_${(n++).toString(36)}`;
 
-  const seating = ['chair_office', 'chair_plastic', 'bench_wait', 'bench_pew'];
-  const desks = ['desk_security', 'desk_intake', 'table_food'];
-  const storage = ['cabinet_file', 'cabinet_util', 'shelf_toy'];
-  const utility = ['cart_janitor', 'cooler_water', 'sign_wet', 'payphone_wall'];
+  const familyVariants = (families: string[], perFamily = 1): string[] =>
+    families.flatMap((family) =>
+      ASSETS.filter((asset) => asset.family === family)
+        .slice(0, perFamily)
+        .map((asset) => asset.id),
+    );
+
+  const seating = [
+    'chair_office',
+    'chair_plastic',
+    'bench_wait',
+    'bench_pew',
+    ...familyVariants(['dining_chair', 'office_chair', 'armchair', 'sofa', 'sectional'], 2),
+  ];
+  const desks = [
+    'desk_security',
+    'desk_intake',
+    'table_food',
+    ...familyVariants(['school_desk', 'coffee_table', 'reception_desk'], 2),
+  ];
+  const storage = [
+    'cabinet_file',
+    'cabinet_util',
+    'shelf_toy',
+    ...familyVariants(['filing_cabinet', 'wardrobe', 'locker', 'bookcase', 'server_rack'], 1),
+  ];
+  const utility = [
+    'cart_janitor',
+    'cooler_water',
+    'sign_wet',
+    'payphone_wall',
+    ...familyVariants(['washer', 'phone_booth', 'pallet_stack', 'aquarium_tank'], 1),
+  ];
   const nursery = ['crib_empty', 'bottle_giant', 'shelf_toy'];
-  const npcs = ['npc_clerk', 'npc_guide', 'npc_raincoat', 'npc_mannequin', 'npc_shadow'];
+  const npcs = [
+    'npc_clerk',
+    'npc_guide',
+    'npc_raincoat',
+    'npc_mannequin',
+    'npc_shadow',
+    ...familyVariants([
+      'npc_teacher',
+      'npc_cook',
+      'npc_swimmer',
+      'npc_groundskeeper',
+      'npc_receptionist',
+      'npc_courier',
+      'npc_usher',
+      'npc_tourist',
+      'npc_mechanic',
+      'npc_lifeguard',
+    ]),
+  ];
   const creatures = ['creature_deer', 'creature_balloon'];
   const anomalies = ['anomaly_giant_baby', 'bottle_giant', 'npc_shadow'];
 
@@ -284,6 +331,131 @@ function buildPackLibrary(): LayoutPack[] {
     });
   }
 
+  // New high-detail scene beats keep the expanded objects in readable arrangements.
+  const authoredBeats: Array<Omit<LayoutPack, 'id'>> = [
+    {
+      role: 'sleep',
+      tags: ['motel', 'home', 'lobby'],
+      moods: ['upper', 'downer', 'static'],
+      radius: 2.8,
+      prefer: 'wall',
+      weight: 1.15,
+      slots: [
+        { pick: 'hotel_bed_01', x: 0, z: 0 },
+        { pick: 'nightstand_02', x: 1.45, z: -0.35 },
+        { pick: 'wardrobe_03', x: -1.55, z: -0.3, rotY: Math.PI / 2, omitChance: 0.3 },
+      ],
+    },
+    {
+      role: 'waiting',
+      tags: ['station', 'highway', 'outdoor', 'terminal'],
+      moods: ['static', 'downer', 'upper'],
+      radius: 3.2,
+      prefer: 'open',
+      weight: 1.05,
+      slots: [
+        { pick: 'bus_shelter_01', x: 0, z: 0 },
+        { pick: 'streetlight_02', x: 2.15, z: 0.2, omitChance: 0.35 },
+        { pick: 'npc_commuter_03', x: 0.4, z: 0.5, behavior: 'idle', omitChance: 0.25 },
+      ],
+    },
+    {
+      role: 'seating',
+      tags: ['pool', 'outdoor', 'motel'],
+      moods: ['upper', 'static', 'dynamic'],
+      radius: 3.0,
+      prefer: 'open',
+      weight: 1.05,
+      slots: [
+        { pick: 'pool_lounger_01', x: -1.0, z: 0, rotY: Math.PI / 2 },
+        { pick: 'pool_lounger_03', x: 1.0, z: 0, rotY: Math.PI / 2, omitChance: 0.25 },
+        { pick: 'lifeguard_chair_02', x: 0, z: -1.35, omitChance: 0.4 },
+      ],
+    },
+    {
+      role: 'storage',
+      tags: ['server', 'tech', 'industrial'],
+      moods: ['static', 'dynamic', 'downer'],
+      radius: 2.4,
+      prefer: 'wall',
+      weight: 1.2,
+      slots: [
+        { pick: 'server_rack_01', x: -0.95, z: 0 },
+        { pick: 'server_rack_04', x: 0, z: 0 },
+        { pick: 'server_rack_07', x: 0.95, z: 0, omitChance: 0.2 },
+        { pick: 'npc_hazmat_03', x: 0.25, z: 1.2, behavior: 'wander', omitChance: 0.45 },
+      ],
+    },
+    {
+      role: 'decor',
+      tags: ['playground', 'park', 'outdoor', 'fog'],
+      moods: ['downer', 'upper', 'static'],
+      radius: 3.0,
+      prefer: 'open',
+      weight: 1.0,
+      slots: [
+        { pick: 'swing_set_01', x: 0, z: 0 },
+        { pick: 'bench_wait', x: 0, z: 1.8, rotY: Math.PI },
+        { pick: 'npc_groundskeeper_02', x: -1.5, z: 1.1, behavior: 'wander', omitChance: 0.45 },
+      ],
+    },
+    {
+      role: 'desk_work',
+      tags: ['lobby', 'clinic', 'motel', 'office'],
+      moods: ['upper', 'downer', 'static'],
+      radius: 2.5,
+      prefer: 'wall',
+      weight: 1.25,
+      slots: [
+        { pick: 'reception_desk_01', x: 0, z: 0 },
+        { pick: 'office_chair_02', x: 0, z: -0.9 },
+        { pick: 'npc_receptionist_03', x: 0.3, z: -0.6, behavior: 'stare', omitChance: 0.35 },
+      ],
+    },
+    {
+      role: 'utility',
+      tags: ['laundry', 'service', 'motel'],
+      moods: ['static', 'downer', 'dynamic'],
+      radius: 2.4,
+      prefer: 'wall',
+      weight: 1.05,
+      slots: [
+        { pick: 'washer_01', x: -0.95, z: 0 },
+        { pick: 'washer_04', x: 0, z: 0 },
+        { pick: 'washer_07', x: 0.95, z: 0, omitChance: 0.2 },
+        { pick: 'dining_chair_05', x: 0, z: 1.2, rotY: Math.PI, omitChance: 0.4 },
+      ],
+    },
+    {
+      role: 'decor',
+      tags: ['aquarium', 'museum', 'wet', 'lobby'],
+      moods: ['upper', 'static', 'dynamic'],
+      radius: 2.6,
+      prefer: 'wall',
+      weight: 1.15,
+      slots: [
+        { pick: 'aquarium_tank_01', x: 0, z: 0 },
+        { pick: 'bench_wait', x: 0, z: 1.35, rotY: Math.PI },
+        { pick: 'npc_tourist_02', x: 1.15, z: 0.9, behavior: 'idle', omitChance: 0.45 },
+      ],
+    },
+    {
+      role: 'utility',
+      tags: ['warehouse', 'industrial', 'service', 'parking'],
+      moods: ['downer', 'static', 'dynamic'],
+      radius: 2.8,
+      prefer: 'corner',
+      weight: 1.1,
+      slots: [
+        { pick: 'pallet_stack_01', x: -0.8, z: 0 },
+        { pick: 'pallet_stack_05', x: 0.8, z: 0.2, rotY: Math.PI / 2, omitChance: 0.25 },
+        { pick: 'barrier_03', x: 0, z: 1.35, omitChance: 0.35 },
+        { pick: 'npc_mechanic_02', x: -0.2, z: 1.0, behavior: 'wander', omitChance: 0.45 },
+      ],
+    },
+  ];
+  for (const beat of authoredBeats) out.push({ id: id('authored'), ...beat });
+
   // Plant clusters
   for (const s of [0.7, 1.0, 1.3]) {
     out.push({
@@ -297,7 +469,7 @@ function buildPackLibrary(): LayoutPack[] {
       slots: [
         { pick: 'plant_fern', x: 0, z: 0, scaleJitter: [0.8, 1.6] },
         { pick: 'plant_fern', x: s, z: s * 0.4, scaleJitter: [0.6, 1.3], omitChance: 0.2 },
-        { pick: 'plant_fern', x: -s * 0.6, z: s * 0.5, scaleJitter: [0.7, 1.5], omitChance: 0.35 },
+        { pick: 'planter_01', x: -s * 0.6, z: s * 0.5, scaleJitter: [0.7, 1.35], omitChance: 0.35 },
         { pick: 'lamp_floor', x: s * 0.2, z: -s * 0.5, omitChance: 0.5 },
       ],
     });
