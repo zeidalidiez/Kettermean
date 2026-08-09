@@ -23,7 +23,15 @@ export type RoomCondition =
   | 'burning'
   | 'ruined'
   | 'overgrown'
-  | 'frozen';
+  | 'frozen'
+  | 'flooded'
+  | 'dusty'
+  | 'moldy'
+  | 'electrified'
+  | 'haunted'
+  | 'gilded'
+  | 'bioluminescent'
+  | 'stormbound';
 
 /** Semantic object-set plan used to keep a room coherent without removing surprise. */
 export interface RoomComposition {

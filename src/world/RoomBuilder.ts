@@ -19,6 +19,7 @@ import {
   kindFromLabel,
   type PropKind,
 } from './models';
+import { generateRoomSigns, type ProceduralSignText } from './signLexicon';
 
 interface LiveEntity {
   mesh: THREE.Object3D;
@@ -76,6 +77,7 @@ export class RoomWorld {
   private lights: THREE.Light[] = [];
   private pulsingLights: PulsingLight[] = [];
   private conditionEffects: AnimatedConditionEffect[] = [];
+  private generatedTextures: THREE.Texture[] = [];
   private navigationLight: THREE.PointLight | null = null;
   private spec: RoomSpec | null = null;
 
@@ -197,6 +199,7 @@ export class RoomWorld {
 
     if (outdoor) this.addOutdoorSky(spec);
     this.addArchitecture(spec);
+    this.addProceduralSignage(spec);
 
     for (const prop of spec.props) {
       this.addProp(prop);
@@ -411,6 +414,8 @@ export class RoomWorld {
     });
     for (const material of materials) material.dispose();
     this.group.clear();
+    for (const texture of this.generatedTextures) texture.dispose();
+    this.generatedTextures = [];
     clearMaterialCaches();
     clearModelMaterialCache();
     for (const l of this.lights) {
@@ -825,6 +830,128 @@ export class RoomWorld {
       silhouette.name = 'horizon-silhouette';
       this.group.add(silhouette);
     }
+  }
+
+  /**
+   * Seeded signs use a tagged word graph rather than hard-coded room labels.
+   * This gives every environment readable language that still belongs to its
+   * place: tropical words pull tropical institutions/services, transit words
+   * pull platforms and routes, and so on.
+   */
+  private addProceduralSignage(spec: RoomSpec): void {
+    const signs = generateRoomSigns({
+      seed: spec.seed,
+      tags: spec.themeTags,
+      mood: spec.mood,
+      condition: spec.condition,
+      environment: spec.environment ?? 'interior',
+      architecture: spec.architecture ?? 'chamber',
+      scaleProfile: spec.scaleProfile ?? 'human',
+    });
+    const rng = new SeededRng(`${spec.seed}:sign-placement`);
+    const detailScale = clampNumber(spec.worldScale ?? 1, 0.72, 3.2);
+    const halfW = spec.width * 0.5;
+    const halfD = spec.depth * 0.5;
+    const freestanding = spec.environment === 'outdoor' ||
+      spec.architecture === 'field' || spec.architecture === 'causeway';
+
+    signs.forEach((sign, index) => {
+      const width = Math.min(
+        (index % 3 === 0 ? 4.8 : 3.7) * detailScale,
+        Math.max(2.4, Math.min(spec.width, spec.depth) * 0.32),
+      );
+      const height = Math.max(1.05, width * 0.39);
+      const signGroup = this.createProceduralSign(sign, spec, index, width, height);
+      signGroup.name = `procedural-sign-${index}`;
+      signGroup.userData.signText = sign.headline;
+      signGroup.userData.signCaption = sign.caption;
+
+      if (freestanding) {
+        const angle = (index / Math.max(1, signs.length)) * Math.PI * 2 + rng.float(-0.45, 0.45);
+        const radiusX = halfW * rng.float(0.5, 0.72);
+        const radiusZ = halfD * rng.float(0.5, 0.72);
+        const x = Math.cos(angle) * radiusX;
+        const z = Math.sin(angle) * radiusZ;
+        const boardY = Math.min(spec.height * 0.52, (2.25 + rng.float(0, 0.8)) * detailScale);
+        signGroup.position.set(x, boardY, z);
+        signGroup.lookAt(0, boardY, 0);
+
+        const postHeight = Math.max(1, boardY - height * 0.48);
+        const postMaterial = plainMaterial(spec.palette.walls, 0.8, 0.28);
+        for (const side of [-1, 1]) {
+          const post = new THREE.Mesh(
+            new THREE.BoxGeometry(0.09 * detailScale, postHeight, 0.09 * detailScale),
+            postMaterial,
+          );
+          post.position.set(side * width * 0.34, -boardY + postHeight * 0.5, -0.08);
+          post.name = `procedural-sign-${index}-post`;
+          signGroup.add(post);
+        }
+      } else if (
+        (spec.architecture === 'concourse' || spec.environment === 'open-hall') &&
+        index === 0
+      ) {
+        signGroup.position.set(
+          0,
+          Math.max(height, Math.min(spec.height - height * 0.65, spec.height * 0.68)),
+          rng.float(-halfD * 0.32, halfD * 0.32),
+        );
+        signGroup.rotation.y = rng.chance(0.5) ? 0 : Math.PI;
+      } else {
+        const side = index % 4;
+        const wallY = Math.max(
+          height * 0.62 + 0.3,
+          Math.min(spec.height - height * 0.62 - 0.25, spec.height * rng.float(0.45, 0.7)),
+        );
+        if (side === 0) {
+          signGroup.position.set(rng.float(-halfW * 0.5, halfW * 0.5), wallY, -halfD + 0.22);
+        } else if (side === 1) {
+          signGroup.position.set(rng.float(-halfW * 0.5, halfW * 0.5), wallY, halfD - 0.22);
+          signGroup.rotation.y = Math.PI;
+        } else if (side === 2) {
+          signGroup.position.set(halfW - 0.22, wallY, rng.float(-halfD * 0.5, halfD * 0.5));
+          signGroup.rotation.y = -Math.PI / 2;
+        } else {
+          signGroup.position.set(-halfW + 0.22, wallY, rng.float(-halfD * 0.5, halfD * 0.5));
+          signGroup.rotation.y = Math.PI / 2;
+        }
+      }
+
+      this.group.add(signGroup);
+    });
+  }
+
+  private createProceduralSign(
+    sign: ProceduralSignText,
+    spec: RoomSpec,
+    index: number,
+    width: number,
+    height: number,
+  ): THREE.Group {
+    const texture = makeSignTexture(sign, spec, index);
+    this.generatedTextures.push(texture);
+    const group = new THREE.Group();
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(width + 0.16, height + 0.16, 0.12),
+      plainMaterial(spec.condition === 'burning' || spec.condition === 'scorched' ? '#25150f' : '#161a1e', 0.66, 0.2),
+    );
+    panel.name = 'procedural-sign-panel';
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, height),
+      new THREE.MeshStandardMaterial({
+        map: texture,
+        emissiveMap: texture,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveIntensity: spec.condition === 'dusty' ? 0.12 : 0.32,
+        roughness: spec.condition === 'flooded' || spec.condition === 'slimed' ? 0.28 : 0.62,
+        metalness: 0.04,
+        side: THREE.DoubleSide,
+      }),
+    );
+    face.position.z = 0.066;
+    face.name = 'procedural-sign-face';
+    group.add(panel, face);
+    return group;
   }
 
   private addConditionEnvironment(spec: RoomSpec): void {
@@ -1466,6 +1593,149 @@ function setRigAxis(object: THREE.Object3D | undefined, axis: 'x' | 'y', offset:
   if (!object) return;
   const base = object.userData.baseRotation as { x?: number; y?: number } | undefined;
   object.rotation[axis] = (base?.[axis] ?? 0) + offset;
+}
+
+function makeSignTexture(
+  sign: ProceduralSignText,
+  spec: RoomSpec,
+  index: number,
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 448;
+  const context = canvas.getContext('2d');
+  if (!context) return new THREE.CanvasTexture(canvas);
+  const colors = signColors(spec);
+  const rng = new SeededRng(`${spec.seed}:sign-texture:${index}`);
+
+  context.fillStyle = colors.background;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = colors.band;
+  context.fillRect(0, 0, canvas.width, 54);
+  context.fillRect(0, canvas.height - 76, canvas.width, 76);
+  context.strokeStyle = colors.border;
+  context.lineWidth = 18;
+  context.strokeRect(14, 14, canvas.width - 28, canvas.height - 28);
+  context.lineWidth = 3;
+  context.strokeRect(38, 38, canvas.width - 76, canvas.height - 76);
+
+  const lines = balancedSignLines(sign.headline.toUpperCase());
+  context.fillStyle = colors.ink;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  const maxFont = lines.length === 1 ? 118 : 94;
+  const fontSize = fitSignFont(context, lines, 890, maxFont, 50);
+  context.font = `800 ${fontSize}px "Arial Narrow", "Helvetica Neue", sans-serif`;
+  const lineHeight = fontSize * 0.94;
+  const centerY = 205;
+  lines.forEach((line, lineIndex) => {
+    const y = centerY + (lineIndex - (lines.length - 1) * 0.5) * lineHeight;
+    context.fillText(line, canvas.width * 0.5, y);
+  });
+
+  context.fillStyle = colors.caption;
+  context.font = '700 35px "Arial Narrow", "Helvetica Neue", sans-serif';
+  context.letterSpacing = '5px';
+  context.fillText(sign.caption.toUpperCase(), canvas.width * 0.5, canvas.height - 39);
+
+  // Cheap deterministic wear makes identical words feel printed in different places.
+  for (let mark = 0; mark < 48; mark += 1) {
+    const alpha = rng.float(0.025, spec.condition === 'ruined' || spec.condition === 'scorched' ? 0.18 : 0.08);
+    context.fillStyle = `rgba(0, 0, 0, ${alpha.toFixed(3)})`;
+    context.fillRect(
+      rng.int(22, canvas.width - 28),
+      rng.int(20, canvas.height - 24),
+      rng.int(2, 32),
+      rng.int(1, 8),
+    );
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function balancedSignLines(headline: string): string[] {
+  if (headline.length <= 22) return [headline];
+  const words = headline.split(' ');
+  if (words.length < 2) return [headline];
+  let bestIndex = 1;
+  let bestDifference = Infinity;
+  for (let index = 1; index < words.length; index += 1) {
+    const first = words.slice(0, index).join(' ');
+    const second = words.slice(index).join(' ');
+    const difference = Math.abs(first.length - second.length);
+    if (difference < bestDifference) {
+      bestDifference = difference;
+      bestIndex = index;
+    }
+  }
+  return [words.slice(0, bestIndex).join(' '), words.slice(bestIndex).join(' ')];
+}
+
+function fitSignFont(
+  context: CanvasRenderingContext2D,
+  lines: readonly string[],
+  maxWidth: number,
+  maximum: number,
+  minimum: number,
+): number {
+  for (let size = maximum; size >= minimum; size -= 2) {
+    context.font = `800 ${size}px "Arial Narrow", "Helvetica Neue", sans-serif`;
+    if (lines.every((line) => context.measureText(line).width <= maxWidth)) return size;
+  }
+  return minimum;
+}
+
+function signColors(spec: RoomSpec): {
+  background: string;
+  ink: string;
+  caption: string;
+  band: string;
+  border: string;
+} {
+  switch (spec.condition) {
+    case 'bloodied':
+      return { background: '#e8ddcf', ink: '#510811', caption: '#f5dfe1', band: '#680914', border: '#36040a' };
+    case 'slimed':
+      return { background: '#15240e', ink: '#c8ff86', caption: '#081006', band: '#76c93d', border: '#9cf15c' };
+    case 'scorched':
+    case 'burning':
+      return { background: '#25120b', ink: '#ffbd63', caption: '#241006', band: '#f56b25', border: '#ff9d3e' };
+    case 'ruined':
+      return { background: '#504d47', ink: '#ece5d4', caption: '#e2ddd1', band: '#282724', border: '#b0a995' };
+    case 'overgrown':
+      return { background: '#17331b', ink: '#d5f2b0', caption: '#102411', band: '#6f9d46', border: '#a8cb6f' };
+    case 'frozen':
+      return { background: '#d2edf3', ink: '#173e52', caption: '#e9fbff', band: '#397c9d', border: '#8fd8ee' };
+    case 'flooded':
+      return { background: '#153b46', ink: '#d7fbff', caption: '#0e303a', band: '#65d6df', border: '#9beef1' };
+    case 'dusty':
+      return { background: '#756a54', ink: '#f2e6c5', caption: '#392f20', band: '#c7a96c', border: '#dfc58d' };
+    case 'moldy':
+      return { background: '#2a3320', ink: '#d8e3a7', caption: '#182010', band: '#87924b', border: '#b0bd69' };
+    case 'electrified':
+      return { background: '#061c28', ink: '#baf8ff', caption: '#021219', band: '#42e3ff', border: '#88f3ff' };
+    case 'haunted':
+      return { background: '#242633', ink: '#e7ecff', caption: '#20212b', band: '#aeb9e8', border: '#d7ddff' };
+    case 'gilded':
+      return { background: '#2b210b', ink: '#ffe47d', caption: '#2b210b', band: '#d8a92d', border: '#f3d367' };
+    case 'bioluminescent':
+      return { background: '#071d20', ink: '#b6ffd8', caption: '#061517', band: '#5cf2b6', border: '#85ffdb' };
+    case 'stormbound':
+      return { background: '#242b35', ink: '#eef5ff', caption: '#1c222a', band: '#8fa9c8', border: '#c8d9ec' };
+    default:
+      return {
+        background: spec.palette.walls,
+        ink: spec.palette.light,
+        caption: spec.palette.floor,
+        band: spec.palette.accent,
+        border: spec.palette.light,
+      };
+  }
 }
 
 function defaultVisuals(): RoomVisuals {

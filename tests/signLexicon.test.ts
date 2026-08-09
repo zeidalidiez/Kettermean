@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import { generateRoomSigns, SIGN_WORDS } from '../src/world/signLexicon';
+
+const tropicalContext = (seed: string) => ({
+  seed,
+  tags: ['jungle', 'outdoor', 'garden'],
+  mood: 'upper' as const,
+  condition: 'overgrown' as const,
+  environment: 'outdoor' as const,
+  architecture: 'field' as const,
+  scaleProfile: 'grand' as const,
+});
+
+describe('tagged procedural signage', () => {
+  it('keeps a broad data-only vocabulary with explicit Jungle correlations', () => {
+    expect(SIGN_WORDS.length).toBeGreaterThan(380);
+    expect(SIGN_WORDS).toContainEqual(expect.objectContaining({
+      text: 'Jungle',
+      role: 'place',
+      tags: expect.arrayContaining(['environment', 'place', 'warm', 'tropical']),
+    }));
+  });
+
+  it('is deterministic while composing multiple different signs per large room', () => {
+    const first = generateRoomSigns(tropicalContext('green-sign-test'));
+    const second = generateRoomSigns(tropicalContext('green-sign-test'));
+
+    expect(second).toEqual(first);
+    expect(first.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(first.map((sign) => sign.headline)).size).toBe(first.length);
+    expect(first.every((sign) => sign.caption.length > 0)).toBe(true);
+  });
+
+  it('strongly favors words correlated with the room without eliminating surprise', () => {
+    const related = new Set(['tropical', 'warm', 'nature', 'garden', 'overgrown', 'outdoor']);
+    const signs = Array.from({ length: 180 }, (_, index) =>
+      generateRoomSigns(tropicalContext(`tropical-sign-${index}`)),
+    ).flat();
+    const correlated = signs.filter((sign) => sign.tags.some((tag) => related.has(tag)));
+
+    expect(correlated.length / signs.length).toBeGreaterThan(0.72);
+    expect(signs.some((sign) => sign.headline.includes('Jungle'))).toBe(true);
+  });
+});
