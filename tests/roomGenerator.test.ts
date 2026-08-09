@@ -72,6 +72,34 @@ describe('RoomGenerator cost controls', () => {
     expect(generator.getApiCallCount()).toBe(2);
   });
 
+  it('exposes pending and ready states without returning a procedural substitute', async () => {
+    let finish!: (value: Response) => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      finish = resolve;
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const generator = new RoomGenerator(settings);
+    generator.beginSession();
+    const ctx = context('readiness-state');
+
+    const preparation = generator.prefetch(ctx);
+    expect(preparation).not.toBeNull();
+    expect(generator.getReadiness(ctx)).toEqual({ state: 'pending' });
+    expect(generator.getReadyRoom(ctx)).toBeNull();
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    finish(response(
+      '{"themeId":"fluorescent_lobby","title":"Ready Lobby","blurb":"The validated room is waiting.","mood":"static"}',
+    ));
+    await preparation;
+
+    expect(generator.getReadiness(ctx)).toEqual({ state: 'ready' });
+    expect(generator.getReadyRoom(ctx)).toMatchObject({
+      offline: false,
+      title: 'Ready Lobby',
+    });
+  });
+
   it('does not automatically retry or rebill an unusable seed', async () => {
     const fetchMock = vi.fn(async () => response('not a usable room direction'));
     vi.stubGlobal('fetch', fetchMock);
@@ -84,6 +112,28 @@ describe('RoomGenerator cost controls', () => {
     expect(first.offline).toBe(true);
     expect(second.offline).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a total AI failure explicit until a manual retry succeeds', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response('not a usable room direction'))
+      .mockResolvedValueOnce(response(
+        '{"themeId":"fluorescent_lobby","title":"Retry Lobby","blurb":"The second attempt formed correctly.","mood":"upper"}',
+      ));
+    vi.stubGlobal('fetch', fetchMock);
+    const generator = new RoomGenerator(settings);
+    generator.beginSession();
+    const ctx = context('manual-retry');
+
+    const failed = await generator.prefetch(ctx);
+    expect(failed?.offline).toBe(true);
+    expect(generator.getReadiness(ctx)).toMatchObject({ state: 'failed' });
+    expect(generator.getReadyRoom(ctx)).toBeNull();
+
+    const retried = await generator.retry(ctx);
+    expect(retried).toMatchObject({ offline: false, title: 'Retry Lobby' });
+    expect(generator.getReadiness(ctx)).toEqual({ state: 'ready' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('aborts an obsolete cloud request when the session ends', async () => {

@@ -388,6 +388,28 @@ export class RoomWorld {
     return this.colliders;
   }
 
+  getNearbyDialogue(
+    playerPos: THREE.Vector3,
+    maxDistance = 5.5,
+  ): { label: string; dialogue: string } | null {
+    let nearest: { label: string; dialogue: string; distance: number } | null = null;
+    for (const entity of this.liveEntities) {
+      if (!entity.data.dialogue) continue;
+      const distance = Math.hypot(
+        entity.mesh.position.x - playerPos.x,
+        entity.mesh.position.z - playerPos.z,
+      );
+      const reach = maxDistance + Math.min(3, Math.max(entity.data.scale.x, entity.data.scale.z) * 0.35);
+      if (distance > reach || (nearest && distance >= nearest.distance)) continue;
+      nearest = {
+        label: entity.data.label,
+        dialogue: entity.data.dialogue,
+        distance,
+      };
+    }
+    return nearest ? { label: nearest.label, dialogue: nearest.dialogue } : null;
+  }
+
   getAllLinkables(): ColliderBox[] {
     return this.getColliders().filter((c) => c.linksOnTouch);
   }

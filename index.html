@@ -24,8 +24,10 @@
         <div id="hud-seed"></div>
         <div id="hud-ai-status">AI · preparing direction</div>
         <div id="hud-hint">The room waits.</div>
+        <div id="hud-rule" class="hidden"></div>
+        <div id="hud-npc-line" class="hidden"></div>
         <div id="hud-actions">
-          <div id="hud-action" class="hud-action"><kbd>R</kbd><span>Next dream · anytime</span></div>
+          <div id="hud-action" class="hud-action"><kbd>R</kbd><span id="hud-next-state">Next dream · anytime</span></div>
           <div id="hud-flashlight" class="hud-action">
             <kbd>F</kbd><span id="hud-flashlight-state">Flashlight · off</span>
           </div>
@@ -33,6 +35,17 @@
       </div>
 
       <div id="fade-overlay" aria-hidden="true"></div>
+
+      <section id="ai-recovery" class="ai-recovery hidden" role="alert" aria-labelledby="ai-recovery-title">
+        <div>
+          <strong id="ai-recovery-title">The next dream did not form.</strong>
+          <span id="ai-recovery-message">Retry the AI or explicitly use one procedural room.</span>
+        </div>
+        <div class="ai-recovery-actions">
+          <button id="retry-ai-btn" type="button"><kbd>R</kbd> Retry AI</button>
+          <button id="procedural-next-btn" type="button"><kbd>O</kbd> Use procedural room</button>
+        </div>
+      </section>
 
       <div id="touch-controls" class="hidden" aria-hidden="true">
         <button id="touch-pause" class="touch-action touch-pause" type="button" aria-label="Pause game">Ⅱ</button>

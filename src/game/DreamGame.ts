@@ -16,6 +16,7 @@ import { resolveRoomVisuals, roomHistoryEntryFor } from '../world/roomDirector';
 import { RoomPostProcessor } from './RoomPostProcessor';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'linking';
+type NextDreamState = 'instant' | 'pending' | 'ready' | 'failed';
 
 interface NextRoomPlan {
   seed: string;
@@ -53,6 +54,8 @@ export class DreamGame {
   private lastT = 0;
   private runEpoch = 0;
   private nextRoomPlan: NextRoomPlan | null = null;
+  private nextDreamState: NextDreamState = 'instant';
+  private lastNpcDialogue = '';
   private toastTimer: number | null = null;
   private contextLost = false;
   private readonly touchFirst: boolean;
@@ -63,6 +66,10 @@ export class DreamGame {
   private readonly hudTheme: HTMLElement;
   private readonly hudSeed: HTMLElement;
   private readonly hudAiStatus: HTMLElement;
+  private readonly hudAction: HTMLElement;
+  private readonly hudNextState: HTMLElement;
+  private readonly hudRule: HTMLElement;
+  private readonly hudNpcLine: HTMLElement;
   private readonly hudFlashlight: HTMLElement;
   private readonly hudFlashlightState: HTMLElement;
   private readonly menu: HTMLElement;
@@ -71,6 +78,11 @@ export class DreamGame {
   private readonly pauseMood: HTMLElement;
   private readonly pauseSeed: HTMLElement;
   private readonly toast: HTMLElement;
+  private readonly aiRecovery: HTMLElement;
+  private readonly aiRecoveryMessage: HTMLElement;
+  private readonly retryAiButton: HTMLButtonElement;
+  private readonly proceduralNextButton: HTMLButtonElement;
+  private readonly touchNextButton: HTMLButtonElement;
 
   constructor(settings: AppSettings) {
     this.settings = settings;
@@ -80,6 +92,10 @@ export class DreamGame {
     this.hudTheme = must('hud-theme');
     this.hudSeed = must('hud-seed');
     this.hudAiStatus = must('hud-ai-status');
+    this.hudAction = must('hud-action');
+    this.hudNextState = must('hud-next-state');
+    this.hudRule = must('hud-rule');
+    this.hudNpcLine = must('hud-npc-line');
     this.hudFlashlight = must('hud-flashlight');
     this.hudFlashlightState = must('hud-flashlight-state');
     this.menu = must('menu');
@@ -88,6 +104,11 @@ export class DreamGame {
     this.pauseMood = must('pause-mood');
     this.pauseSeed = must('pause-seed');
     this.toast = must('status-toast');
+    this.aiRecovery = must('ai-recovery');
+    this.aiRecoveryMessage = must('ai-recovery-message');
+    this.retryAiButton = must('retry-ai-btn') as HTMLButtonElement;
+    this.proceduralNextButton = must('procedural-next-btn') as HTMLButtonElement;
+    this.touchNextButton = must('touch-next') as HTMLButtonElement;
     this.touchFirst = window.matchMedia?.('(hover: none), (pointer: coarse)').matches ?? false;
 
     this.renderer = new THREE.WebGLRenderer({
@@ -123,10 +144,13 @@ export class DreamGame {
 
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onPausedKeyDown);
+    window.addEventListener('keydown', this.onRecoveryKeyDown);
     this.canvas.addEventListener('click', this.onCanvasClick);
     this.canvas.addEventListener('webglcontextlost', this.onContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    this.retryAiButton.addEventListener('click', this.onRetryAiClick);
+    this.proceduralNextButton.addEventListener('click', this.onProceduralNextClick);
 
     this.loop = this.loop.bind(this);
   }
@@ -141,7 +165,7 @@ export class DreamGame {
   }
 
   start(): void {
-    const runEpoch = ++this.runEpoch;
+    this.runEpoch += 1;
     this.generator.beginSession();
     this.rootSeed =
       this.settings.mode === 'seeded' && this.settings.seed.trim()
@@ -153,6 +177,7 @@ export class DreamGame {
     this.recentRooms = [];
     this.moodBias = 'static';
     this.nextRoomPlan = null;
+    this.setNextDreamState('instant');
     this.linking = false;
     this.lastLinkAt = -Infinity;
     this.fade.classList.remove('active');
@@ -182,29 +207,10 @@ export class DreamGame {
     if (!useLlm) {
       this.updateAiStatus('Procedural direction only');
       this.showToast('Offline room');
+      this.setNextDreamState('instant');
       return;
     }
-
-    if (this.settings.provider !== 'browser') {
-      this.schedulePrefetch();
-      return;
-    }
-
-    // WebLLM download/compilation happens in a worker. The current room stays
-    // untouched; the model only authors future rooms at deliberate link boundaries.
-    this.updateAiStatus('WebLLM · loading browser model…', true);
-    void (async (): Promise<void> => {
-      try {
-        await this.generator.preloadBrowserModel();
-        if (runEpoch !== this.runEpoch || this.state === 'menu') return;
-        this.schedulePrefetch();
-      } catch (err) {
-        console.warn('[Kettermean] browser model preload failed', err);
-        if (runEpoch === this.runEpoch && this.state !== 'menu') {
-          this.updateAiStatus('WebLLM unavailable · continuing procedurally', true);
-        }
-      }
-    })();
+    this.schedulePrefetch();
   }
 
   pause(): void {
@@ -234,6 +240,7 @@ export class DreamGame {
     this.stopLoop();
     this.linking = false;
     this.nextRoomPlan = null;
+    this.setNextDreamState('instant');
     this.fade.classList.remove('active');
     this.input.setEnabled(false);
     this.pauseMenu.classList.add('hidden');
@@ -243,6 +250,7 @@ export class DreamGame {
     this.roomWorld.dispose(this.scene);
     this.setFlashlightEnabled(false);
     this.hideToast();
+    this.hideRecovery();
   }
 
   dispose(): void {
@@ -251,10 +259,13 @@ export class DreamGame {
     this.stopLoop();
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onPausedKeyDown);
+    window.removeEventListener('keydown', this.onRecoveryKeyDown);
     this.canvas.removeEventListener('click', this.onCanvasClick);
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
     this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    this.retryAiButton.removeEventListener('click', this.onRetryAiClick);
+    this.proceduralNextButton.removeEventListener('click', this.onProceduralNextClick);
     this.input.dispose();
     this.roomWorld.dispose(this.scene);
     this.scene.remove(this.flashlight, this.flashlightFill, this.flashlightTarget);
@@ -306,6 +317,11 @@ export class DreamGame {
       ...visualLabels,
     ].filter(Boolean).join(' · ');
     must('hud-hint').textContent = spec.blurb;
+    this.hudRule.textContent = spec.roomRule ? `Rule · ${spec.roomRule}` : '';
+    this.hudRule.classList.toggle('hidden', !spec.roomRule);
+    this.hudNpcLine.textContent = '';
+    this.hudNpcLine.classList.add('hidden');
+    this.lastNpcDialogue = '';
   }
 
   private makeCtx(
@@ -329,9 +345,42 @@ export class DreamGame {
     };
   }
 
-  private schedulePrefetch(): void {
+  private schedulePrefetch(retry = false): void {
     const plan = this.ensureNextRoomPlan();
-    this.generator.prefetch(plan.context);
+    if (!this.isAiMode()) {
+      this.setNextDreamState('instant');
+      return;
+    }
+    const runEpoch = this.runEpoch;
+    const seed = plan.seed;
+    this.setNextDreamState('pending');
+    const preparation = retry
+      ? this.generator.retry(plan.context)
+      : this.generator.prefetch(plan.context);
+    if (!preparation) {
+      this.setNextDreamState('failed', 'The selected provider could not start.');
+      return;
+    }
+    void preparation.then((spec) => {
+      if (
+        runEpoch !== this.runEpoch ||
+        this.state === 'menu' ||
+        this.nextRoomPlan?.seed !== seed
+      ) return;
+      if (!spec.offline && this.generator.hasLlmRoom(plan.context)) {
+        this.setNextDreamState('ready');
+        return;
+      }
+      const readiness = this.generator.getReadiness(plan.context);
+      this.setNextDreamState(
+        'failed',
+        readiness.message ?? 'The AI response did not contain usable room direction.',
+      );
+    }).catch((err) => {
+      if (runEpoch !== this.runEpoch || this.nextRoomPlan?.seed !== seed) return;
+      const message = err instanceof Error ? err.message : String(err);
+      this.setNextDreamState('failed', message);
+    });
   }
 
   private ensureNextRoomPlan(): NextRoomPlan {
@@ -358,8 +407,30 @@ export class DreamGame {
     return this.nextRoomPlan;
   }
 
-  private async advanceDream(): Promise<void> {
+  private async advanceDream(forceProcedural = false): Promise<void> {
     if (this.linking || this.state !== 'playing') return;
+    const plan = this.ensureNextRoomPlan();
+    let spec: RoomSpec | null;
+    if (this.isAiMode() && !forceProcedural) {
+      const readiness = this.generator.getReadiness(plan.context);
+      if (readiness.state === 'failed' || this.nextDreamState === 'failed') {
+        this.retryNextAiRoom();
+        return;
+      }
+      if (readiness.state !== 'ready') {
+        if (readiness.state === 'idle') this.schedulePrefetch();
+        this.showToast('The next dream is still forming · keep exploring', false);
+        return;
+      }
+      spec = this.generator.getReadyRoom(plan.context);
+      if (!spec) {
+        this.schedulePrefetch();
+        this.showToast('Validating the next dream · please wait', false);
+        return;
+      }
+    } else {
+      spec = this.generator.getOrOffline(plan.context);
+    }
     const now = performance.now();
     if (now - this.lastLinkAt < LINK.cooldownMs) return;
 
@@ -373,15 +444,11 @@ export class DreamGame {
     this.fade.classList.add('active');
 
     try {
-      const plan = this.ensureNextRoomPlan();
       this.nextRoomPlan = null;
       this.linkIndex = plan.linkIndex;
       this.rootSeed = plan.rootSeed;
       this.currentSeed = plan.seed;
 
-      // Advancing must never wait on a network request or model download. Use a
-      // completed prefetch when available and deterministic offline output otherwise.
-      const spec = this.generator.getOrOffline(plan.context);
       await sleep(LINK.fadeMs);
       if (runEpoch !== this.runEpoch) return;
       this.applyRoom(spec);
@@ -423,6 +490,7 @@ export class DreamGame {
         this.player.update(dt, frame, colliders);
         this.updateFlashlightTransform();
         this.roomWorld.update(dt, this.player.position);
+        this.updateNearbyDialogue();
       }
     } else if (this.state === 'paused') {
       const frame = this.input.sample(dt);
@@ -514,6 +582,11 @@ export class DreamGame {
     if (this.state !== 'paused' || event.repeat) return;
     if (event.code === 'KeyR') {
       event.preventDefault();
+      if (this.isAiMode() && this.nextDreamState !== 'ready') {
+        if (this.nextDreamState === 'failed') this.retryNextAiRoom();
+        else this.showToast('The next dream is still forming · keep exploring', false);
+        return;
+      }
       this.resume();
       void this.advanceDream();
       return;
@@ -524,6 +597,28 @@ export class DreamGame {
     if (performance.now() - this.pausedAt < 150) return;
     event.preventDefault();
     this.resume();
+  };
+
+  private onRecoveryKeyDown = (event: KeyboardEvent): void => {
+    if (
+      event.repeat ||
+      event.code !== 'KeyO' ||
+      this.nextDreamState !== 'failed' ||
+      (this.state !== 'playing' && this.state !== 'paused')
+    ) return;
+    event.preventDefault();
+    if (this.state === 'paused') this.resume();
+    void this.advanceDream(true);
+  };
+
+  private onRetryAiClick = (): void => {
+    this.retryNextAiRoom();
+  };
+
+  private onProceduralNextClick = (): void => {
+    if (this.nextDreamState !== 'failed') return;
+    if (this.state === 'paused') this.resume();
+    void this.advanceDream(true);
   };
 
   private onPointerLockChange = (): void => {
@@ -551,6 +646,56 @@ export class DreamGame {
     if (announce && this.state !== 'menu') this.showToast(message);
   }
 
+  private isAiMode(): boolean {
+    return this.settings.provider === 'browser' ||
+      ((this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
+        Boolean(this.settings.apiKey.trim()));
+  }
+
+  private setNextDreamState(state: NextDreamState, message = ''): void {
+    this.nextDreamState = state;
+    this.hudAction.classList.remove('is-pending', 'is-ready', 'is-failed');
+    this.hudAction.classList.add(
+      state === 'pending' ? 'is-pending' : state === 'failed' ? 'is-failed' : 'is-ready',
+    );
+    this.hudNextState.textContent =
+      state === 'pending'
+        ? 'Next dream · forming'
+        : state === 'ready'
+          ? 'Next dream · ready'
+          : state === 'failed'
+            ? 'Retry AI · procedural escape available'
+            : 'Next dream · anytime';
+    this.touchNextButton.disabled = state === 'pending';
+    this.touchNextButton.textContent = state === 'pending' ? 'Forming' : state === 'failed' ? 'Retry' : 'Next';
+    this.hudAction.setAttribute('aria-disabled', String(state === 'pending'));
+    if (state === 'failed') {
+      this.aiRecoveryMessage.textContent = message || 'Retry the AI or explicitly use one procedural room.';
+      this.aiRecovery.classList.remove('hidden');
+    } else {
+      this.hideRecovery();
+    }
+  }
+
+  private retryNextAiRoom(): void {
+    if (!this.isAiMode() || this.nextDreamState === 'pending') return;
+    this.showToast('Retrying the next AI dream…', true);
+    this.schedulePrefetch(true);
+  }
+
+  private hideRecovery(): void {
+    this.aiRecovery.classList.add('hidden');
+  }
+
+  private updateNearbyDialogue(): void {
+    const nearby = this.roomWorld.getNearbyDialogue(this.player.position);
+    const text = nearby ? `${nearby.label} · “${nearby.dialogue}”` : '';
+    if (text === this.lastNpcDialogue) return;
+    this.lastNpcDialogue = text;
+    this.hudNpcLine.textContent = text;
+    this.hudNpcLine.classList.toggle('hidden', !nearby);
+  }
+
   private hideToast(): void {
     if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
     this.toastTimer = null;
@@ -569,5 +714,5 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isProgressMessage(message: string): boolean {
-  return /loading|downloading|fetching|warming|requesting|compiling|shader|model url|cache/i.test(message);
+  return /loading|downloading|fetching|warming|requesting|compiling|forming|creating|writing|directing|retrying|pass \d|shader|model url|cache/i.test(message);
 }

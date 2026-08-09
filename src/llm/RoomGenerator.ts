@@ -40,14 +40,23 @@ interface CacheEntry {
   savedAt: number;
 }
 
+export type RoomReadinessState = 'offline' | 'idle' | 'pending' | 'ready' | 'failed';
+
+export interface RoomReadiness {
+  state: RoomReadinessState;
+  message?: string;
+}
+
 /**
  * Cost-aware room generation with FULL structural RoomSpec output.
- * Provider failures fall back offline without shrinking the game design.
+ * Provider failures prepare an explicit procedural escape without silently
+ * presenting it as an AI-authored room.
  */
 export class RoomGenerator {
   private memory = new Map<string, RoomSpec>();
   private inflight = new Map<string, Promise<RoomSpec>>();
   private failedKeys = new Set<string>();
+  private failureMessages = new Map<string, string>();
   private generationTail: Promise<void> = Promise.resolve();
   private activePrefetchKey: string | null = null;
   private sessionEpoch = 0;
@@ -81,6 +90,7 @@ export class RoomGenerator {
       this.invalidateInFlight();
       this.sessionFailures = 0;
       this.failedKeys.clear();
+      this.failureMessages.clear();
       if (providerChanged && previous.provider === 'browser') void disposeBrowserEngine();
     }
   }
@@ -90,6 +100,7 @@ export class RoomGenerator {
     this.sessionFailures = 0;
     this.apiCallsThisSession = 0;
     this.failedKeys.clear();
+    this.failureMessages.clear();
     return this.sessionEpoch;
   }
 
@@ -116,6 +127,34 @@ export class RoomGenerator {
     const effectiveCtx = withSettingsConstraints(ctx, this.settings);
     const spec = this.memory.get(cacheKey(effectiveCtx, this.settings));
     return Boolean(spec && !spec.offline);
+  }
+
+  getReadiness(ctx: GenerationContext): RoomReadiness {
+    if (this.settings.provider === 'offline') return { state: 'offline' };
+    if (
+      (this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
+      !this.settings.apiKey.trim()
+    ) {
+      return { state: 'failed', message: 'An API key is required for this provider.' };
+    }
+    const effectiveCtx = withSettingsConstraints(ctx, this.settings);
+    const key = cacheKey(effectiveCtx, this.settings);
+    const cached = this.memory.get(key);
+    if (cached && !cached.offline) return { state: 'ready' };
+    if (this.failedKeys.has(key)) {
+      return {
+        state: 'failed',
+        message: this.failureMessages.get(key) ?? 'The AI attempt did not produce usable direction.',
+      };
+    }
+    if (this.inflight.has(key) || this.activePrefetchKey === key) return { state: 'pending' };
+    return { state: 'idle' };
+  }
+
+  getReadyRoom(ctx: GenerationContext): RoomSpec | null {
+    const effectiveCtx = withSettingsConstraints(ctx, this.settings);
+    const room = this.memory.get(cacheKey(effectiveCtx, this.settings));
+    return room && !room.offline ? room : null;
   }
 
   async get(ctx: GenerationContext): Promise<RoomSpec> {
@@ -145,13 +184,13 @@ export class RoomGenerator {
     return job;
   }
 
-  prefetch(ctx: GenerationContext): void {
-    if (this.settings.provider === 'offline') return;
+  prefetch(ctx: GenerationContext): Promise<RoomSpec> | null {
+    if (this.settings.provider === 'offline') return null;
     if (
       (this.settings.provider === 'openai' || this.settings.provider === 'anthropic') &&
       !this.settings.apiKey.trim()
     ) {
-      return;
+      return null;
     }
     const effectiveCtx = withSettingsConstraints(ctx, this.settings);
     const key = cacheKey(effectiveCtx, this.settings);
@@ -165,24 +204,28 @@ export class RoomGenerator {
     const existing = this.memory.get(key);
     if (existing && !existing.offline) {
       this.onStatus?.(`Next AI room ready · ${providerLabel(this.settings)}`);
-      return;
+      return Promise.resolve(existing);
     }
     if (this.failedKeys.has(key)) {
-      this.onStatus?.('This room\'s AI attempt failed · procedural direction ready');
-      return;
+      this.onStatus?.('This room\'s AI attempt failed · retry or choose procedural');
+      return Promise.resolve(existing ?? generateOfflineRoom(effectiveCtx));
     }
     if (this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures) {
-      this.onStatus?.(
-        `AI paused after ${this.sessionFailures} failures · restart or change AI settings to retry`,
-      );
-      return;
+      const message = `AI paused after ${this.sessionFailures} failures`;
+      this.failedKeys.add(key);
+      this.failureMessages.set(key, message);
+      this.onStatus?.(`${message} · retry or choose procedural`);
+      const offline = generateOfflineRoom(effectiveCtx);
+      this.remember(key, offline);
+      return Promise.resolve(offline);
     }
     const epoch = this.sessionEpoch;
     this.activePrefetchKey = key;
     this.onStatus?.(
       `${providerLabel(this.settings)} · ${providerModel(this.settings)} · requesting next room…`,
     );
-    void this.get(effectiveCtx)
+    const preparation = this.get(effectiveCtx);
+    void preparation
       .then((spec) => {
         if (epoch !== this.sessionEpoch) return;
         // generate() reports the actionable reason when it falls back. Do not
@@ -194,7 +237,7 @@ export class RoomGenerator {
       .catch((err) => {
         if (epoch === this.sessionEpoch) {
           console.warn('[Kettermean] room prefetch failed.', err);
-          this.onStatus?.('AI prefetch failed · procedural direction ready');
+          this.onStatus?.('AI prefetch failed · retry or choose procedural');
         }
       })
       .finally(() => {
@@ -202,6 +245,20 @@ export class RoomGenerator {
           this.activePrefetchKey = null;
         }
       });
+    return preparation;
+  }
+
+  retry(ctx: GenerationContext): Promise<RoomSpec> | null {
+    if (this.settings.provider === 'offline') return null;
+    const effectiveCtx = withSettingsConstraints(ctx, this.settings);
+    const key = cacheKey(effectiveCtx, this.settings);
+    this.failedKeys.delete(key);
+    this.failureMessages.delete(key);
+    if (this.memory.get(key)?.offline) this.memory.delete(key);
+    // A manual retry is an explicit request to resume after the automatic
+    // consecutive-failure circuit breaker.
+    this.sessionFailures = 0;
+    return this.prefetch(effectiveCtx);
   }
 
   private async generate(
@@ -245,6 +302,8 @@ export class RoomGenerator {
       );
       normalized.offline = false;
       this.sessionFailures = 0;
+      this.failedKeys.delete(key);
+      this.failureMessages.delete(key);
       console.info(`[Kettermean] ${providerLabel(settings)} room direction accepted.`, {
         provider: settings.provider,
         model: providerModel(settings),
@@ -255,12 +314,13 @@ export class RoomGenerator {
       this.sessionFailures += 1;
       this.failedKeys.add(key);
       const message = err instanceof Error ? err.message : String(err);
-      console.warn('[Kettermean] LLM room generation failed; using offline.', message, err);
+      this.failureMessages.set(key, failureSummary(message));
+      console.warn('[Kettermean] LLM room generation failed; procedural escape prepared.', message, err);
       const exhausted = this.sessionFailures >= LLM_BUDGET.maxConsecutiveFailures;
       this.onStatus?.(
         exhausted
-          ? `${providerLabel(settings)} ${failureSummary(message)} · AI paused after ${this.sessionFailures} failures`
-          : `${providerLabel(settings)} ${failureSummary(message)} · procedural direction ready · retry ${this.sessionFailures}/${LLM_BUDGET.maxConsecutiveFailures}`,
+          ? `${providerLabel(settings)} ${failureSummary(message)} · AI paused after ${this.sessionFailures} failures · retry or choose procedural`
+          : `${providerLabel(settings)} ${failureSummary(message)} · retry ${this.sessionFailures}/${LLM_BUDGET.maxConsecutiveFailures} or choose procedural`,
       );
       return generateOfflineRoom(ctx);
     }
