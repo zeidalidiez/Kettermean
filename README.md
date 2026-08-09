@@ -23,6 +23,8 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Mixed-media actors and props spanning refined procedural models, deliberately cheap low-poly forms, room-scale voxel giants, and illustrated 2D characters that wander through the 3D world
 - Keyboard/mouse, gamepad, and complete touch controls
 - WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings
+- Persisted Light, Standard, and Deep AI direction levels with adaptive passes for room language, signs, inhabitants, and strange room rules
+- Readiness-gated AI transitions with visible progress, manual retry, and an explicit procedural escape instead of silent provider fallback
 - Provider-scoped room cache and strict one-request-at-a-time generation
 - Content sanitization at every LLM-to-HUD boundary
 - Static Vite build and GitHub Pages workflow
@@ -46,14 +48,29 @@ It runs TypeScript, ESLint, Vitest, and the production build. Other useful comma
 
 ## How room generation works
 
-The active room is always entered immediately. Kettermean never holds a fade or blocks movement while it waits for a provider.
+The active room is always entered immediately. Kettermean never holds a fade or blocks movement while it waits for a provider. In an AI mode, only the transition to the *next* dream waits for validated direction; the player remains free to explore the current room.
 
 1. The deterministic offline director builds the current playable room.
 2. While the player explores, the selected provider may steer exactly the next room.
-3. When the player presses **R** (gamepad Y or touch **Next**), Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
+3. In procedural-only mode, **R** (gamepad Y or touch **Next**) advances immediately. In an AI mode, the control displays **forming** until the prefetched room is validated and **ready** when it can be entered.
 4. A late provider result is cached for its seed; it never replaces a room underneath the player.
+5. If the provider fails, **R** retries the same planned room and **O** explicitly enters its procedural version. Kettermean never labels that escape room as AI-authored.
 
-Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, scene conditions, lighting, visual effects, safety validation, and performance budgets. Press **R** at any time (gamepad Y or the touch **Next** button) to move to the next dream. Recent-room fingerprints actively steer the director away from repeated themes, layouts, conditions, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
+Cloud models can select semantic room direction including themes, mood, title, blurb, environment, architecture, scale, condition, visual treatment, preferred catalog assets, signs, inhabitants, dialogue, and a strange room rule. Small browser models begin with eight bounded steering values; Standard and Deep depth add tightly delimited language passes whose valid fields can replace procedural text. In every mode, the client owns coordinates, collision-safe placement, required geometry, safety validation, accessibility constraints, and performance budgets. Invalid individual fields are filled procedurally without discarding other usable AI direction.
+
+Recent-room fingerprints actively steer the director away from repeated themes, layouts, conditions, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
+
+### AI depth
+
+AI depth changes how much authorship the selected model attempts, not the procedural room's size, complexity, effects, or available catalog.
+
+| Depth | Browser WebLLM | Cloud / API |
+| --- | --- | --- |
+| Light | One compact bounded steering pass | One compact room-direction pass |
+| Standard | Steering plus one room-language pass | One rich room-direction pass |
+| Deep | Steering, room language, then inhabitants/signs/rule | Rich direction plus a focused writing pass |
+
+Every later pass is additive: if it fails, the game retains the valid AI direction from earlier passes and procedurally fills only the missing fields.
 
 The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, six expanded animal families, and dozens of humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. NPCs range from composed, articulated people with recombined facial features to intentionally crude low-poly figures, giant voxel apparitions, and prerendered 2D cutouts that turn toward the camera while moving through the scene. New catalog batches keep semantic metadata separate from geometry builders so more families can be added without turning either system into a monolith.
 
@@ -64,10 +81,10 @@ The procedural catalog includes dense furniture arrangements, public-space fixtu
 | Procedural foundation | Every room remains complete and playable without a key, model download, or successful model response |
 | Global single flight | At most one generation runs at a time, even across different seeds |
 | Prefetch depth one | Only the exact next transition seed is warmed |
-| No automatic retry | Invalid cloud fields fall back procedurally for that seed; malformed browser output becomes a complete procedural steering code without disabling later model calls |
+| Explicit failure recovery | Provider failures do not advance silently; **R** retries the planned AI room and **O** deliberately uses its procedural version |
 | Provider-aware cache | Cache keys include provider, base URL, model, schema version, seed, and content/comfort flags |
 | Request timeout | Cloud calls abort after 90 seconds |
-| Session fail-open | Repeated provider errors stop further calls and keep the dream offline |
+| Session circuit breaker | Repeated provider errors pause automatic calls; a deliberate retry can restart the selected provider |
 | Session-only key | API keys use `sessionStorage`, never persistent `localStorage` or the build output |
 
 Use a disposable or spend-limited key. A browser-delivered application cannot protect a provider secret as strongly as a server-side proxy can.
@@ -75,7 +92,7 @@ Use a disposable or spend-limited key. A browser-delivered application cannot pr
 ### Providers
 
 - **Offline procedural only** — fully local and available without a model download.
-- **Browser model (WebLLM / WebGPU)** — the fresh-install default, with local inference and no API key. AI settings group models into quick, richer, and deeper direction tiers, with a suggested model at each tier. Direction depth never restricts room scale, scene complexity, effects, or catalog access. Browsers without WebGPU automatically continue with procedural generation for that run.
+- **Browser model (WebLLM / WebGPU)** — the fresh-install default, with local inference and no API key. AI settings group models into three hardware/direction tiers, with a suggested model at each tier, independently of the Light/Standard/Deep authorship control. AI depth never restricts room scale, scene complexity, effects, or catalog access. Browsers without WebGPU automatically continue with procedural generation for that run.
 - **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
 - **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
 
@@ -86,9 +103,9 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 - WebGPU requires HTTPS or `http://localhost`; a plain LAN-IP URL is not a secure context.
 - The first use downloads model weights and compiles GPU shaders. Later loads normally use the browser cache.
 - The default 360M model minimizes download, memory, and inference cost. Larger options may make more deliberate choices but require substantially more VRAM and can lose the GPU device on integrated hardware.
-- If a model fails, return to the menu and choose a smaller model. Gameplay remains available offline.
+- If a model attempt fails, press **R** to retry it or **O** to use one explicitly procedural room. A smaller model can also be selected from the menu for later runs.
 - Tiny models receive a deterministic five-theme shortlist and answer with one `KMR` token plus eight digits for theme, mood, anomaly, shader, lighting, tint, density, and wireframe. Kettermean searches for that token inside surrounding junk, fills missing digits from the room seed, and limits the response to 40 tokens with repetition penalties.
-- Titles and blurbs stay procedural in browser mode, so weak model prose never reaches the HUD. Older field records and JSON remain accepted during the protocol transition.
+- Standard and Deep browser passes use seed-specific response markers for bounded titles, blurbs, signs, dialogue, and room rules. Literal examples, placeholders, and bad individual fields are rejected; accepted text is sanitized before it reaches the HUD. Older field records and JSON remain accepted during the protocol transition.
 
 ## Controls
 
@@ -98,7 +115,8 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 | Mouse / right stick / right touch stick | Look |
 | Shift / gamepad B / touch Sprint | Sprint |
 | Space / gamepad A / touch Jump | Jump |
-| R / gamepad Y / touch Next | Enter the next dream |
+| R / gamepad Y / touch Next | Enter the next ready dream, or retry after an AI failure |
+| O / recovery button | Explicitly use the planned procedural room after an AI failure |
 | F / gamepad X / touch Light | Toggle flashlight |
 | Escape / gamepad Menu / touch pause | Pause |
 
