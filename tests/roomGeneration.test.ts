@@ -14,6 +14,7 @@ describe('offline room invariants', () => {
     const environments = new Set<string>();
     const architectures = new Set<string>();
     const scaleProfiles = new Set<string>();
+    const conditions = new Set<string>();
     let dimRooms = 0;
     let largestSide = 0;
     let smallestSide = Infinity;
@@ -50,6 +51,9 @@ describe('offline room invariants', () => {
       environments.add(room.environment ?? 'interior');
       architectures.add(room.architecture ?? 'chamber');
       scaleProfiles.add(room.scaleProfile ?? 'human');
+      conditions.add(room.condition);
+      expect(room.condition).not.toBe('bloodied');
+      expect(room.themeTags).toContain(`condition:${room.condition}`);
       largestSide = Math.max(largestSide, room.width, room.depth);
       smallestSide = Math.min(smallestSide, room.width, room.depth);
       largestWorldScale = Math.max(largestWorldScale, room.worldScale ?? 1);
@@ -108,6 +112,9 @@ describe('offline room invariants', () => {
     expect(scaleProfiles).toEqual(
       new Set(['closet', 'human', 'grand', 'monumental', 'colossal']),
     );
+    expect(conditions).toEqual(
+      new Set(['normal', 'slimed', 'scorched', 'burning', 'ruined', 'overgrown', 'frozen']),
+    );
     expect(smallestSide).toBeLessThan(6);
     expect(largestSide).toBeGreaterThan(320);
     expect(largestWorldScale).toBeGreaterThan(15);
@@ -164,6 +171,25 @@ describe('offline room invariants', () => {
     expect(counts.get('closet')).toBeGreaterThan(0);
     expect(counts.get('colossal')).toBeGreaterThan(0);
   }, 15_000);
+
+  it('only enables bloodied scene treatments when gore is allowed', () => {
+    let goreEnabledRoomFound = false;
+    for (let index = 0; index < 600; index += 1) {
+      const room = generateOfflineRoom({
+        seed: `gore-condition-${index}`,
+        previousTitles: [],
+        moodBias: 'downer',
+        allowGore: true,
+        linkIndex: index,
+      });
+      if (room.condition === 'bloodied') {
+        goreEnabledRoomFound = true;
+        expect(room.themeTags).toContain('condition:bloodied');
+        break;
+      }
+    }
+    expect(goreEnabledRoomFound).toBe(true);
+  });
 
   it('keeps every theme preference attached to a real catalog asset', () => {
     for (const theme of THEME_PRESETS) {

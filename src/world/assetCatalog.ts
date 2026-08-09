@@ -3,6 +3,7 @@ import type {
   MoodAxis,
   RoomArchitecture,
   RoomComposition,
+  RoomCondition,
   RoomEnvironment,
   RoomLayoutStyle,
   RoomScaleProfile,
@@ -101,6 +102,7 @@ export interface RoomDirection {
   composition?: RoomComposition;
   scaleProfile?: RoomScaleProfile;
   worldScale?: number;
+  condition?: RoomCondition;
   tags: string[];
   width: number;
   depth: number;

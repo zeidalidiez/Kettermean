@@ -15,6 +15,15 @@ export type RoomArchitecture =
   | 'basin';
 export type RoomSizeClass = 'compact' | 'standard' | 'large' | 'vast';
 export type RoomScaleProfile = 'closet' | 'human' | 'grand' | 'monumental' | 'colossal';
+export type RoomCondition =
+  | 'normal'
+  | 'bloodied'
+  | 'slimed'
+  | 'scorched'
+  | 'burning'
+  | 'ruined'
+  | 'overgrown'
+  | 'frozen';
 
 /** Semantic object-set plan used to keep a room coherent without removing surprise. */
 export interface RoomComposition {
@@ -181,6 +190,8 @@ export interface RoomSpec {
   scaleProfile?: RoomScaleProfile;
   /** Uniform scale applied to the room's catalog objects, independent of local variants. */
   worldScale?: number;
+  /** Coherent whole-scene material and environmental treatment. */
+  condition: RoomCondition;
   width: number;
   depth: number;
   height: number;
@@ -204,6 +215,7 @@ export interface RoomHistoryEntry {
   architecture: RoomArchitecture;
   sizeClass: RoomSizeClass;
   scaleProfile: RoomScaleProfile;
+  condition: RoomCondition;
   mood: MoodAxis;
   shader: RoomShaderStyle;
   lighting: RoomLightingStyle;

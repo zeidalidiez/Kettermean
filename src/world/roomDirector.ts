@@ -6,6 +6,7 @@ import type {
   GenerationContext,
   MoodAxis,
   RoomArchitecture,
+  RoomCondition,
   RoomEnvironment,
   RoomEntity,
   RoomHistoryEntry,
@@ -51,6 +52,12 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
   const rng = new SeededRng(ctx.seed);
   const recentRooms = ctx.recentRooms ?? [];
   const theme = selectNovelTheme(rng, recentRooms, steer?.themeId);
+  const condition = selectRoomCondition(
+    new SeededRng(`${ctx.seed}:condition`),
+    theme,
+    ctx.allowGore,
+    recentRooms,
+  );
   const scaleProfile = selectScaleProfile(rng, recentRooms);
   const worldScale = worldScaleForProfile(rng, scaleProfile);
   const environment = environmentForScale(
@@ -126,6 +133,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
       mood,
       'packs',
       `scale:${scaleProfile}`,
+      `condition:${condition}`,
       `set:${composition.primarySet}`,
       ...(composition.supportingSet ? [`support:${composition.supportingSet}`] : []),
       ...(composition.contrastSet ? [`contrast:${composition.contrastSet}`] : []),
@@ -135,6 +143,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     height,
     scaleProfile,
     worldScale,
+    condition,
     environment,
     layoutStyle,
     architecture,
@@ -145,7 +154,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
       Math.max(width, depth) * 1.45,
     ),
     linkColor: moodLinkColor(mood),
-    palette: tintPalette(rng, theme.palette, mood),
+    palette: conditionPalette(tintPalette(rng, theme.palette, mood), condition),
     physics: physicsForMood(rng, mood),
     visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms, ctx),
     placements,
@@ -258,6 +267,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     composition: dir.composition,
     scaleProfile: dir.scaleProfile ?? 'human',
     worldScale,
+    condition: dir.condition ?? 'normal',
     width: dir.width,
     depth: dir.depth,
     height: dir.height,
@@ -502,6 +512,107 @@ function tintPalette(
   };
 }
 
+function conditionPalette(
+  base: ThemePreset['palette'],
+  condition: RoomCondition,
+): ThemePreset['palette'] {
+  const mix = (key: keyof ThemePreset['palette'], target: string, amount: number): string =>
+    mixHex(base[key], target, amount);
+  switch (condition) {
+    case 'bloodied':
+      return {
+        floor: mix('floor', '#210509', 0.48),
+        ceiling: mix('ceiling', '#351318', 0.25),
+        walls: mix('walls', '#481116', 0.34),
+        accent: '#8f0918',
+        fog: mix('fog', '#23080d', 0.38),
+        light: mix('light', '#ffb3aa', 0.28),
+        ambient: mix('ambient', '#5b1119', 0.4),
+      };
+    case 'slimed':
+      return {
+        floor: mix('floor', '#18321d', 0.46),
+        ceiling: mix('ceiling', '#52704b', 0.25),
+        walls: mix('walls', '#355b38', 0.3),
+        accent: mix('accent', '#73db49', 0.62),
+        fog: mix('fog', '#294b2d', 0.35),
+        light: mix('light', '#c9ff8a', 0.42),
+        ambient: mix('ambient', '#376e3b', 0.4),
+      };
+    case 'scorched':
+      return {
+        floor: mix('floor', '#171310', 0.62),
+        ceiling: mix('ceiling', '#28201a', 0.46),
+        walls: mix('walls', '#30231c', 0.52),
+        accent: mix('accent', '#8c4824', 0.46),
+        fog: mix('fog', '#29201c', 0.5),
+        light: mix('light', '#e7aa72', 0.24),
+        ambient: mix('ambient', '#4d3325', 0.52),
+      };
+    case 'burning':
+      return {
+        floor: mix('floor', '#160b08', 0.68),
+        ceiling: mix('ceiling', '#24100c', 0.56),
+        walls: mix('walls', '#35150f', 0.58),
+        accent: '#ff5422',
+        fog: mix('fog', '#32140e', 0.62),
+        light: '#ffad42',
+        ambient: mix('ambient', '#7a2f18', 0.66),
+      };
+    case 'ruined':
+      return {
+        floor: mix('floor', '#47433c', 0.45),
+        ceiling: mix('ceiling', '#69645a', 0.35),
+        walls: mix('walls', '#5a564d', 0.4),
+        accent: mix('accent', '#766854', 0.45),
+        fog: mix('fog', '#68645d', 0.3),
+        light: mix('light', '#ded4be', 0.2),
+        ambient: mix('ambient', '#5d594f', 0.35),
+      };
+    case 'overgrown':
+      return {
+        floor: mix('floor', '#19371e', 0.42),
+        ceiling: mix('ceiling', '#76906d', 0.22),
+        walls: mix('walls', '#486b49', 0.3),
+        accent: mix('accent', '#65a943', 0.48),
+        fog: mix('fog', '#54745a', 0.28),
+        light: mix('light', '#d8f8ae', 0.3),
+        ambient: mix('ambient', '#426844', 0.4),
+      };
+    case 'frozen':
+      return {
+        floor: mix('floor', '#89b8c8', 0.42),
+        ceiling: mix('ceiling', '#d8f7ff', 0.44),
+        walls: mix('walls', '#a8d5e2', 0.38),
+        accent: mix('accent', '#72d9f2', 0.58),
+        fog: mix('fog', '#c5edf2', 0.5),
+        light: '#e8fdff',
+        ambient: mix('ambient', '#78aebc', 0.42),
+      };
+    default:
+      return base;
+  }
+}
+
+function mixHex(from: string, to: string, amount: number): string {
+  const parse = (value: string): [number, number, number] | null => {
+    const match = /^#?([0-9a-f]{6})$/i.exec(value.trim());
+    if (!match) return null;
+    const number = parseInt(match[1]!, 16);
+    return [(number >> 16) & 255, (number >> 8) & 255, number & 255];
+  };
+  const a = parse(from);
+  const b = parse(to);
+  if (!a || !b) return from;
+  return `#${a
+    .map((channel, index) =>
+      Math.round(channel + (b[index]! - channel) * clamp(amount, 0, 1))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
 function shiftHex(hex: string, delta: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return hex;
@@ -609,6 +720,53 @@ function environmentForTheme(theme: ThemePreset): RoomEnvironment {
     return 'open-hall';
   }
   return 'interior';
+}
+
+function selectRoomCondition(
+  rng: SeededRng,
+  theme: ThemePreset,
+  allowGore: boolean,
+  recentRooms: RoomHistoryEntry[],
+): RoomCondition {
+  const tags = new Set(theme.tags.map((tag) => tag.toLowerCase()));
+  const hasAny = (...values: string[]): boolean => values.some((value) => tags.has(value));
+
+  // Explicit environmental themes always receive their matching treatment.
+  // This keeps every person and prop in a fire dream visibly fire-damaged.
+  if (hasAny('burning', 'fire', 'inferno', 'wildfire')) return 'burning';
+  if (hasAny('scorched', 'ash', 'charred')) return 'scorched';
+  if (hasAny('slime', 'goo', 'slimed')) return 'slimed';
+  if (hasAny('overgrown', 'jungle', 'moss')) return 'overgrown';
+  if (hasAny('frozen', 'ice', 'frost')) return 'frozen';
+  if (hasAny('bloodied', 'blood', 'gore')) return allowGore ? 'bloodied' : 'ruined';
+  if (hasAny('ruined', 'desolate', 'derelict')) return 'ruined';
+
+  const previous = recentRooms.at(-1)?.condition;
+  const baseWeights: Array<{ condition: RoomCondition; weight: number }> = [
+    { condition: 'normal', weight: 0.48 },
+    { condition: 'ruined', weight: 0.11 },
+    { condition: 'overgrown', weight: 0.09 },
+    { condition: 'slimed', weight: 0.08 },
+    { condition: 'scorched', weight: 0.09 },
+    { condition: 'burning', weight: 0.055 },
+    { condition: 'frozen', weight: 0.07 },
+    ...(allowGore ? [{ condition: 'bloodied' as const, weight: 0.055 }] : []),
+  ];
+  const weighted = baseWeights.map((choice) => ({
+    ...choice,
+    weight:
+      choice.condition === previous
+        ? choice.weight * (choice.condition === 'normal' ? 0.55 : 0.22)
+        : choice.weight,
+  }));
+
+  const total = weighted.reduce((sum, choice) => sum + choice.weight, 0);
+  let roll = rng.float(0, total);
+  for (const choice of weighted) {
+    roll -= choice.weight;
+    if (roll <= 0) return choice.condition;
+  }
+  return 'normal';
 }
 
 function selectNovelLayout(
@@ -832,6 +990,7 @@ export function roomHistoryEntryFor(spec: RoomSpec): RoomHistoryEntry {
     architecture: spec.architecture ?? 'chamber',
     sizeClass: sizeClassForDimensions(spec.width, spec.depth),
     scaleProfile: spec.scaleProfile ?? 'human',
+    condition: spec.condition,
     mood: spec.mood,
     shader: spec.visuals?.shader ?? 'none',
     lighting: spec.visuals?.lighting ?? 'fluorescent',

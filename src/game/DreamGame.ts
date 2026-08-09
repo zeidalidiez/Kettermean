@@ -274,6 +274,7 @@ export class DreamGame {
     this.pauseSeed.textContent = spec.seed;
     const visualLabels = [
       spec.scaleProfile && spec.scaleProfile !== 'human' ? spec.scaleProfile : '',
+      spec.condition !== 'normal' ? spec.condition : '',
       spec.visuals?.wireframe ? 'wireframe' : '',
       spec.visuals?.shader && spec.visuals.shader !== 'none' ? spec.visuals.shader : '',
       spec.visuals?.lighting ?? '',

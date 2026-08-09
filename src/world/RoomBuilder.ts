@@ -4,6 +4,7 @@ import { SeededRng } from '../core/rng';
 import type {
   BuiltRoom,
   ColliderBox,
+  RoomCondition,
   RoomEntity,
   RoomProp,
   RoomSpec,
@@ -43,6 +44,13 @@ interface PulsingLight {
   phase: number;
 }
 
+interface AnimatedConditionEffect {
+  object: THREE.Object3D;
+  baseScale: THREE.Vector3;
+  phase: number;
+  speed: number;
+}
+
 interface LightingProfile {
   primary: string;
   ambient: string;
@@ -67,6 +75,7 @@ export class RoomWorld {
   private fog: THREE.Fog | null = null;
   private lights: THREE.Light[] = [];
   private pulsingLights: PulsingLight[] = [];
+  private conditionEffects: AnimatedConditionEffect[] = [];
   private navigationLight: THREE.PointLight | null = null;
   private spec: RoomSpec | null = null;
 
@@ -195,6 +204,7 @@ export class RoomWorld {
     for (const ent of spec.entities) {
       this.addEntity(ent);
     }
+    this.addConditionEnvironment(spec);
 
     // Visible fixtures and real light sources change character with each room.
     const span = Math.max(spec.width, spec.depth);
@@ -325,6 +335,16 @@ export class RoomWorld {
       pulse.light.intensity =
         pulse.baseIntensity * (1 + Math.sin(pulse.phase) * pulse.amplitude);
     }
+    for (const effect of this.conditionEffects) {
+      effect.phase += dt * effect.speed;
+      const widthPulse = 0.94 + Math.sin(effect.phase * 0.83) * 0.06;
+      const heightPulse = 0.9 + Math.sin(effect.phase) * 0.12;
+      effect.object.scale.set(
+        effect.baseScale.x * widthPulse,
+        effect.baseScale.y * heightPulse,
+        effect.baseScale.z * widthPulse,
+      );
+    }
 
     for (const ent of this.liveEntities) {
       ent.phase += dt * (ent.data.speed ?? 1);
@@ -399,6 +419,7 @@ export class RoomWorld {
     }
     this.lights = [];
     this.pulsingLights = [];
+    this.conditionEffects = [];
     this.navigationLight = null;
     this.colliders = [];
     this.linkTriggers = [];
@@ -806,6 +827,197 @@ export class RoomWorld {
     }
   }
 
+  private addConditionEnvironment(spec: RoomSpec): void {
+    const condition = spec.condition;
+    if (condition === 'normal') return;
+
+    const rng = new SeededRng(`${spec.seed}:condition-environment:${condition}`);
+    const halfW = spec.width * 0.5;
+    const halfD = spec.depth * 0.5;
+    const detailScale = clampNumber(spec.worldScale ?? 1, 0.75, 4);
+    const span = Math.sqrt(spec.width * spec.depth);
+    const floorPosition = (): { x: number; z: number } => {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const x = rng.float(-halfW * 0.82, halfW * 0.82);
+        const z = rng.float(-halfD * 0.82, halfD * 0.82);
+        if (Math.hypot(x, z) > Math.min(4.2, span * 0.12)) return { x, z };
+      }
+      return { x: halfW * 0.35, z: halfD * 0.35 };
+    };
+    const addPool = (
+      name: string,
+      color: string,
+      opacity: number,
+      size: number,
+    ): THREE.Mesh => {
+      const { x, z } = floorPosition();
+      const pool = new THREE.Mesh(
+        new THREE.CircleGeometry(1, rng.int(10, 18)),
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: condition === 'burning' ? color : '#000000',
+          emissiveIntensity: condition === 'burning' ? 0.2 : 0,
+          roughness: condition === 'slimed' || condition === 'bloodied' ? 0.2 : 0.94,
+          metalness: 0.02,
+          transparent: opacity < 1,
+          opacity,
+          depthWrite: opacity >= 0.78,
+          side: THREE.DoubleSide,
+        }),
+      );
+      pool.name = `condition-${condition}-${name}`;
+      pool.rotation.x = -Math.PI / 2;
+      pool.rotation.z = rng.float(-Math.PI, Math.PI);
+      pool.scale.set(size * rng.float(0.62, 1.28), size * rng.float(0.4, 0.92), 1);
+      pool.position.set(x, 0.012 + rng.float(0, 0.012), z);
+      pool.userData.keepSolid = true;
+      this.group.add(pool);
+      return pool;
+    };
+
+    if (condition === 'bloodied' || condition === 'slimed') {
+      const count = clampInt(Math.round(5 + span / 18), 5, 12);
+      const color = condition === 'bloodied' ? '#65000d' : '#4ea92f';
+      for (let index = 0; index < count; index += 1) {
+        const pool = addPool(`pool-${index}`, color, condition === 'slimed' ? 0.7 : 0.88, rng.float(0.5, 1.5) * detailScale);
+        if (condition === 'slimed' && index % 2 === 0) {
+          const bubble = new THREE.Mesh(
+            new THREE.SphereGeometry(rng.float(0.08, 0.22) * detailScale, 10, 7),
+            new THREE.MeshStandardMaterial({
+              color: '#8be35b',
+              emissive: '#315d1e',
+              emissiveIntensity: 0.2,
+              transparent: true,
+              opacity: 0.74,
+              roughness: 0.15,
+            }),
+          );
+          bubble.position.set(pool.position.x, rng.float(0.05, 0.2) * detailScale, pool.position.z);
+          bubble.userData.keepSolid = true;
+          this.group.add(bubble);
+        }
+      }
+      return;
+    }
+
+    if (condition === 'scorched' || condition === 'burning') {
+      const scorchCount = clampInt(Math.round(6 + span / 15), 6, 15);
+      for (let index = 0; index < scorchCount; index += 1) {
+        addPool(`scorch-${index}`, index % 3 === 0 ? '#301007' : '#110d0b', 0.92, rng.float(0.55, 1.7) * detailScale);
+      }
+      if (condition === 'burning') {
+        const fireCount = clampInt(Math.round(6 + span / 22), 6, 14);
+        for (let index = 0; index < fireCount; index += 1) {
+          const { x, z } = floorPosition();
+          const fire = makeFlame(rng.float(0.55, 1.35) * detailScale);
+          fire.position.set(x, 0.03, z);
+          fire.name = `condition-burning-fire-${index}`;
+          this.group.add(fire);
+          this.conditionEffects.push({
+            object: fire,
+            baseScale: fire.scale.clone(),
+            phase: stablePhase(`${spec.seed}:fire:${index}`),
+            speed: rng.float(5.5, 9),
+          });
+          if (index < 4) {
+            const light = new THREE.PointLight('#ff6b24', 2.2, 9 * detailScale, 1.8);
+            light.position.set(x, 1.1 * detailScale, z);
+            this.group.add(light);
+            this.pulsingLights.push({
+              light,
+              baseIntensity: 2.2,
+              amplitude: spec.visuals?.flashingDisabled ? 0 : 0.07,
+              speed: rng.float(3.2, 5.8),
+              phase: stablePhase(`${spec.seed}:fire-light:${index}`),
+            });
+          }
+        }
+      }
+      return;
+    }
+
+    if (condition === 'ruined') {
+      const rubbleMaterial = new THREE.MeshStandardMaterial({
+        color: spec.palette.walls,
+        roughness: 0.98,
+        metalness: 0.01,
+      });
+      const count = clampInt(Math.round(12 + span / 8), 12, 34);
+      for (let index = 0; index < count; index += 1) {
+        const { x, z } = floorPosition();
+        const longPiece = index % 7 === 0;
+        const width = rng.float(longPiece ? 1.4 : 0.22, longPiece ? 3.2 : 1.05) * detailScale;
+        const height = rng.float(0.12, longPiece ? 0.34 : 0.65) * detailScale;
+        const depth = rng.float(0.18, longPiece ? 0.42 : 0.95) * detailScale;
+        const rubble = new THREE.Mesh(
+          new THREE.BoxGeometry(width, height, depth),
+          rubbleMaterial,
+        );
+        rubble.name = `condition-ruined-rubble-${index}`;
+        rubble.position.set(x, height * 0.5, z);
+        rubble.rotation.set(rng.float(-0.24, 0.24), rng.float(-Math.PI, Math.PI), rng.float(-0.2, 0.2));
+        this.group.add(rubble);
+      }
+      return;
+    }
+
+    if (condition === 'overgrown') {
+      const stemMaterial = new THREE.MeshStandardMaterial({ color: '#274d25', roughness: 0.92 });
+      const leafMaterial = new THREE.MeshStandardMaterial({ color: '#4f8d3a', roughness: 0.86 });
+      const count = clampInt(Math.round(8 + span / 13), 8, 24);
+      for (let index = 0; index < count; index += 1) {
+        const { x, z } = floorPosition();
+        const height = rng.float(0.45, 1.5) * detailScale;
+        const cluster = new THREE.Group();
+        cluster.name = `condition-overgrown-cluster-${index}`;
+        for (let frond = 0; frond < 3; frond += 1) {
+          const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.025 * detailScale, 0.045 * detailScale, height, 7),
+            stemMaterial,
+          );
+          stem.position.set((frond - 1) * 0.13 * detailScale, height * 0.5, 0);
+          stem.rotation.z = (frond - 1) * 0.18;
+          const leaf = new THREE.Mesh(
+            new THREE.SphereGeometry(0.22 * detailScale, 9, 6),
+            leafMaterial,
+          );
+          leaf.scale.set(1.4, 0.42, 0.62);
+          leaf.position.set(stem.position.x, height * rng.float(0.66, 0.98), 0);
+          cluster.add(stem, leaf);
+        }
+        cluster.position.set(x, 0, z);
+        cluster.rotation.y = rng.float(-Math.PI, Math.PI);
+        this.group.add(cluster);
+      }
+      return;
+    }
+
+    if (condition === 'frozen') {
+      const iceMaterial = new THREE.MeshStandardMaterial({
+        color: '#a9efff',
+        emissive: '#23677c',
+        emissiveIntensity: 0.13,
+        roughness: 0.18,
+        metalness: 0.08,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const count = clampInt(Math.round(8 + span / 14), 8, 22);
+      for (let index = 0; index < count; index += 1) {
+        const { x, z } = floorPosition();
+        const height = rng.float(0.35, 1.7) * detailScale;
+        const spike = new THREE.Mesh(
+          new THREE.ConeGeometry(rng.float(0.12, 0.38) * detailScale, height, rng.int(5, 8)),
+          iceMaterial,
+        );
+        spike.name = `condition-frozen-spike-${index}`;
+        spike.position.set(x, height * 0.5, z);
+        spike.rotation.z = rng.float(-0.18, 0.18);
+        this.group.add(spike);
+      }
+    }
+  }
+
   private addProp(prop: RoomProp): void {
     const kind = resolveKind(prop.kind, prop.label);
     // Legacy room payloads can still contain the old fake exit. Dream changes
@@ -816,6 +1028,9 @@ export class RoomWorld {
       prop.color || '#6a7a8a',
       prop.color || '#c4b59a',
       prop.assetId,
+    );
+    this.conditionEffects.push(
+      ...applyModelCondition(mesh, this.spec?.condition ?? 'normal', `${this.spec?.seed}:prop:${prop.id}`),
     );
     scaleModelToBounds(mesh, kind, prop.scale);
     // Models are feet-origin; keep y at floor unless explicitly elevated.
@@ -837,6 +1052,9 @@ export class RoomWorld {
       ent.color || '#c4b59a',
       ent.assetId,
     );
+    this.conditionEffects.push(
+      ...applyModelCondition(mesh, this.spec?.condition ?? 'normal', `${this.spec?.seed}:entity:${ent.id}`),
+    );
     scaleModelToBounds(mesh, kind, ent.scale);
     mesh.position.set(ent.position.x, Math.max(0, ent.position.y), ent.position.z);
     this.group.add(mesh);
@@ -855,6 +1073,295 @@ export class RoomWorld {
     this.colliders.push({ ...box, label: label ?? box.label });
   }
 
+}
+
+function applyModelCondition(
+  root: THREE.Group,
+  condition: RoomCondition,
+  seed: string,
+): AnimatedConditionEffect[] {
+  if (condition === 'normal') return [];
+  const rng = new SeededRng(seed);
+  const materialClones = new Map<THREE.Material, THREE.Material>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const cloneMaterial = (material: THREE.Material): THREE.Material => {
+      const cached = materialClones.get(material);
+      if (cached) return cached;
+      const clone = material.clone();
+      applyConditionToMaterial(clone, condition);
+      materialClones.set(material, clone);
+      return clone;
+    };
+    object.material = Array.isArray(object.material)
+      ? object.material.map(cloneMaterial)
+      : cloneMaterial(object.material);
+  });
+
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (bounds.isEmpty()) return [];
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  const width = Math.max(0.12, size.x);
+  const height = Math.max(0.12, size.y);
+  const depth = Math.max(0.12, size.z);
+  const overlays = new THREE.Group();
+  overlays.name = `condition-overlay-${condition}`;
+  const animated: AnimatedConditionEffect[] = [];
+  const markSolid = <T extends THREE.Object3D>(object: T): T => {
+    object.userData.keepSolid = true;
+    return object;
+  };
+  const addFrontMark = (
+    color: string,
+    opacity: number,
+    index: number,
+    emissive = '#000000',
+  ): void => {
+    const mark = markSolid(new THREE.Mesh(
+      new THREE.CircleGeometry(0.5, 12),
+      new THREE.MeshStandardMaterial({
+        color,
+        emissive,
+        emissiveIntensity: emissive === '#000000' ? 0 : 0.36,
+        roughness: condition === 'bloodied' || condition === 'slimed' ? 0.24 : 0.9,
+        transparent: opacity < 1,
+        opacity,
+        depthWrite: opacity > 0.76,
+        side: THREE.DoubleSide,
+      }),
+    ));
+    mark.name = `condition-${condition}-decal-${index}`;
+    mark.position.set(
+      center.x + rng.float(-width * 0.25, width * 0.25),
+      bounds.min.y + rng.float(height * 0.22, height * 0.82),
+      bounds.max.z + depth * 0.012,
+    );
+    mark.rotation.z = rng.float(-Math.PI, Math.PI);
+    mark.scale.set(
+      width * rng.float(0.18, 0.42),
+      height * rng.float(0.08, 0.2),
+      1,
+    );
+    overlays.add(mark);
+  };
+
+  switch (condition) {
+    case 'bloodied':
+      addFrontMark('#61000b', 0.9, 0);
+      addFrontMark('#360006', 0.82, 1);
+      break;
+    case 'slimed': {
+      const slimeMaterial = new THREE.MeshStandardMaterial({
+        color: '#64c93f',
+        emissive: '#254d18',
+        emissiveIntensity: 0.2,
+        roughness: 0.16,
+        transparent: true,
+        opacity: 0.72,
+      });
+      const cap = markSolid(new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), slimeMaterial));
+      cap.name = 'condition-slimed-cap';
+      cap.position.set(center.x, bounds.max.y + height * 0.015, center.z);
+      cap.scale.set(width * 0.44, height * 0.1, depth * 0.42);
+      overlays.add(cap);
+      for (let index = 0; index < 2; index += 1) {
+        const dripHeight = height * rng.float(0.16, 0.42);
+        const drip = markSolid(new THREE.Mesh(
+          new THREE.CylinderGeometry(width * 0.025, width * 0.045, dripHeight, 7),
+          slimeMaterial,
+        ));
+        drip.name = `condition-slimed-drip-${index}`;
+        drip.position.set(
+          center.x + (index ? 1 : -1) * width * rng.float(0.22, 0.38),
+          bounds.max.y - dripHeight * 0.48,
+          bounds.max.z + depth * 0.025,
+        );
+        overlays.add(drip);
+      }
+      break;
+    }
+    case 'scorched':
+    case 'burning': {
+      addFrontMark('#100c09', 0.94, 0);
+      addFrontMark('#2b1209', 0.9, 1, condition === 'burning' ? '#a62d08' : '#000000');
+      if (condition === 'burning' && rng.chance(0.58)) {
+        const flame = makeFlame(Math.min(width, height) * rng.float(0.18, 0.34));
+        flame.position.set(
+          center.x + rng.float(-width * 0.18, width * 0.18),
+          bounds.max.y,
+          center.z,
+        );
+        overlays.add(flame);
+        animated.push({
+          object: flame,
+          baseScale: flame.scale.clone(),
+          phase: stablePhase(`${seed}:flame`),
+          speed: rng.float(5.2, 8.4),
+        });
+      }
+      break;
+    }
+    case 'ruined': {
+      const crackMaterial = new THREE.MeshStandardMaterial({ color: '#24211d', roughness: 1 });
+      for (let index = 0; index < 2; index += 1) {
+        const crack = markSolid(new THREE.Mesh(
+          new THREE.BoxGeometry(width * rng.float(0.025, 0.055), height * rng.float(0.24, 0.46), depth * 0.025),
+          crackMaterial,
+        ));
+        crack.name = `condition-ruined-crack-${index}`;
+        crack.position.set(
+          center.x + (index ? 1 : -1) * width * rng.float(0.12, 0.28),
+          center.y + rng.float(-height * 0.15, height * 0.15),
+          bounds.max.z + depth * 0.016,
+        );
+        crack.rotation.z = rng.float(-0.7, 0.7);
+        overlays.add(crack);
+      }
+      break;
+    }
+    case 'overgrown': {
+      const mossMaterial = new THREE.MeshStandardMaterial({ color: '#39762f', roughness: 0.94 });
+      for (let index = 0; index < 4; index += 1) {
+        const moss = markSolid(new THREE.Mesh(new THREE.SphereGeometry(0.5, 9, 6), mossMaterial));
+        moss.name = `condition-overgrown-moss-${index}`;
+        moss.position.set(
+          center.x + rng.float(-width * 0.42, width * 0.42),
+          bounds.max.y + rng.float(-height * 0.06, height * 0.035),
+          center.z + rng.float(-depth * 0.38, depth * 0.38),
+        );
+        moss.scale.set(
+          width * rng.float(0.08, 0.22),
+          height * rng.float(0.035, 0.09),
+          depth * rng.float(0.08, 0.22),
+        );
+        overlays.add(moss);
+      }
+      break;
+    }
+    case 'frozen': {
+      const iceMaterial = new THREE.MeshStandardMaterial({
+        color: '#b9f2ff',
+        emissive: '#2d7083',
+        emissiveIntensity: 0.12,
+        roughness: 0.14,
+        transparent: true,
+        opacity: 0.76,
+      });
+      const cap = markSolid(new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 7), iceMaterial));
+      cap.name = 'condition-frozen-cap';
+      cap.position.set(center.x, bounds.max.y, center.z);
+      cap.scale.set(width * 0.45, height * 0.075, depth * 0.44);
+      overlays.add(cap);
+      for (let index = 0; index < 3; index += 1) {
+        const spikeHeight = height * rng.float(0.13, 0.3);
+        const spike = markSolid(new THREE.Mesh(
+          new THREE.ConeGeometry(width * rng.float(0.035, 0.085), spikeHeight, 6),
+          iceMaterial,
+        ));
+        spike.name = `condition-frozen-spike-${index}`;
+        spike.position.set(
+          center.x + rng.float(-width * 0.34, width * 0.34),
+          bounds.max.y + spikeHeight * 0.5,
+          center.z + rng.float(-depth * 0.3, depth * 0.3),
+        );
+        overlays.add(spike);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  if (overlays.children.length) root.add(overlays);
+  return animated;
+}
+
+function applyConditionToMaterial(material: THREE.Material, condition: RoomCondition): void {
+  const candidate = material as THREE.Material & {
+    color?: THREE.Color;
+    emissive?: THREE.Color;
+    emissiveIntensity?: number;
+    roughness?: number;
+    metalness?: number;
+  };
+  if (candidate.color instanceof THREE.Color) {
+    switch (condition) {
+      case 'bloodied':
+        candidate.color.multiplyScalar(0.72);
+        break;
+      case 'slimed':
+        candidate.color.lerp(new THREE.Color('#39782d'), 0.18);
+        break;
+      case 'scorched':
+        candidate.color.multiplyScalar(0.31).lerp(new THREE.Color('#261710'), 0.24);
+        break;
+      case 'burning':
+        candidate.color.multiplyScalar(0.23).lerp(new THREE.Color('#2c120c'), 0.3);
+        break;
+      case 'ruined':
+        candidate.color.lerp(new THREE.Color('#625e56'), 0.32).multiplyScalar(0.78);
+        break;
+      case 'overgrown':
+        candidate.color.lerp(new THREE.Color('#365d31'), 0.22);
+        break;
+      case 'frozen':
+        candidate.color.lerp(new THREE.Color('#a5deeb'), 0.38);
+        break;
+      default:
+        break;
+    }
+  }
+  if (typeof candidate.roughness === 'number') {
+    if (condition === 'slimed' || condition === 'frozen') candidate.roughness = 0.22;
+    if (condition === 'scorched' || condition === 'burning' || condition === 'ruined') {
+      candidate.roughness = 0.96;
+    }
+  }
+  if (typeof candidate.metalness === 'number' && condition !== 'frozen') {
+    candidate.metalness *= condition === 'slimed' ? 0.45 : 0.2;
+  }
+  if (
+    condition === 'burning' &&
+    candidate.emissive instanceof THREE.Color &&
+    typeof candidate.emissiveIntensity === 'number'
+  ) {
+    candidate.emissive.lerp(new THREE.Color('#ff3f0b'), 0.38);
+    candidate.emissiveIntensity = Math.max(0.12, candidate.emissiveIntensity * 0.72);
+  }
+  material.needsUpdate = true;
+}
+
+function makeFlame(scale: number): THREE.Group {
+  const group = new THREE.Group();
+  const outer = new THREE.Mesh(
+    new THREE.ConeGeometry(0.38, 1.25, 9),
+    new THREE.MeshBasicMaterial({
+      color: '#ff4b16',
+      transparent: true,
+      opacity: 0.76,
+      toneMapped: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  outer.position.y = 0.62;
+  const inner = new THREE.Mesh(
+    new THREE.ConeGeometry(0.2, 0.78, 8),
+    new THREE.MeshBasicMaterial({
+      color: '#ffd43b',
+      transparent: true,
+      opacity: 0.9,
+      toneMapped: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  inner.position.y = 0.38;
+  outer.userData.keepSolid = true;
+  inner.userData.keepSolid = true;
+  group.userData.keepSolid = true;
+  group.add(outer, inner);
+  group.scale.setScalar(Math.max(0.08, scale));
+  return group;
 }
 
 function feetBounds(

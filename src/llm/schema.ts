@@ -154,6 +154,7 @@ export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
           .slice(0, 8)
       : ['liminal'],
     mood,
+    condition: 'normal',
     width: num(o.width, 14, 8, 28),
     depth: num(o.depth, 14, 8, 28),
     height: num(o.height, 3.5, 2.4, 10),
