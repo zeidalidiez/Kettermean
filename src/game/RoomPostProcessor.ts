@@ -263,7 +263,7 @@ export class RoomPostProcessor {
         float targetShadow = (
           uMode == 4.0 || uMode == 5.0 || uMode == 12.0 || uMode == 15.0
         ) ? 0.17 : 0.13;
-        targetShadow = mix(targetShadow, 0.30, uHighVisibility);
+        targetShadow = mix(targetShadow, 0.27, uHighVisibility);
         float shadowLift = max(0.0, targetShadow - luma(color));
         color += vec3(shadowLift * 0.9);
 

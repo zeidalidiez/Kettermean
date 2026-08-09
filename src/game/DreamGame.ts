@@ -42,6 +42,7 @@ export class DreamGame {
   private recentRooms: RoomHistoryEntry[] = [];
   private moodBias: MoodAxis = 'static';
   private lastLinkAt = 0;
+  private pausedAt = 0;
   private linking = false;
   private raf = 0;
   private lastT = 0;
@@ -56,6 +57,9 @@ export class DreamGame {
   private readonly hudSeed: HTMLElement;
   private readonly menu: HTMLElement;
   private readonly pauseMenu: HTMLElement;
+  private readonly pauseRoom: HTMLElement;
+  private readonly pauseMood: HTMLElement;
+  private readonly pauseSeed: HTMLElement;
   private readonly toast: HTMLElement;
 
   constructor(settings: AppSettings) {
@@ -67,6 +71,9 @@ export class DreamGame {
     this.hudSeed = must('hud-seed');
     this.menu = must('menu');
     this.pauseMenu = must('pause-menu');
+    this.pauseRoom = must('pause-room');
+    this.pauseMood = must('pause-mood');
+    this.pauseSeed = must('pause-seed');
     this.toast = must('status-toast');
 
     this.renderer = new THREE.WebGLRenderer({
@@ -93,6 +100,7 @@ export class DreamGame {
     });
 
     window.addEventListener('resize', this.onResize);
+    window.addEventListener('keydown', this.onPausedKeyDown);
     this.canvas.addEventListener('click', this.onCanvasClick);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
@@ -102,6 +110,10 @@ export class DreamGame {
   updateSettings(settings: AppSettings): void {
     this.settings = settings;
     this.generator.updateSettings(settings);
+  }
+
+  notify(message: string): void {
+    this.showToast(message);
   }
 
   start(): void {
@@ -173,9 +185,11 @@ export class DreamGame {
   pause(): void {
     if (this.state !== 'playing') return;
     this.state = 'paused';
+    this.pausedAt = performance.now();
     this.stopLoop();
     this.input.setEnabled(false);
     this.pauseMenu.classList.remove('hidden');
+    (must('resume-btn') as HTMLButtonElement).focus({ preventScroll: true });
   }
 
   resume(): void {
@@ -183,6 +197,7 @@ export class DreamGame {
     this.state = 'playing';
     this.pauseMenu.classList.add('hidden');
     this.input.setEnabled(true);
+    this.canvas.focus({ preventScroll: true });
     this.input.requestPointerLock();
     this.startLoop();
   }
@@ -199,6 +214,7 @@ export class DreamGame {
     this.pauseMenu.classList.add('hidden');
     this.hud.classList.add('hidden');
     this.menu.classList.remove('hidden');
+    (must('start-btn') as HTMLButtonElement).focus({ preventScroll: true });
     this.roomWorld.dispose(this.scene);
     this.hideToast();
   }
@@ -208,6 +224,7 @@ export class DreamGame {
     this.generator.endSession();
     this.stopLoop();
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keydown', this.onPausedKeyDown);
     this.canvas.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     this.input.dispose();
@@ -240,6 +257,9 @@ export class DreamGame {
     this.post.setProfile(spec.visuals);
     this.renderer.toneMappingExposure = spec.visuals?.exposure ?? 1;
     this.hudTheme.textContent = `${spec.title} · ${spec.mood}`;
+    this.pauseRoom.textContent = spec.title;
+    this.pauseMood.textContent = spec.mood;
+    this.pauseSeed.textContent = spec.seed;
     const visualLabels = [
       spec.visuals?.wireframe ? 'wireframe' : '',
       spec.visuals?.shader && spec.visuals.shader !== 'none' ? spec.visuals.shader : '',
@@ -408,6 +428,15 @@ export class DreamGame {
       if (this.state === 'paused') this.resume();
       else this.input.requestPointerLock();
     }
+  };
+
+  private onPausedKeyDown = (event: KeyboardEvent): void => {
+    if (this.state !== 'paused' || event.code !== 'Escape' || event.repeat) return;
+    // Browsers may report pointer-lock loss just before dispatching the Escape
+    // keydown that caused it. Do not let that same physical press also resume.
+    if (performance.now() - this.pausedAt < 150) return;
+    event.preventDefault();
+    this.resume();
   };
 
   private onPointerLockChange = (): void => {

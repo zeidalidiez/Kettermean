@@ -249,8 +249,8 @@ export class RoomWorld {
       '#ffffff',
       highVisibility
         ? outdoor
-          ? 0.55
-          : 0.62
+          ? 0.5
+          : 0.56
         : outdoor
           ? 0.14
           : 0.18,
@@ -274,8 +274,8 @@ export class RoomWorld {
       spec.palette.light,
       highVisibility
         ? outdoor
-          ? 2.1
-          : 2.65
+          ? 2
+          : 2.5
         : outdoor
           ? 1.1
           : 1.35,

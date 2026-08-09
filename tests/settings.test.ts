@@ -24,7 +24,8 @@ describe('settings persistence', () => {
 
     const loaded = loadSettings();
     expect(loaded.mode).toBe('random');
-    expect(loaded.provider).toBe('offline');
+    expect(loaded.provider).toBe('browser');
+    expect(loaded.model).toBe(DEFAULT_BROWSER_MODEL);
     expect(loaded.baseUrl).toMatch(/^https:/);
     expect(loaded.allowGore).toBe(false);
     expect(loaded.noFlashingLights).toBe(false);
@@ -115,7 +116,11 @@ describe('settings persistence', () => {
     vi.stubGlobal('localStorage', blocked);
     vi.stubGlobal('sessionStorage', blocked);
 
-    expect(loadSettings()).toMatchObject({ provider: 'offline', apiKey: '' });
+    expect(loadSettings()).toMatchObject({
+      provider: 'browser',
+      model: DEFAULT_BROWSER_MODEL,
+      apiKey: '',
+    });
     expect(() => saveSettings({
       mode: 'random',
       seed: 'memory-only',

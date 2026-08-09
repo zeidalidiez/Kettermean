@@ -2,7 +2,6 @@ import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_BROWSER_MODEL,
   DEFAULT_OPENAI_BASE,
-  DEFAULT_OPENAI_MODEL,
   DEFAULT_OPENROUTER_MODEL,
   STORAGE_KEYS,
 } from '../config';
@@ -20,10 +19,10 @@ export function defaultSettings(): AppSettings {
   return {
     mode: 'random',
     seed: randomSeed(),
-    provider: 'offline',
+    provider: 'browser',
     apiKey: '',
     baseUrl: DEFAULT_OPENAI_BASE,
-    model: DEFAULT_OPENAI_MODEL,
+    model: DEFAULT_BROWSER_MODEL,
     allowGore: false,
     noFlashingLights: false,
     noLowLight: false,
@@ -103,7 +102,7 @@ export function modelForProvider(provider: AppSettings['provider'], current: str
   }
   if (provider === 'openai') {
     if (!current.trim()) return DEFAULT_OPENROUTER_MODEL;
-    if (current.includes('claude')) return DEFAULT_OPENAI_MODEL;
+    if (current.includes('claude') || current.includes('-MLC')) return DEFAULT_OPENROUTER_MODEL;
     return current;
   }
   if (provider === 'browser') {

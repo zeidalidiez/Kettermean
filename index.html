@@ -41,136 +41,180 @@
         </div>
       </div>
 
-      <div id="menu" class="panel-root">
-        <div class="panel">
-          <header class="panel-header">
-            <h1>Kettermean</h1>
-            <p class="tagline">
-              Walk through liminal rooms. Link through doors. Let the dream drift.
-            </p>
-          </header>
+      <div id="menu" class="menu-shell">
+        <img
+          class="menu-backdrop"
+          src="./kettermean-menu-bg.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <div class="menu-vignette" aria-hidden="true"></div>
 
-          <section class="panel-section">
-            <h2>Dream mode</h2>
-            <label class="field">
-              <span>Mode</span>
-              <select id="mode-select">
-                <option value="random" selected>Fully randomized</option>
-                <option value="seeded">Seeded continuum</option>
-              </select>
-            </label>
-            <label class="field" id="seed-field">
-              <span>Seed</span>
-              <input id="seed-input" type="text" placeholder="e.g. yellow-hallway-07" autocomplete="off" />
-            </label>
-            <p class="help">
-              Seeded mode keeps later rooms related to your starting seed. Random mode invents
-              new seeds and can reshuffle mid-dream.
-            </p>
-          </section>
+        <header class="menu-brand">
+          <p class="eyebrow">A procedural threshold</p>
+          <h1>Kettermean</h1>
+          <span class="brand-rule" aria-hidden="true"></span>
+          <p class="tagline">
+            Walk through liminal rooms.<br />
+            Link through doors.<br />
+            Let the dream drift.
+          </p>
+          <button id="start-btn" type="button" class="enter-button">
+            <span aria-hidden="true">→</span>
+            <span>Enter dream</span>
+          </button>
+        </header>
 
-          <section class="panel-section">
-            <h2>LLM (optional)</h2>
-            <p class="help warn">
-              Keys stay only in this tab and are cleared when the browser session ends. Prefer a
-              proxy or spend-limited key. Offline rooms work without one.
-            </p>
-            <label class="field">
-              <span>Provider</span>
-              <select id="provider-select">
-                <option value="offline" selected>Offline procedural only</option>
-                <option value="browser">Browser model (WebGPU / WebLLM)</option>
-                <option value="openai">OpenAI-compatible / OpenRouter</option>
-                <option value="anthropic">Anthropic Claude</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>API key</span>
-              <input id="api-key-input" type="password" placeholder="sk-... or leave blank" autocomplete="off" />
-            </label>
-            <label class="field">
-              <span>Base URL</span>
-              <input
-                id="base-url-input"
-                type="url"
-                placeholder="https://openrouter.ai/api/v1"
-                autocomplete="off"
-              />
-            </label>
-            <label class="field hidden" id="model-field-browser">
-              <span>Browser model</span>
-              <select id="browser-model-select" aria-label="Browser WebLLM model"></select>
-            </label>
-            <label class="field hidden" id="model-field-cloud">
-              <span>Model</span>
-              <input
-                id="model-input"
-                type="text"
-                placeholder="openrouter/free"
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </label>
-            <p class="help" id="provider-help">
-              Browser models run locally via WebGPU (no API key). First load downloads weights.
-              Cloud providers still supported.
-            </p>
-          </section>
+        <aside class="settings-rail" aria-label="Dream settings">
+          <div class="rail-scroll">
+            <section class="rail-section rail-section-first">
+              <h2>Dream mode</h2>
+              <label class="field field-inline">
+                <span>Mode</span>
+                <select id="mode-select">
+                  <option value="random" selected>Fresh random dream</option>
+                  <option value="seeded">Seeded continuum</option>
+                </select>
+              </label>
+              <label class="field field-inline" id="seed-field">
+                <span>Seed</span>
+                <input
+                  id="seed-input"
+                  type="text"
+                  placeholder="e.g. yellow-hallway-07"
+                  autocomplete="off"
+                />
+              </label>
+              <p class="help dream-mode-help">
+                Random mode starts elsewhere every time. A seed recreates a related continuum.
+              </p>
+            </section>
 
-          <section class="panel-section">
-            <h2>Content</h2>
-            <label class="check">
-              <input id="gore-toggle" type="checkbox" />
-              <span>Allow mild blood &amp; gore in prompts</span>
-            </label>
-            <p class="help">
-              Off by default. Sexual or obscene content is always blocked. Expect liminal unease,
-              not torture porn.
-            </p>
-          </section>
+            <details id="ai-settings" class="ai-disclosure rail-section">
+              <summary>
+                <span class="ai-summary-copy">
+                  <span class="section-title">AI direction</span>
+                  <strong id="ai-provider-status">Browser model</strong>
+                  <span id="ai-model-status">SmolLM2 360M</span>
+                </span>
+                <span class="ai-settings-label">
+                  <span>AI settings</span><span class="disclosure-arrow" aria-hidden="true">›</span>
+                </span>
+              </summary>
+              <div class="ai-settings-body">
+                <p class="help ai-intro">
+                  WebLLM is the default. It runs locally and only steers bounded room choices;
+                  procedural generation keeps every room playable.
+                </p>
+                <label class="field">
+                  <span>Provider</span>
+                  <select id="provider-select">
+                    <option value="browser" selected>Browser model · WebLLM</option>
+                    <option value="offline">Procedural only · no AI</option>
+                    <option value="openai">OpenAI-compatible · OpenRouter</option>
+                    <option value="anthropic">Anthropic Claude</option>
+                  </select>
+                </label>
+                <label class="field" id="model-field-browser">
+                  <span>Browser model</span>
+                  <select id="browser-model-select" aria-label="Browser WebLLM model"></select>
+                </label>
+                <label class="field hidden" id="model-field-cloud">
+                  <span>Model</span>
+                  <input
+                    id="model-input"
+                    type="text"
+                    placeholder="openrouter/free"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </label>
+                <label class="field cloud-field hidden" id="api-key-field">
+                  <span>API key · this tab only</span>
+                  <input
+                    id="api-key-input"
+                    type="password"
+                    placeholder="sk-..."
+                    autocomplete="off"
+                  />
+                </label>
+                <label class="field cloud-field hidden" id="base-url-field">
+                  <span>Base URL</span>
+                  <input
+                    id="base-url-input"
+                    type="url"
+                    placeholder="https://openrouter.ai/api/v1"
+                    autocomplete="off"
+                  />
+                </label>
+                <p class="help" id="provider-help">
+                  Browser models run locally via WebGPU. The first load downloads model weights.
+                </p>
+                <button id="clear-key-btn" type="button" class="text-button cloud-field hidden">
+                  Clear session key
+                </button>
+              </div>
+            </details>
 
-          <section class="panel-section">
-            <h2>Comfort</h2>
-            <label class="check">
-              <input id="no-flashing-toggle" type="checkbox" />
-              <span>No flashing or pulsing lights</span>
-            </label>
-            <label class="check">
-              <input id="no-low-light-toggle" type="checkbox" />
-              <span>No low-light rooms</span>
-            </label>
-            <p class="help">
-              Optional. These choices constrain procedural and model-steered rooms without
-              removing atmospheric modes for everyone else.
-            </p>
-          </section>
+            <section class="rail-section">
+              <h2>Comfort &amp; content</h2>
+              <label class="check">
+                <input id="gore-toggle" type="checkbox" />
+                <span>Allow mild blood &amp; gore</span>
+              </label>
+              <label class="check">
+                <input id="no-flashing-toggle" type="checkbox" />
+                <span>No flashing or pulsing lights</span>
+              </label>
+              <label class="check">
+                <input id="no-low-light-toggle" type="checkbox" />
+                <span>No low-light rooms</span>
+              </label>
+              <p class="help">
+                Comfort choices are enforced locally even when a model returns unusable output.
+              </p>
+            </section>
 
-          <section class="panel-section">
-            <h2>Controls</h2>
-            <ul class="controls-list">
-              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</li>
-              <li>Mouse look · click canvas to lock pointer</li>
-              <li>Gamepad supported · touch sticks plus jump/sprint on mobile</li>
-              <li><kbd>Esc</kbd> pause / menu</li>
-            </ul>
-          </section>
-
-          <footer class="panel-footer">
-            <button id="start-btn" type="button" class="primary">Enter dream</button>
-            <button id="clear-key-btn" type="button" class="ghost">Clear session key</button>
-          </footer>
-        </div>
+            <section class="rail-section controls-section">
+              <h2>Controls</h2>
+              <dl class="control-grid">
+                <dt>Move</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd>
+                <dt>Look</dt><dd>Mouse</dd>
+                <dt>Jump</dt><dd><kbd>Space</kbd></dd>
+                <dt>Sprint</dt><dd><kbd>Shift</kbd></dd>
+                <dt>Pause</dt><dd><kbd>Esc</kbd></dd>
+              </dl>
+              <p class="help">Gamepad and touch controls are also supported.</p>
+            </section>
+          </div>
+        </aside>
       </div>
 
-      <div id="pause-menu" class="panel-root hidden">
-        <div class="panel compact">
-          <h2>Paused</h2>
-          <p class="help">Pointer unlocked. Resume to keep dreaming.</p>
-          <div class="row">
-            <button id="resume-btn" type="button" class="primary">Resume</button>
-            <button id="quit-btn" type="button" class="ghost">Back to menu</button>
+      <div id="pause-menu" class="pause-overlay hidden">
+        <section class="pause-rail" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <p class="eyebrow">Dream suspended</p>
+          <h2 id="pause-title">Paused</h2>
+          <span class="brand-rule" aria-hidden="true"></span>
+
+          <dl class="pause-meta">
+            <div><dt>Room</dt><dd id="pause-room">Unknown threshold</dd></div>
+            <div><dt>Mood</dt><dd id="pause-mood">Static</dd></div>
+            <div><dt>Seed</dt><dd id="pause-seed">—</dd></div>
+          </dl>
+
+          <div class="pause-actions">
+            <button id="resume-btn" type="button" class="enter-button">
+              <span aria-hidden="true">→</span><span>Resume dream</span>
+            </button>
+            <button id="quit-btn" type="button" class="return-button">Return to threshold</button>
           </div>
-        </div>
+
+          <div class="pause-controls">
+            <span>Move <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
+            <span>Look Mouse</span>
+            <span>Pause <kbd>Esc</kbd></span>
+          </div>
+        </section>
       </div>
 
       <div id="status-toast" class="hidden" role="status"></div>

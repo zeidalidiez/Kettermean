@@ -16,7 +16,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 - Seeded lighting plus sixteen randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, fisheye, thermal, prism, VHS, mirror, tunnel, strobe, and wireframe modes
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - Keyboard/mouse, gamepad, and complete touch controls
-- Optional OpenAI-compatible, OpenRouter, Anthropic, and WebLLM providers
+- WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings
 - Provider-scoped room cache and strict one-request-at-a-time generation
 - Content sanitization at every LLM-to-HUD boundary
 - Static Vite build and GitHub Pages workflow
@@ -69,7 +69,7 @@ Use a disposable or spend-limited key. A browser-delivered application cannot pr
 ### Providers
 
 - **Offline procedural only** — default and fully local.
-- **Browser model (WebLLM / WebGPU)** — local inference with no API key. The default is the lightweight `SmolLM2-360M-Instruct-q4f16_1-MLC`; a 1.5B option remains available for machines that can comfortably run it.
+- **Browser model (WebLLM / WebGPU)** — the fresh-install default, with local inference and no API key. The lightweight `SmolLM2-360M-Instruct-q4f16_1-MLC` is recommended; stronger options remain in AI settings for machines that can comfortably run them. Browsers without WebGPU automatically continue with procedural generation for that run.
 - **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
 - **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
 

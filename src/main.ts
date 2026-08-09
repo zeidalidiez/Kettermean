@@ -26,6 +26,10 @@ const modelInput = qs<HTMLInputElement>('model-input');
 const browserModelSelect = qs<HTMLSelectElement>('browser-model-select');
 const modelFieldBrowser = qs<HTMLElement>('model-field-browser');
 const modelFieldCloud = qs<HTMLElement>('model-field-cloud');
+const apiKeyField = qs<HTMLElement>('api-key-field');
+const baseUrlField = qs<HTMLElement>('base-url-field');
+const aiProviderStatus = qs<HTMLElement>('ai-provider-status');
+const aiModelStatus = qs<HTMLElement>('ai-model-status');
 const goreToggle = qs<HTMLInputElement>('gore-toggle');
 const noFlashingToggle = qs<HTMLInputElement>('no-flashing-toggle');
 const noLowLightToggle = qs<HTMLInputElement>('no-low-light-toggle');
@@ -88,12 +92,15 @@ function setModelFieldsVisible(provider: LlmProvider): void {
 
 function syncProviderUi(): void {
   const provider = providerSelect.value as LlmProvider;
-  const offline = provider === 'offline';
   const browser = provider === 'browser';
-  apiKeyInput.disabled = offline || browser;
-  baseUrlInput.disabled = offline || browser;
-  modelInput.disabled = offline;
+  const cloud = provider === 'openai' || provider === 'anthropic';
+  apiKeyInput.disabled = !cloud;
+  baseUrlInput.disabled = !cloud;
+  modelInput.disabled = !cloud;
   browserModelSelect.disabled = !browser;
+  apiKeyField.classList.toggle('hidden', !cloud);
+  baseUrlField.classList.toggle('hidden', !cloud);
+  clearKeyBtn.classList.toggle('hidden', !cloud);
   setModelFieldsVisible(provider);
 
   const help = document.getElementById('provider-help');
@@ -141,10 +148,13 @@ function syncProviderUi(): void {
     modelInput.placeholder = DEFAULT_OPENAI_MODEL;
     if (help) help.textContent = 'Fully local procedural rooms. No network, no model download.';
   }
+  syncAiStatus(provider);
 }
 
 modeSelect.addEventListener('change', syncModeUi);
 providerSelect.addEventListener('change', syncProviderUi);
+browserModelSelect.addEventListener('change', () => syncAiStatus('browser'));
+modelInput.addEventListener('input', () => syncAiStatus(providerSelect.value as LlmProvider));
 
 startBtn.addEventListener('click', () => {
   const next = readForm();
@@ -159,14 +169,18 @@ startBtn.addEventListener('click', () => {
     providerSelect.value = 'offline';
     syncProviderUi();
   }
+  saveSettings(next);
+  let runtimeSettings = next;
+  let fallbackNotice = '';
   if (next.provider === 'browser' && !isWebGpuAvailable()) {
     const gpu = getWebGpuStatus();
-    alert(gpu.reason || 'WebGPU is required for browser models.');
-    return;
+    runtimeSettings = { ...next, provider: 'offline' };
+    fallbackNotice = `${gpu.reason || 'WebGPU is unavailable.'} Continuing procedurally.`;
+    console.warn('[Kettermean] WebLLM unavailable; using procedural direction for this run.', gpu);
   }
-  saveSettings(next);
-  game.updateSettings(next);
-  void game.start();
+  game.updateSettings(runtimeSettings);
+  game.start();
+  if (fallbackNotice) game.notify(fallbackNotice);
 });
 
 function setBrowserModelValue(modelId: string): void {
@@ -195,6 +209,33 @@ function populateBrowserModelOptions(): void {
     }
     browserModelSelect.append(element);
   }
+}
+
+function syncAiStatus(provider: LlmProvider): void {
+  if (provider === 'browser') {
+    aiProviderStatus.textContent = 'Browser model · WebLLM';
+    aiModelStatus.textContent = friendlyModelName(
+      browserModelSelect.value || DEFAULT_BROWSER_MODEL,
+    );
+    return;
+  }
+  if (provider === 'offline') {
+    aiProviderStatus.textContent = 'Procedural only';
+    aiModelStatus.textContent = 'No download · deterministic generation';
+    return;
+  }
+  aiProviderStatus.textContent = provider === 'anthropic' ? 'Anthropic Claude' : 'OpenAI-compatible';
+  aiModelStatus.textContent = modelInput.value.trim() || modelForProvider(provider, '');
+}
+
+function friendlyModelName(modelId: string): string {
+  if (modelId === DEFAULT_BROWSER_MODEL) return 'SmolLM2 360M · recommended';
+  return modelId
+    .replace(/-q4f16(?:_1)?-MLC$/i, '')
+    .replace(/-Instruct|-Chat|-it(?=$|\s)/gi, '')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 clearKeyBtn.addEventListener('click', () => {
