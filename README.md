@@ -6,7 +6,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated prop kit, including 624 composed prop and NPC variants across 78 families
+- Three.js first-person rooms assembled from a curated prop kit, including 824 composed furniture, fixture, animal, and NPC variants across 103 families
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
@@ -51,7 +51,7 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 
 Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets. Press **R** at any time (gamepad Y or the touch **Next** button) to move to the next dream; doors remain atmospheric landmarks rather than collision-triggered exits. Recent-room fingerprints actively steer the director away from repeated themes, layouts, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
 
-The procedural catalog includes furniture, public-space fixtures, outdoor objects, and twenty richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders.
+The procedural catalog includes furniture, public-space fixtures, outdoor objects, six expanded animal families, and twenty-six richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions.
 
 ## Cost and lifecycle controls
 

@@ -85,6 +85,19 @@ const PROP_FAMILIES: AssetFamily[] = [
   family('exercise_bike', 'exercise_bike', 'stationary exercise bike', 'fixture', ['gym', 'clinic', 'leisure'], { x: 1.45, y: 1.65, z: 0.72 }),
   family('cinema_seat', 'cinema_seat', 'folding cinema seat', 'furniture', ['cinema', 'convention', 'leisure'], { x: 0.78, y: 1.35, z: 0.78 }),
   family('pool_ladder', 'pool_ladder', 'stainless pool ladder', 'fixture', ['pool', 'waterpark', 'wet'], { x: 1.05, y: 1.65, z: 0.72 }),
+  family('utility_shelf', 'utility_shelf', 'loaded utility shelf', 'fixture', ['service', 'industrial', 'warehouse', 'storage'], { x: 1.55, y: 2.05, z: 0.62 }),
+  family('breaker_panel', 'breaker_panel', 'electrical breaker panel', 'fixture', ['service', 'industrial', 'utility', 'parking'], { x: 0.95, y: 1.65, z: 0.34 }),
+  family('boiler', 'boiler', 'mechanical boiler', 'fixture', ['service', 'industrial', 'basement', 'utility'], { x: 1.5, y: 2.35, z: 1.25 }),
+  family('pipe_cluster', 'pipe_cluster', 'exposed pipe cluster', 'fixture', ['service', 'industrial', 'basement', 'utility'], { x: 1.6, y: 2.55, z: 0.8 }),
+  family('folding_table', 'folding_table', 'folding utility table', 'furniture', ['school', 'convention', 'service', 'banquet'], { x: 1.85, y: 0.95, z: 0.82 }),
+  family('cafeteria_table', 'cafeteria_table', 'attached-seat cafeteria table', 'furniture', ['school', 'food', 'mall', 'convention'], { x: 2.3, y: 1.05, z: 1.65 }),
+  family('airport_seat', 'airport_seat', 'airport seat row', 'furniture', ['airport', 'terminal', 'station', 'waiting room'], { x: 2.65, y: 1.35, z: 0.82 }),
+  family('examination_bed', 'examination_bed', 'examination bed', 'furniture', ['clinic', 'hospital', 'observation', 'lab'], { x: 2.05, y: 1.25, z: 0.88 }),
+  family('snack_machine', 'snack_machine', 'spiral snack machine', 'fixture', ['mall', 'school', 'terminal', 'service'], { x: 1.05, y: 2.15, z: 0.92 }),
+  family('luggage_pile', 'luggage_pile', 'abandoned luggage pile', 'decor', ['airport', 'terminal', 'motel', 'station'], { x: 1.65, y: 1.45, z: 1.25 }),
+  family('garden_bench', 'garden_bench', 'slatted garden bench', 'furniture', ['outdoor', 'park', 'garden', 'plaza'], { x: 1.95, y: 1.2, z: 0.78 }),
+  family('market_stall', 'market_stall', 'empty market stall', 'fixture', ['outdoor', 'market', 'plaza', 'retail'], { x: 2.8, y: 2.65, z: 1.8 }),
+  family('maintenance_sink', 'maintenance_sink', 'deep maintenance sink', 'fixture', ['service', 'industrial', 'clinic', 'utility'], { x: 1.15, y: 1.55, z: 0.82 }),
 ];
 
 const NPC_FAMILIES: AssetFamily[] = [
@@ -108,9 +121,28 @@ const NPC_FAMILIES: AssetFamily[] = [
   npc('npc_tourist', 'figure_tourist', 'stranded tourist', ['museum', 'plaza', 'terminal'], 'idle'),
   npc('npc_mechanic', 'figure_mechanic', 'parking mechanic', ['parking', 'industrial', 'highway'], 'wander'),
   npc('npc_lifeguard', 'figure_lifeguard', 'off-duty lifeguard', ['pool', 'outdoor', 'motel'], 'stare'),
+  npc('npc_vendor', 'figure_vendor', 'closed-market vendor', ['market', 'retail', 'plaza'], 'stare'),
+  npc('npc_firefighter', 'figure_firefighter', 'waiting firefighter', ['service', 'industrial', 'parking'], 'wander'),
+  npc('npc_librarian', 'figure_librarian', 'after-hours librarian', ['archive', 'school', 'museum'], 'stare'),
+  npc('npc_lab_tech', 'figure_lab_tech', 'silent lab technician', ['lab', 'clinic', 'tech'], 'wander'),
+  npc('npc_coach', 'figure_coach', 'empty-gym coach', ['gym', 'school', 'stadium'], 'orbit'),
+  npc('npc_musician', 'figure_musician', 'last concourse musician', ['station', 'convention', 'chapel'], 'idle'),
 ];
 
-export const EXPANDED_ASSETS: AssetDef[] = [...PROP_FAMILIES, ...NPC_FAMILIES].flatMap(
+const CREATURE_FAMILIES: AssetFamily[] = [
+  creature('creature_cat', 'animal_cat', 'stray cat', ['motel', 'service', 'outdoor'], 'wander', { x: 0.75, y: 0.72, z: 1.05 }),
+  creature('creature_dog', 'animal_dog', 'waiting dog', ['park', 'outdoor', 'station'], 'wander', { x: 0.95, y: 1.15, z: 1.4 }),
+  creature('creature_crow', 'animal_crow', 'watching crow', ['outdoor', 'parking', 'plaza'], 'orbit', { x: 0.75, y: 0.78, z: 0.85 }),
+  creature('creature_rabbit', 'animal_rabbit', 'still rabbit', ['outdoor', 'garden', 'meadow'], 'idle', { x: 0.68, y: 0.92, z: 0.9 }),
+  creature('creature_horse', 'animal_horse', 'unattended horse', ['outdoor', 'field', 'highway'], 'wander', { x: 1.35, y: 2.35, z: 2.3 }),
+  creature('creature_fish', 'animal_fish', 'floating corridor fish', ['aquarium', 'wet', 'dream'], 'orbit', { x: 1.25, y: 0.72, z: 0.48 }),
+];
+
+export const EXPANDED_ASSETS: AssetDef[] = [
+  ...PROP_FAMILIES,
+  ...NPC_FAMILIES,
+  ...CREATURE_FAMILIES,
+].flatMap(
   (assetFamily) =>
     Array.from({ length: VARIANTS_PER_FAMILY }, (_, variant) => ({
       id: `${assetFamily.id}_${String(variant + 1).padStart(2, '0')}`,
@@ -121,11 +153,14 @@ export const EXPANDED_ASSETS: AssetDef[] = [...PROP_FAMILIES, ...NPC_FAMILIES].f
       setIds: sceneSetIdsForTags(assetFamily.tags),
       moods: [...assetFamily.moods],
       defaultScale: { ...assetFamily.scale },
-      scaleRange: { min: 0.78, max: assetFamily.category === 'npc' ? 1.45 : 1.5 },
+      scaleRange: {
+        min: 0.78,
+        max: assetFamily.category === 'npc' || assetFamily.category === 'creature' ? 1.55 : 1.5,
+      },
       defaultBehavior: assetFamily.behavior,
       linksByDefault: false,
-      solidDefault: assetFamily.category !== 'npc',
-      weight: assetFamily.weight ?? (assetFamily.category === 'npc' ? 0.62 : 0.78),
+      solidDefault: assetFamily.category !== 'npc' && assetFamily.category !== 'creature',
+      weight: assetFamily.weight ?? (assetFamily.category === 'npc' ? 0.62 : assetFamily.category === 'creature' ? 0.5 : 0.78),
       renderCost: renderCostFor(assetFamily.kind, assetFamily.category),
       family: assetFamily.id,
       variant,
@@ -155,6 +190,7 @@ function family(
 
 function renderCostFor(kind: string, category: AssetCategory): number {
   if (category === 'npc') return 5;
+  if (category === 'creature') return 4;
   if (['bookcase', 'bus_shelter', 'swing_set', 'server_rack', 'aquarium_tank'].includes(kind)) return 5;
   if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree', 'reception_desk', 'sectional', 'hotel_bed', 'phone_booth', 'lifeguard_chair', 'pallet_stack', 'privacy_screen', 'departure_board', 'shopping_cart', 'retail_display', 'lab_bench', 'drum_stack', 'luggage_cart', 'exercise_bike'].includes(kind)) {
     return 3;
@@ -177,6 +213,26 @@ function npc(
     tags,
     moods: ['upper', 'downer', 'static', 'dynamic'],
     scale: { x: 0.78, y: 2.3, z: 0.58 },
+    behavior,
+  };
+}
+
+function creature(
+  id: string,
+  kind: string,
+  label: string,
+  tags: string[],
+  behavior: EntityBehavior,
+  scale: { x: number; y: number; z: number },
+): AssetFamily {
+  return {
+    id,
+    kind,
+    label,
+    category: 'creature',
+    tags,
+    moods: ['upper', 'downer', 'static', 'dynamic'],
+    scale,
     behavior,
   };
 }

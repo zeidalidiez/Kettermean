@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hashString } from '../core/rng';
 
 export type PropKind =
   | 'chair'
@@ -87,6 +88,25 @@ export type PropKind =
   | 'exercise_bike'
   | 'cinema_seat'
   | 'pool_ladder'
+  | 'utility_shelf'
+  | 'breaker_panel'
+  | 'boiler'
+  | 'pipe_cluster'
+  | 'folding_table'
+  | 'cafeteria_table'
+  | 'airport_seat'
+  | 'examination_bed'
+  | 'snack_machine'
+  | 'luggage_pile'
+  | 'garden_bench'
+  | 'market_stall'
+  | 'maintenance_sink'
+  | 'animal_cat'
+  | 'animal_dog'
+  | 'animal_crow'
+  | 'animal_rabbit'
+  | 'animal_horse'
+  | 'animal_fish'
   | 'figure_nurse'
   | 'figure_janitor'
   | 'figure_commuter'
@@ -106,7 +126,13 @@ export type PropKind =
   | 'figure_usher'
   | 'figure_tourist'
   | 'figure_mechanic'
-  | 'figure_lifeguard';
+  | 'figure_lifeguard'
+  | 'figure_vendor'
+  | 'figure_firefighter'
+  | 'figure_librarian'
+  | 'figure_lab_tech'
+  | 'figure_coach'
+  | 'figure_musician';
 
 interface PartSpec {
   w: number;
@@ -326,6 +352,27 @@ function buildExpandedModel(
     case 'cinema_seat':
     case 'pool_ladder':
       return buildSceneExpansion(kind, variant, accent, body);
+    case 'utility_shelf':
+    case 'breaker_panel':
+    case 'boiler':
+    case 'pipe_cluster':
+    case 'folding_table':
+    case 'cafeteria_table':
+    case 'airport_seat':
+    case 'examination_bed':
+    case 'snack_machine':
+    case 'luggage_pile':
+    case 'garden_bench':
+    case 'market_stall':
+    case 'maintenance_sink':
+      return buildIterationExpansion(kind, variant, accent, body);
+    case 'animal_cat':
+    case 'animal_dog':
+    case 'animal_crow':
+    case 'animal_rabbit':
+    case 'animal_horse':
+    case 'animal_fish':
+      return buildAnimal(kind, variant, accent);
     case 'figure_nurse':
     case 'figure_janitor':
     case 'figure_commuter':
@@ -346,6 +393,12 @@ function buildExpandedModel(
     case 'figure_tourist':
     case 'figure_mechanic':
     case 'figure_lifeguard':
+    case 'figure_vendor':
+    case 'figure_firefighter':
+    case 'figure_librarian':
+    case 'figure_lab_tech':
+    case 'figure_coach':
+    case 'figure_musician':
       return buildHumanoid(kind, variant, accent);
     default:
       return null;
@@ -1273,6 +1326,259 @@ function buildSceneExpansion(
   }
 }
 
+/** The current content wave: service, transit, clinic, market, and outdoor furniture. */
+function buildIterationExpansion(
+  kind: PropKind,
+  variant: number,
+  accent: string,
+  body: string,
+): THREE.Group {
+  const color = variantColor(accent, variant);
+  const secondary = variantColor(body, variant, 0.08);
+  const metal = variantColor('#68757b', variant);
+  const dark = variantColor('#252b2e', variant);
+  const glow = variantColor('#93e9ff', variant, 0.06);
+  const foot = (x: number, z: number): PartSpec => ({
+    w: 0.12,
+    h: 0.12,
+    d: 0.12,
+    x,
+    y: 0.06,
+    z,
+    color: dark,
+    shape: 'sphere',
+  });
+
+  switch (kind) {
+    case 'utility_shelf': {
+      const parts: PartSpec[] = [];
+      for (const x of [-0.7, 0.7]) {
+        for (const z of [-0.24, 0.24]) {
+          parts.push({ w: 0.07, h: 1.96, d: 0.07, x, y: 1, z, color: metal, shape: 'cylinder' });
+        }
+      }
+      for (let shelf = 0; shelf < 4; shelf += 1) {
+        const y = 0.18 + shelf * 0.56;
+        parts.push({ w: 1.48, h: 0.08, d: 0.55, x: 0, y, z: 0, color: metal, metalness: 0.58 });
+        for (let box = 0; box < 2; box += 1) {
+          const width = 0.42 + ((shelf + box + variant) % 3) * 0.09;
+          parts.push({ w: width, h: 0.26 + ((box + variant) % 2) * 0.1, d: 0.42, x: (box ? 0.38 : -0.38) + (shelf % 2) * 0.06, y: y + 0.18, z: 0.02, color: variantColor(color, variant, shelf * 0.07 + box * 0.13) });
+        }
+      }
+      return group(parts, `utility-shelf-${variant}`);
+    }
+    case 'breaker_panel': {
+      const parts: PartSpec[] = [
+        { w: 0.88, h: 1.5, d: 0.26, x: 0, y: 0.83, z: 0, color: metal, metalness: 0.48 },
+        { w: 0.78, h: 1.3, d: 0.035, x: 0, y: 0.83, z: 0.15, color: secondary },
+        { w: 0.64, h: 0.18, d: 0.035, x: 0, y: 1.37, z: 0.19, color: dark },
+      ];
+      for (let row = 0; row < 5; row += 1) {
+        for (const x of [-0.2, 0.2]) {
+          parts.push({ w: 0.13, h: 0.08, d: 0.07, x, y: 0.48 + row * 0.18, z: 0.19, color: (row + variant) % 4 === 0 ? color : dark, rz: x > 0 ? 0.12 : -0.12 });
+        }
+      }
+      for (const x of [-0.27, 0, 0.27]) parts.push({ w: 0.06, h: 0.34, d: 0.06, x, y: 0.17, z: -0.03, color: metal, shape: 'cylinder' });
+      return group(parts, `breaker-panel-${variant}`);
+    }
+    case 'boiler': {
+      const parts: PartSpec[] = [
+        { w: 1.1, h: 1.85, d: 1.1, x: 0, y: 1.12, z: 0, color: secondary, shape: 'cylinder', metalness: 0.4 },
+        { w: 1.16, h: 0.08, d: 1.16, x: 0, y: 0.34, z: 0, color: metal, shape: 'torus', rx: Math.PI / 2 },
+        { w: 1.16, h: 0.08, d: 1.16, x: 0, y: 1.2, z: 0, color: metal, shape: 'torus', rx: Math.PI / 2 },
+        { w: 1.16, h: 0.08, d: 1.16, x: 0, y: 1.92, z: 0, color: metal, shape: 'torus', rx: Math.PI / 2 },
+        { w: 0.2, h: 0.72, d: 0.2, x: -0.46, y: 2.05, z: 0, color: metal, shape: 'cylinder' },
+        { w: 0.2, h: 0.72, d: 0.2, x: 0.46, y: 2.05, z: 0, color: metal, shape: 'cylinder' },
+        { w: 0.38, h: 0.38, d: 0.12, x: 0, y: 1.36, z: 0.56, color: '#e8e3ce', shape: 'cylinder', rx: Math.PI / 2 },
+        { w: 0.035, h: 0.16, d: 0.035, x: 0.04, y: 1.42, z: 0.64, color: '#c33', shape: 'cylinder', rz: (variant - 3.5) * 0.1 },
+      ];
+      parts.push(foot(-0.42, -0.36), foot(0.42, -0.36), foot(-0.42, 0.36), foot(0.42, 0.36));
+      return group(parts, `boiler-${variant}`);
+    }
+    case 'pipe_cluster': {
+      const parts: PartSpec[] = [];
+      for (let pipe = 0; pipe < 5; pipe += 1) {
+        const x = -0.62 + pipe * 0.31;
+        const radius = 0.1 + (pipe % 3) * 0.035;
+        parts.push({ w: radius, h: 2.25 - (pipe % 2) * 0.34, d: radius, x, y: 1.16, z: (pipe % 2) * 0.16, color: variantColor(metal, variant, pipe * 0.03), shape: 'cylinder', metalness: 0.62 });
+        parts.push({ w: radius * 2.2, h: 0.08, d: radius * 2.2, x, y: 0.52 + pipe * 0.27, z: (pipe % 2) * 0.16, color: color, shape: 'torus', rx: Math.PI / 2 });
+      }
+      parts.push({ w: 1.42, h: 0.14, d: 0.14, x: 0, y: 1.86, z: 0.05, color: metal, shape: 'cylinder', rz: Math.PI / 2 });
+      return group(parts, `pipe-cluster-${variant}`);
+    }
+    case 'folding_table': {
+      const parts: PartSpec[] = [
+        { w: 1.78, h: 0.1, d: 0.75, x: 0, y: 0.88, z: 0, color: secondary },
+        { w: 1.66, h: 0.045, d: 0.66, x: 0, y: 0.81, z: 0, color: metal, metalness: 0.62 },
+      ];
+      for (const x of [-0.68, 0.68]) for (const z of [-0.24, 0.24]) parts.push({ w: 0.07, h: 0.8, d: 0.07, x, y: 0.4, z, color: metal, shape: 'cylinder', rz: x * 0.08 });
+      parts.push({ w: 1.42, h: 0.05, d: 0.05, x: 0, y: 0.45, z: -0.25, color: metal, shape: 'cylinder', rz: Math.PI / 2 });
+      return group(parts, `folding-table-${variant}`);
+    }
+    case 'cafeteria_table': {
+      const parts: PartSpec[] = [
+        { w: 1.72, h: 0.1, d: 0.82, x: 0, y: 0.88, z: 0, color: secondary },
+        { w: 0.12, h: 0.82, d: 0.12, x: 0, y: 0.42, z: 0, color: metal, shape: 'cylinder' },
+        { w: 2.1, h: 0.08, d: 0.08, x: 0, y: 0.38, z: 0, color: metal, shape: 'cylinder', rz: Math.PI / 2 },
+      ];
+      for (const x of [-0.86, 0.86]) for (const z of [-0.58, 0.58]) {
+        parts.push({ w: 0.46, h: 0.12, d: 0.46, x, y: 0.52, z, color: variantColor(color, variant, x + z), shape: variant % 2 ? 'sphere' : 'cylinder' });
+        parts.push({ w: 0.09, h: 0.5, d: 0.09, x, y: 0.25, z, color: metal, shape: 'cylinder' });
+      }
+      return group(parts, `cafeteria-table-${variant}`);
+    }
+    case 'airport_seat': {
+      const parts: PartSpec[] = [
+        { w: 2.42, h: 0.1, d: 0.12, x: 0, y: 0.58, z: -0.2, color: metal, metalness: 0.65 },
+        { w: 0.1, h: 0.62, d: 0.1, x: -0.92, y: 0.31, z: -0.2, color: metal, shape: 'cylinder' },
+        { w: 0.1, h: 0.62, d: 0.1, x: 0.92, y: 0.31, z: -0.2, color: metal, shape: 'cylinder' },
+      ];
+      for (let seat = -1; seat <= 1; seat += 1) {
+        const x = seat * 0.76;
+        parts.push({ w: 0.68, h: 0.13, d: 0.62, x, y: 0.62, z: 0.04, color: variantColor(color, variant, seat * 0.08) });
+        parts.push({ w: 0.68, h: 0.68, d: 0.12, x, y: 0.99, z: -0.23, color: variantColor(color, variant, seat * 0.08), rx: -0.08 });
+        for (const side of [-1, 1]) parts.push({ w: 0.06, h: 0.38, d: 0.38, x: x + side * 0.36, y: 0.78, z: -0.02, color: metal });
+      }
+      return group(parts, `airport-seat-${variant}`);
+    }
+    case 'examination_bed':
+      return group([
+        { w: 1.9, h: 0.3, d: 0.78, x: 0, y: 0.84, z: 0, color: variantColor('#d7ded9', variant) },
+        { w: 0.72, h: 0.22, d: 0.75, x: -0.56, y: 1.06, z: 0, color, rx: -0.12 - variant * 0.01 },
+        { w: 1.65, h: 0.55, d: 0.65, x: 0.08, y: 0.47, z: 0, color: secondary },
+        { w: 0.12, h: 0.5, d: 0.12, x: -0.72, y: 0.25, z: -0.27, color: metal, shape: 'cylinder' },
+        { w: 0.12, h: 0.5, d: 0.12, x: 0.72, y: 0.25, z: -0.27, color: metal, shape: 'cylinder' },
+        { w: 0.12, h: 0.5, d: 0.12, x: -0.72, y: 0.25, z: 0.27, color: metal, shape: 'cylinder' },
+        { w: 0.12, h: 0.5, d: 0.12, x: 0.72, y: 0.25, z: 0.27, color: metal, shape: 'cylinder' },
+        { w: 0.44, h: 0.16, d: 0.5, x: 0.72, y: 0.18, z: 0, color: metal },
+        { w: 1.38, h: 0.025, d: 0.66, x: 0.18, y: 1.02, z: 0, color: '#f2f0e8' },
+      ], `examination-bed-${variant}`);
+    case 'snack_machine': {
+      const parts: PartSpec[] = [
+        { w: 1, h: 2.05, d: 0.84, x: 0, y: 1.03, z: 0, color: dark, metalness: 0.35 },
+        { w: 0.68, h: 1.48, d: 0.055, x: -0.1, y: 1.22, z: 0.44, color: '#324b56', emissive: '#173640', emissiveIntensity: 0.3 },
+        { w: 0.18, h: 0.72, d: 0.06, x: 0.36, y: 1.25, z: 0.45, color: color },
+        { w: 0.54, h: 0.16, d: 0.09, x: -0.08, y: 0.25, z: 0.46, color: '#101417' },
+      ];
+      for (let row = 0; row < 4; row += 1) for (let col = 0; col < 3; col += 1) parts.push({ w: 0.15, h: 0.2, d: 0.06, x: -0.32 + col * 0.22, y: 0.72 + row * 0.3, z: 0.48, color: variantColor(color, variant, row * 0.08 + col * 0.13), shape: col % 2 ? 'cylinder' : 'box' });
+      return group(parts, `snack-machine-${variant}`);
+    }
+    case 'luggage_pile': {
+      const parts: PartSpec[] = [];
+      const bags = [
+        [-0.42, 0.34, 0.18, 0.72, 0.58, 0.5],
+        [0.38, 0.29, 0.08, 0.62, 0.5, 0.55],
+        [0, 0.78, -0.18, 0.8, 0.65, 0.42],
+        [-0.5, 0.92, -0.12, 0.48, 0.5, 0.36],
+        [0.5, 0.9, 0.14, 0.46, 0.54, 0.38],
+      ] as const;
+      bags.forEach(([x, y, z, w, h, d], index) => {
+        const bag = variantColor(color, variant, index * 0.12);
+        parts.push({ w, h, d, x, y, z, color: bag, rz: (index % 3 - 1) * 0.09 });
+        parts.push({ w: w * 0.4, h: 0.18, d: 0.07, x, y: y + h * 0.58, z, color: dark, shape: 'torus' });
+        parts.push({ w: 0.06, h: h * 0.82, d: d * 1.02, x, y, z, color: dark });
+      });
+      return group(parts, `luggage-pile-${variant}`);
+    }
+    case 'garden_bench': {
+      const parts: PartSpec[] = [];
+      for (let slat = 0; slat < 5; slat += 1) parts.push({ w: 1.75, h: 0.09, d: 0.12, x: 0, y: 0.56 + slat * 0.14, z: -0.27 - slat * 0.025, color: variantColor(secondary, variant, slat * 0.02) });
+      for (let slat = 0; slat < 4; slat += 1) parts.push({ w: 1.75, h: 0.08, d: 0.13, x: 0, y: 0.47, z: -0.16 + slat * 0.15, color: variantColor(secondary, variant, slat * 0.02) });
+      for (const x of [-0.72, 0.72]) {
+        parts.push({ w: 0.11, h: 0.58, d: 0.55, x, y: 0.28, z: 0, color: metal });
+        parts.push({ w: 0.12, h: 0.12, d: 0.68, x, y: 0.66, z: 0.02, color: metal });
+      }
+      return group(parts, `garden-bench-${variant}`);
+    }
+    case 'market_stall': {
+      const parts: PartSpec[] = [
+        { w: 2.55, h: 0.16, d: 0.82, x: 0, y: 0.92, z: 0.22, color: secondary },
+        { w: 2.68, h: 0.15, d: 1.7, x: 0, y: 2.45, z: 0, color, rz: (variant - 3.5) * 0.008 },
+      ];
+      for (const x of [-1.18, 1.18]) for (const z of [-0.66, 0.66]) parts.push({ w: 0.1, h: 2.38, d: 0.1, x, y: 1.19, z, color: metal, shape: 'cylinder' });
+      for (let crate = 0; crate < 4; crate += 1) parts.push({ w: 0.52, h: 0.38, d: 0.5, x: -0.82 + crate * 0.55, y: 0.28 + (crate % 2) * 0.12, z: 0.16, color: variantColor(secondary, variant, crate * 0.05) });
+      for (let stripe = 0; stripe < 5; stripe += 1) parts.push({ w: 0.42, h: 0.025, d: 1.58, x: -0.9 + stripe * 0.45, y: 2.54, z: 0, color: stripe % 2 ? '#e7dfca' : color });
+      return group(parts, `market-stall-${variant}`);
+    }
+    case 'maintenance_sink':
+      return group([
+        { w: 1.02, h: 0.52, d: 0.72, x: 0, y: 0.92, z: 0, color: variantColor('#b5b9b3', variant), metalness: 0.28 },
+        { w: 0.82, h: 0.3, d: 0.52, x: 0, y: 1.02, z: 0.04, color: '#51666c' },
+        { w: 1.08, h: 0.58, d: 0.08, x: 0, y: 1.28, z: -0.34, color: secondary },
+        { w: 0.1, h: 0.76, d: 0.1, x: -0.4, y: 0.38, z: -0.22, color: metal, shape: 'cylinder' },
+        { w: 0.1, h: 0.76, d: 0.1, x: 0.4, y: 0.38, z: -0.22, color: metal, shape: 'cylinder' },
+        { w: 0.1, h: 0.76, d: 0.1, x: -0.4, y: 0.38, z: 0.22, color: metal, shape: 'cylinder' },
+        { w: 0.1, h: 0.76, d: 0.1, x: 0.4, y: 0.38, z: 0.22, color: metal, shape: 'cylinder' },
+        { w: 0.08, h: 0.52, d: 0.08, x: 0, y: 1.45, z: -0.18, color: metal, shape: 'cylinder', rx: -0.55 },
+        { w: 0.22, h: 0.1, d: 0.22, x: -0.26, y: 1.25, z: -0.22, color, shape: 'torus', rx: Math.PI / 2 },
+        { w: 0.22, h: 0.1, d: 0.22, x: 0.26, y: 1.25, z: -0.22, color: glow, shape: 'torus', rx: Math.PI / 2 },
+      ], `maintenance-sink-${variant}`);
+    default:
+      return group([
+        { w: 1, h: 1, d: 1, x: 0, y: 0.5, z: 0, color },
+        foot(-0.3, -0.3), foot(0.3, -0.3), foot(-0.3, 0.3), foot(0.3, 0.3),
+      ], `iteration-expansion-${variant}`);
+  }
+}
+
+function buildAnimal(kind: PropKind, variant: number, accent: string): THREE.Group {
+  const coats = ['#8d7158', '#34383b', '#c7b69a', '#7b5644', '#d7d1c2', '#845f48', '#a89c8b', '#25282b'];
+  const coat = variantColor(coats[variant]!, variant, 0.03);
+  const dark = variantColor('#202326', variant);
+  const eye = variant === 7 ? variantColor(accent, variant) : '#151719';
+  if (kind === 'animal_crow') {
+    return group([
+      { w: 0.5, h: 0.62, d: 0.62, x: 0, y: 0.48, z: 0, color: coat, shape: 'sphere' },
+      { w: 0.38, h: 0.38, d: 0.4, x: 0, y: 0.82, z: 0.18, color: coat, shape: 'sphere' },
+      { w: 0.22, h: 0.16, d: 0.34, x: 0, y: 0.78, z: 0.5, color: dark, shape: 'cone', rx: Math.PI / 2 },
+      { w: 0.42, h: 0.12, d: 0.72, x: -0.28, y: 0.5, z: -0.02, color: dark, shape: 'capsule', rz: -0.48 },
+      { w: 0.42, h: 0.12, d: 0.72, x: 0.28, y: 0.5, z: -0.02, color: dark, shape: 'capsule', rz: 0.48 },
+      { w: 0.06, h: 0.4, d: 0.06, x: -0.12, y: 0.2, z: 0, color: dark, shape: 'cylinder' },
+      { w: 0.06, h: 0.4, d: 0.06, x: 0.12, y: 0.2, z: 0, color: dark, shape: 'cylinder' },
+      { w: 0.055, h: 0.055, d: 0.04, x: -0.1, y: 0.88, z: 0.36, color: eye, shape: 'sphere', name: 'face-eye-left' },
+      { w: 0.055, h: 0.055, d: 0.04, x: 0.1, y: 0.88, z: 0.36, color: eye, shape: 'sphere', name: 'face-eye-right' },
+    ], `animal-crow-${variant}`);
+  }
+  if (kind === 'animal_fish') {
+    return group([
+      { w: 1.0, h: 0.52, d: 0.42, x: 0, y: 0.5, z: 0, color: variantColor(accent, variant), shape: 'sphere' },
+      { w: 0.48, h: 0.54, d: 0.16, x: -0.62, y: 0.5, z: 0, color: coat, shape: 'cone', rz: -Math.PI / 2 },
+      { w: 0.34, h: 0.14, d: 0.28, x: 0, y: 0.82, z: 0, color: coat, shape: 'cone' },
+      { w: 0.34, h: 0.14, d: 0.28, x: 0, y: 0.22, z: 0, color: coat, shape: 'cone', rz: Math.PI },
+      { w: 0.3, h: 0.12, d: 0.3, x: 0, y: 0.5, z: -0.28, color: coat, shape: 'cone', rx: Math.PI / 2 },
+      { w: 0.09, h: 0.09, d: 0.06, x: 0.36, y: 0.59, z: 0.2, color: eye, shape: 'sphere', name: 'face-eye-left' },
+      { w: 0.09, h: 0.09, d: 0.06, x: 0.36, y: 0.59, z: -0.2, color: eye, shape: 'sphere', name: 'face-eye-right' },
+      { w: 0.18, h: 0.035, d: 0.035, x: 0.51, y: 0.43, z: 0, color: dark },
+    ], `animal-fish-${variant}`);
+  }
+
+  const horse = kind === 'animal_horse';
+  const rabbit = kind === 'animal_rabbit';
+  const dog = kind === 'animal_dog';
+  const bodyLength = horse ? 1.65 : dog ? 1.05 : rabbit ? 0.72 : 0.82;
+  const bodyHeight = horse ? 0.86 : rabbit ? 0.58 : 0.62;
+  const bodyY = horse ? 1.28 : rabbit ? 0.52 : 0.65;
+  const headY = horse ? 1.76 : rabbit ? 0.88 : 0.9;
+  const headZ = bodyLength * 0.5;
+  const legHeight = horse ? 1.15 : rabbit ? 0.34 : 0.56;
+  const parts: PartSpec[] = [
+    { w: horse ? 0.8 : 0.62, h: bodyHeight, d: bodyLength, x: 0, y: bodyY, z: 0, color: coat, shape: 'sphere' },
+    { w: horse ? 0.56 : rabbit ? 0.46 : 0.5, h: horse ? 0.68 : 0.5, d: horse ? 0.7 : 0.52, x: 0, y: headY, z: headZ, color: coat, shape: 'sphere' },
+    { w: horse ? 0.42 : 0.34, h: horse ? 0.3 : 0.25, d: horse ? 0.55 : 0.42, x: 0, y: headY - 0.06, z: headZ + 0.35, color: variantColor(coat, variant, 0.06), shape: 'sphere' },
+  ];
+  for (const x of [-0.22, 0.22]) for (const z of [-bodyLength * 0.32, bodyLength * 0.32]) {
+    parts.push({ w: horse ? 0.14 : 0.12, h: legHeight, d: horse ? 0.16 : 0.14, x, y: legHeight * 0.5, z, color: dark, shape: 'capsule', rz: x * 0.08 });
+  }
+  const earHeight = rabbit ? 0.48 : horse ? 0.32 : 0.22;
+  for (const x of [-0.16, 0.16]) {
+    parts.push({ w: rabbit ? 0.14 : 0.12, h: earHeight, d: 0.12, x, y: headY + (rabbit ? 0.38 : 0.32), z: headZ - 0.06, color: coat, shape: rabbit ? 'capsule' : 'cone', rz: x * 0.6 });
+    parts.push({ w: 0.055, h: 0.065, d: 0.04, x, y: headY + 0.06, z: headZ + (horse ? 0.34 : 0.27), color: eye, shape: 'sphere', name: x < 0 ? 'face-eye-left' : 'face-eye-right' });
+  }
+  parts.push({ w: horse ? 0.18 : rabbit ? 0.2 : 0.12, h: horse ? 0.85 : rabbit ? 0.25 : 0.55, d: horse ? 0.18 : 0.14, x: 0, y: bodyY + 0.05, z: -bodyLength * 0.62, color: coat, shape: 'capsule', rx: -0.72 });
+  if (dog) parts.push({ w: 0.38, h: 0.18, d: 0.12, x: 0, y: headY - 0.28, z: headZ + 0.16, color: variantColor(accent, variant), shape: 'torus', rx: Math.PI / 2 });
+  return group(parts, `${kind}-${variant}`);
+}
+
 function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.Group {
   const outfitByKind: Partial<Record<PropKind, string>> = {
     figure_nurse: '#dbe9e7',
@@ -1295,6 +1601,12 @@ function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.G
     figure_tourist: '#4b7482',
     figure_mechanic: '#35526c',
     figure_lifeguard: '#d84e44',
+    figure_vendor: '#8c5d36',
+    figure_firefighter: '#3d454a',
+    figure_librarian: '#6d5b72',
+    figure_lab_tech: '#d7e2df',
+    figure_coach: '#355f75',
+    figure_musician: '#4d3f62',
   };
   const outfit = variantColor(outfitByKind[kind] ?? accent, variant);
   const secondary = variantColor(accent, variant, 0.12);
@@ -1333,20 +1645,125 @@ function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.G
   return group(parts, `${kind}-${variant}`);
 }
 
+export interface FaceParameters {
+  eyePreset: number;
+  nosePreset: number;
+  mouthPreset: number;
+  hairPreset: number;
+  eyeSpacing: number;
+  eyeHeightOffset: number;
+  eyeWidth: number;
+  eyeHeight: number;
+  noseWidth: number;
+  noseHeight: number;
+  noseOffsetX: number;
+  mouthWidth: number;
+  mouthHeight: number;
+  mouthOffsetY: number;
+  browTilt: number;
+}
+
+/** Deterministic mix-and-match face genetics; no LLM field or inference required. */
+export function faceParametersFor(kind: PropKind, variant: number): FaceParameters {
+  const sample = (field: string): number =>
+    hashString(`${kind}:${variant}:${field}`) / 0xffff_ffff;
+  return {
+    eyePreset: Math.floor(sample('eye-preset') * 4),
+    nosePreset: Math.floor(sample('nose-preset') * 4),
+    mouthPreset: Math.floor(sample('mouth-preset') * 4),
+    hairPreset: Math.floor(sample('hair-preset') * 5),
+    eyeSpacing: 0.078 + sample('eye-spacing') * 0.062,
+    eyeHeightOffset: -0.032 + sample('eye-height') * 0.064,
+    eyeWidth: 0.045 + sample('eye-width') * 0.03,
+    eyeHeight: 0.042 + sample('eye-size-y') * 0.04,
+    noseWidth: 0.052 + sample('nose-width') * 0.046,
+    noseHeight: 0.082 + sample('nose-height') * 0.072,
+    noseOffsetX: -0.024 + sample('nose-x') * 0.048,
+    mouthWidth: 0.088 + sample('mouth-width') * 0.078,
+    mouthHeight: 0.024 + sample('mouth-height') * 0.03,
+    mouthOffsetY: -0.025 + sample('mouth-y') * 0.05,
+    browTilt: -0.14 + sample('brow-tilt') * 0.28,
+  };
+}
+
 function addFace(parts: PartSpec[], kind: PropKind, variant: number, heightOffset: number, dark: string): void {
   if (kind === 'figure_hazmat') {
-    parts.push({ w: 0.34, h: 0.19, d: 0.06, x: 0, y: 2.05 + heightOffset, z: 0.23, color: '#76bed0', emissive: '#356e7c', emissiveIntensity: 0.22 });
+    parts.push({ w: 0.34, h: 0.19, d: 0.06, x: 0, y: 2.05 + heightOffset, z: 0.23, color: '#76bed0', emissive: '#356e7c', emissiveIntensity: 0.22, name: 'face-visor' });
     for (const x of [-0.2, 0.2]) for (const y of [1.94, 2.15]) parts.push({ w: 0.035, h: 0.035, d: 0.03, x, y: y + heightOffset, z: 0.25, color: '#c7c9b8', shape: 'sphere' });
     return;
   }
+  const face = faceParametersFor(kind, variant);
+  const mascot = kind === 'figure_mascot';
   const eyeColor = kind === 'figure_mascot' ? '#f8f3d8' : dark;
-  for (const x of [-0.105, 0.105]) parts.push({ w: kind === 'figure_mascot' ? 0.16 : 0.055, h: kind === 'figure_mascot' ? 0.18 : 0.06, d: 0.045, x, y: 2.08 + heightOffset, z: kind === 'figure_mascot' ? 0.3 : 0.215, color: eyeColor, shape: 'sphere', emissive: variant === 7 ? eyeColor : undefined, emissiveIntensity: 0.2 });
-  parts.push({ w: 0.075, h: 0.12, d: 0.075, x: 0, y: 2.0 + heightOffset, z: kind === 'figure_mascot' ? 0.34 : 0.23, color: kind === 'figure_mascot' ? dark : variantColor('#b97956', variant), shape: 'sphere' });
-  parts.push({ w: kind === 'figure_mascot' ? 0.18 : 0.12, h: 0.035, d: 0.035, x: 0, y: 1.91 + heightOffset, z: kind === 'figure_mascot' ? 0.35 : 0.225, color: kind === 'figure_mascot' ? '#f1d4d4' : dark });
-  if (kind !== 'figure_mascot') {
-    for (const x of [-0.105, 0.105]) parts.push({ w: 0.09, h: 0.018, d: 0.025, x, y: 2.14 + heightOffset, z: 0.218, color: dark, rz: x * 0.22 });
-    parts.push({ w: 0.39, h: 0.17, d: 0.36, x: 0, y: 2.23 + heightOffset, z: -0.03, color: variantColor('#302a27', variant), shape: 'sphere' });
-    if (variant % 3 === 1) parts.push({ w: 0.14, h: 0.28, d: 0.12, x: -0.18, y: 2.08 + heightOffset, z: -0.12, color: variantColor('#302a27', variant), shape: 'capsule', rz: -0.2 });
+  const eyeShape: PartSpec['shape'] = face.eyePreset === 0 ? 'sphere' : face.eyePreset === 1 ? 'box' : face.eyePreset === 2 ? 'capsule' : 'torus';
+  for (const side of [-1, 1] as const) {
+    parts.push({
+      w: mascot ? 0.16 : face.eyeWidth,
+      h: mascot ? 0.18 : face.eyeHeight,
+      d: 0.045,
+      x: side * (mascot ? 0.105 : face.eyeSpacing),
+      y: 2.08 + heightOffset + face.eyeHeightOffset,
+      z: mascot ? 0.3 : 0.215,
+      color: eyeColor,
+      shape: eyeShape,
+      emissive: variant === 7 ? eyeColor : undefined,
+      emissiveIntensity: 0.2,
+      name: side < 0 ? 'face-eye-left' : 'face-eye-right',
+    });
+  }
+  const noseShape: PartSpec['shape'] = face.nosePreset === 0 ? 'sphere' : face.nosePreset === 1 ? 'cone' : face.nosePreset === 2 ? 'capsule' : 'box';
+  parts.push({
+    w: mascot ? 0.075 : face.noseWidth,
+    h: mascot ? 0.12 : face.noseHeight,
+    d: mascot ? 0.075 : 0.082,
+    x: mascot ? 0 : face.noseOffsetX,
+    y: 2 + heightOffset,
+    z: mascot ? 0.34 : 0.23,
+    color: mascot ? dark : variantColor('#b97956', variant),
+    shape: noseShape,
+    rz: face.nosePreset === 1 ? Math.PI : 0,
+    name: 'face-nose',
+  });
+  const mouthShape: PartSpec['shape'] = face.mouthPreset === 0 ? 'box' : face.mouthPreset === 1 ? 'torus' : face.mouthPreset === 2 ? 'capsule' : 'sphere';
+  parts.push({
+    w: mascot ? 0.18 : face.mouthWidth,
+    h: mascot ? 0.035 : face.mouthHeight,
+    d: 0.035,
+    x: 0,
+    y: 1.91 + heightOffset + face.mouthOffsetY,
+    z: mascot ? 0.35 : 0.225,
+    color: mascot ? '#f1d4d4' : dark,
+    shape: mouthShape,
+    rz: face.mouthPreset === 3 ? face.browTilt * 0.35 : 0,
+    name: 'face-mouth',
+  });
+  if (!mascot) {
+    for (const side of [-1, 1] as const) parts.push({
+      w: 0.075 + face.eyeWidth * 0.28,
+      h: 0.018,
+      d: 0.025,
+      x: side * face.eyeSpacing,
+      y: 2.14 + heightOffset + face.eyeHeightOffset,
+      z: 0.218,
+      color: dark,
+      rz: side * face.browTilt,
+      name: side < 0 ? 'face-brow-left' : 'face-brow-right',
+    });
+    const hair = variantColor('#302a27', variant);
+    if (face.hairPreset === 0 || face.hairPreset === 1) {
+      parts.push({ w: 0.39, h: face.hairPreset === 0 ? 0.17 : 0.11, d: 0.36, x: 0, y: 2.23 + heightOffset, z: -0.03, color: hair, shape: 'sphere', name: 'face-hair' });
+    }
+    if (face.hairPreset === 1 || face.hairPreset === 3) {
+      const side = face.hairPreset === 1 ? -1 : 1;
+      parts.push({ w: 0.14, h: 0.28, d: 0.12, x: side * 0.18, y: 2.08 + heightOffset, z: -0.12, color: hair, shape: 'capsule', rz: side * 0.2, name: 'face-hair-side' });
+    }
+    if (face.hairPreset === 2) {
+      parts.push({ w: 0.2, h: 0.2, d: 0.18, x: -0.1, y: 2.25 + heightOffset, z: -0.03, color: hair, shape: 'sphere', name: 'face-hair-left' });
+      parts.push({ w: 0.2, h: 0.2, d: 0.18, x: 0.1, y: 2.25 + heightOffset, z: -0.03, color: hair, shape: 'sphere', name: 'face-hair-right' });
+    }
+    if (face.hairPreset === 4) {
+      parts.push({ w: 0.2, h: 0.22, d: 0.2, x: 0, y: 2.32 + heightOffset, z: -0.13, color: hair, shape: 'sphere', name: 'face-hair-bun' });
+    }
   }
 }
 
@@ -1400,11 +1817,13 @@ function addProfessionDetails(
       parts.push({ w: 0.64, h: 0.12, d: 0.38, x: 0, y: 0.9 + y, z: 0.02, color: '#dde5df' });
       parts.push({ w: 0.08, h: 0.08, d: 0.08, x: variant % 2 ? -0.43 : 0.43, y: 1.02 + y, z: 0.01, color: '#f0d85e', shape: 'torus', rx: Math.PI / 2 });
       break;
-    case 'figure_teacher':
-      for (const x of [-0.105, 0.105]) parts.push({ w: 0.14, h: 0.1, d: 0.035, x, y: 2.08 + y, z: 0.24, color: '#23282d', shape: 'torus' });
+    case 'figure_teacher': {
+      const face = faceParametersFor(kind, variant);
+      for (const side of [-1, 1] as const) parts.push({ w: 0.14, h: 0.1, d: 0.035, x: side * face.eyeSpacing, y: 2.08 + y + face.eyeHeightOffset, z: 0.24, color: '#23282d', shape: 'torus' });
       parts.push({ w: 0.28, h: 0.46, d: 0.06, x: 0.43, y: 1.15 + y, z: 0.18, color: '#d7c89e', rz: -0.08 });
       parts.push({ w: 0.035, h: 0.52, d: 0.035, x: -0.43, y: 1.08 + y, z: 0.18, color: '#f1cf4d', shape: 'cylinder', rz: 0.14 });
       break;
+    }
     case 'figure_cook':
       parts.push({ w: 0.44, h: 0.2, d: 0.4, x: 0, y: 2.28 + y, z: 0, color: '#f2eee4', shape: 'cylinder' });
       for (const x of [-0.13, 0, 0.13]) parts.push({ w: 0.18, h: 0.28 + (x === 0 ? 0.08 : 0), d: 0.18, x, y: 2.42 + y, z: 0, color: '#f2eee4', shape: 'sphere' });
@@ -1463,6 +1882,43 @@ function addProfessionDetails(
       parts.push({ w: 0.11, h: 0.11, d: 0.07, x: 0, y: 1.35 + y, z: 0.26, color: '#d7c55f', metalness: 0.55, shape: 'cylinder', rx: Math.PI / 2 });
       parts.push({ w: 0.48, h: 0.48, d: 0.15, x: 0.48, y: 1.02 + y, z: 0.06, color: '#efede0', shape: 'torus' });
       break;
+    case 'figure_vendor':
+      parts.push({ w: 0.64, h: 0.12, d: 0.56, x: 0, y: 2.29 + y, z: 0, color: secondary, shape: 'cylinder' });
+      parts.push({ w: 0.48, h: 0.16, d: 0.45, x: 0, y: 2.38 + y, z: -0.03, color: outfit, shape: 'cylinder' });
+      parts.push({ w: 0.5, h: 0.66, d: 0.035, x: 0, y: 1.34 + y, z: 0.21, color: variantColor('#ddd0a8', variant) });
+      parts.push({ w: 0.38, h: 0.24, d: 0.2, x: 0.48, y: 1.02 + y, z: 0.06, color: secondary });
+      break;
+    case 'figure_firefighter':
+      parts.push({ w: 0.56, h: 0.22, d: 0.5, x: 0, y: 2.31 + y, z: 0, color: '#c9b63e', shape: 'cylinder' });
+      parts.push({ w: 0.42, h: 0.3, d: 0.42, x: 0, y: 2.43 + y, z: -0.02, color: outfit, shape: 'cylinder' });
+      for (const x of [-0.18, 0.18]) parts.push({ w: 0.08, h: 0.72, d: 0.035, x, y: 1.38 + y, z: 0.21, color: '#d8c540', emissive: '#6f6418', emissiveIntensity: 0.15 });
+      parts.push({ w: 0.46, h: 0.58, d: 0.24, x: 0, y: 1.45 + y, z: -0.28, color: '#7d8589' });
+      break;
+    case 'figure_librarian': {
+      const face = faceParametersFor(kind, variant);
+      for (const side of [-1, 1] as const) parts.push({ w: 0.13, h: 0.1, d: 0.035, x: side * face.eyeSpacing, y: 2.08 + y + face.eyeHeightOffset, z: 0.24, color: '#24282b', shape: 'torus', name: side < 0 ? 'glasses-left' : 'glasses-right' });
+      parts.push({ w: 0.18, h: 0.025, d: 0.025, x: 0, y: 2.08 + y + face.eyeHeightOffset, z: 0.24, color: '#24282b' });
+      parts.push({ w: 0.38, h: 0.5, d: 0.09, x: 0.43, y: 1.08 + y, z: 0.15, color: variantColor('#6f4934', variant), rz: -0.08 });
+      break;
+    }
+    case 'figure_lab_tech':
+      parts.push({ w: 0.54, h: 0.78, d: 0.04, x: 0, y: 1.32 + y, z: 0.21, color: '#edf0e9' });
+      parts.push({ w: 0.22, h: 0.18, d: 0.05, x: -0.2, y: 1.48 + y, z: 0.24, color: '#537b86' });
+      parts.push({ w: 0.1, h: 0.28, d: 0.1, x: 0.48, y: 0.9 + y, z: 0.06, color: variantColor('#78dbe4', variant), emissive: '#245d63', emissiveIntensity: 0.22, shape: 'cylinder' });
+      parts.push({ w: 0.18, h: 0.08, d: 0.18, x: 0.48, y: 1.05 + y, z: 0.06, color: '#d9e4df', shape: 'sphere' });
+      break;
+    case 'figure_coach':
+      parts.push({ w: 0.6, h: 0.12, d: 0.52, x: 0, y: 2.29 + y, z: 0, color: secondary, shape: 'cylinder' });
+      parts.push({ w: 0.06, h: 0.42, d: 0.035, x: 0, y: 1.55 + y, z: 0.22, color: '#202528' });
+      parts.push({ w: 0.12, h: 0.12, d: 0.08, x: 0, y: 1.37 + y, z: 0.26, color: '#d5bf43', metalness: 0.56, shape: 'cylinder', rx: Math.PI / 2 });
+      parts.push({ w: 0.42, h: 0.28, d: 0.16, x: 0.48, y: 1.02 + y, z: 0.05, color: '#e6d6a4' });
+      break;
+    case 'figure_musician':
+      parts.push({ w: 0.06, h: 1.45, d: 0.06, x: 0.5, y: 0.78 + y, z: 0.04, color: '#5e4632', shape: 'cylinder', rz: -0.12 });
+      parts.push({ w: 0.52, h: 0.68, d: 0.18, x: 0.48, y: 1.05 + y, z: 0.06, color: variantColor('#8c5b34', variant), shape: 'sphere' });
+      parts.push({ w: 0.24, h: 0.24, d: 0.14, x: 0.48, y: 1.06 + y, z: 0.17, color: '#31251d', shape: 'sphere' });
+      parts.push({ w: 0.32, h: 0.08, d: 0.1, x: 0.15, y: 1.08 + y, z: 0.08, color: variantColor('#8c5b34', variant), rz: Math.PI / 2 });
+      break;
     default:
       break;
   }
@@ -1503,7 +1959,8 @@ function createModel(
   };
   const enrichedKind = legacyHumanoid[kind];
   if (enrichedKind) {
-    const variant = kind === 'figure_mannequin' ? 7 : kind === 'figure_raincoat' ? 4 : 2;
+    const offset = kind === 'figure_mannequin' ? 7 : kind === 'figure_raincoat' ? 4 : 2;
+    const variant = (assetVariant(assetId) + offset) % 8;
     return buildHumanoid(enrichedKind, variant, kind === 'figure_mannequin' ? '#d8d2c8' : accent);
   }
   switch (kind) {
@@ -1855,6 +2312,25 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
   exercise_bike: { w: 1.45, h: 1.65, d: 0.72 },
   cinema_seat: { w: 0.78, h: 1.35, d: 0.78 },
   pool_ladder: { w: 1.05, h: 1.65, d: 0.72 },
+  utility_shelf: { w: 1.55, h: 2.05, d: 0.62 },
+  breaker_panel: { w: 0.95, h: 1.65, d: 0.34 },
+  boiler: { w: 1.5, h: 2.35, d: 1.25 },
+  pipe_cluster: { w: 1.6, h: 2.55, d: 0.8 },
+  folding_table: { w: 1.85, h: 0.95, d: 0.82 },
+  cafeteria_table: { w: 2.3, h: 1.05, d: 1.65 },
+  airport_seat: { w: 2.65, h: 1.35, d: 0.82 },
+  examination_bed: { w: 2.05, h: 1.25, d: 0.88 },
+  snack_machine: { w: 1.05, h: 2.15, d: 0.92 },
+  luggage_pile: { w: 1.65, h: 1.45, d: 1.25 },
+  garden_bench: { w: 1.95, h: 1.2, d: 0.78 },
+  market_stall: { w: 2.8, h: 2.65, d: 1.8 },
+  maintenance_sink: { w: 1.15, h: 1.55, d: 0.82 },
+  animal_cat: { w: 0.75, h: 0.72, d: 1.05 },
+  animal_dog: { w: 0.95, h: 1.15, d: 1.4 },
+  animal_crow: { w: 0.75, h: 0.78, d: 0.85 },
+  animal_rabbit: { w: 0.68, h: 0.92, d: 0.9 },
+  animal_horse: { w: 1.35, h: 2.35, d: 2.3 },
+  animal_fish: { w: 1.25, h: 0.72, d: 0.48 },
   figure_nurse: { w: 0.78, h: 2.35, d: 0.58 },
   figure_janitor: { w: 1.1, h: 2.35, d: 0.7 },
   figure_commuter: { w: 1, h: 2.35, d: 0.7 },
@@ -1875,6 +2351,12 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
   figure_tourist: { w: 1.05, h: 2.6, d: 0.78 },
   figure_mechanic: { w: 1.1, h: 2.55, d: 0.72 },
   figure_lifeguard: { w: 1.1, h: 2.55, d: 0.72 },
+  figure_vendor: { w: 1.05, h: 2.55, d: 0.72 },
+  figure_firefighter: { w: 1.1, h: 2.65, d: 0.78 },
+  figure_librarian: { w: 1.0, h: 2.5, d: 0.68 },
+  figure_lab_tech: { w: 1.05, h: 2.5, d: 0.7 },
+  figure_coach: { w: 1.05, h: 2.55, d: 0.72 },
+  figure_musician: { w: 1.25, h: 2.55, d: 0.82 },
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
@@ -1960,8 +2442,14 @@ export function kindFromLabel(label: string): PropKind {
   if (l.includes('courier')) return 'figure_courier';
   if (l.includes('usher')) return 'figure_usher';
   if (l.includes('tourist')) return 'figure_tourist';
-  if (l.includes('mechanic')) return 'figure_mechanic';
+  if (/\bmechanic\b/.test(l)) return 'figure_mechanic';
   if (l.includes('off-duty lifeguard') || l === 'lifeguard') return 'figure_lifeguard';
+  if (l.includes('market vendor') || l.includes('closed-market vendor')) return 'figure_vendor';
+  if (l.includes('firefighter')) return 'figure_firefighter';
+  if (l.includes('librarian')) return 'figure_librarian';
+  if (l.includes('lab technician')) return 'figure_lab_tech';
+  if (l.includes('gym coach') || l.includes('coach')) return 'figure_coach';
+  if (l.includes('musician')) return 'figure_musician';
   if (l.includes('giant baby') || l === 'baby') return 'figure_baby';
   if (l.includes('clerk')) return 'figure_clerk';
   if (l.includes('deer')) return 'figure_deer';
@@ -1970,6 +2458,12 @@ export function kindFromLabel(label: string): PropKind {
   if (l.includes('balloon')) return 'figure_balloon';
   if (l.includes('guide')) return 'figure_guide';
   if (l.includes('raincoat')) return 'figure_raincoat';
+  if (l.includes('stray cat')) return 'animal_cat';
+  if (l.includes('waiting dog')) return 'animal_dog';
+  if (l.includes('crow')) return 'animal_crow';
+  if (l.includes('rabbit')) return 'animal_rabbit';
+  if (l.includes('horse')) return 'animal_horse';
+  if (l.includes('corridor fish')) return 'animal_fish';
   if (l.includes('lounge chair') || l.includes('armchair')) return 'armchair';
   if (l.includes('sofa')) return 'sofa';
   if (l.includes('stool')) return 'stool';
@@ -2010,6 +2504,19 @@ export function kindFromLabel(label: string): PropKind {
   if (l.includes('stacked pallets')) return 'pallet_stack';
   if (l.includes('server rack')) return 'server_rack';
   if (l.includes('aquarium tank')) return 'aquarium_tank';
+  if (l.includes('utility shelf')) return 'utility_shelf';
+  if (l.includes('breaker panel')) return 'breaker_panel';
+  if (l.includes('mechanical boiler')) return 'boiler';
+  if (l.includes('pipe cluster')) return 'pipe_cluster';
+  if (l.includes('folding utility table')) return 'folding_table';
+  if (l.includes('cafeteria table')) return 'cafeteria_table';
+  if (l.includes('airport seat')) return 'airport_seat';
+  if (l.includes('examination bed')) return 'examination_bed';
+  if (l.includes('snack machine')) return 'snack_machine';
+  if (l.includes('luggage pile')) return 'luggage_pile';
+  if (l.includes('garden bench')) return 'garden_bench';
+  if (l.includes('market stall')) return 'market_stall';
+  if (l.includes('maintenance sink')) return 'maintenance_sink';
   if (l.includes('vending')) return 'vending';
   if (l.includes('desk')) return 'desk';
   if (l.includes('chair')) return 'chair';

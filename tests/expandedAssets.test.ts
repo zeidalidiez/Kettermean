@@ -7,18 +7,19 @@ import {
   boundsForKind,
   buildModel,
   clearModelMaterialCache,
+  faceParametersFor,
   type PropKind,
 } from '../src/world/models';
 
 afterAll(() => clearModelMaterialCache());
 
 describe('expanded procedural asset catalog', () => {
-  it('contains 624 unique variants across 78 eight-member families', () => {
-    expect(EXPANDED_ASSET_COUNT).toBe(624);
-    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(624);
+  it('contains 824 unique variants across 103 eight-member families', () => {
+    expect(EXPANDED_ASSET_COUNT).toBe(824);
+    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(824);
 
     const families = Map.groupBy(EXPANDED_ASSETS, (asset) => asset.family);
-    expect(families.size).toBe(78);
+    expect(families.size).toBe(103);
     for (const variants of families.values()) {
       expect(variants).toHaveLength(8);
       expect(new Set(variants.map((asset) => asset.variant))).toEqual(
@@ -26,9 +27,31 @@ describe('expanded procedural asset catalog', () => {
       );
     }
 
-    expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(160);
-    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(464);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(208);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(48);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(616);
     expect(ASSETS).toEqual(expect.arrayContaining(EXPANDED_ASSETS));
+  });
+
+  it('mixes bounded eye, nose, mouth, hair, spacing, and placement presets for NPC faces', () => {
+    const npcKinds = [...new Set(
+      EXPANDED_ASSETS
+        .filter((asset) => asset.category === 'npc')
+        .map((asset) => asset.kind as PropKind),
+    )];
+    const faces = npcKinds.flatMap((kind) =>
+      Array.from({ length: 8 }, (_, variant) => faceParametersFor(kind, variant)),
+    );
+    const signatures = new Set(faces.map((face) => JSON.stringify(face)));
+
+    expect(signatures.size).toBe(faces.length);
+    expect(new Set(faces.map((face) => face.eyePreset))).toEqual(new Set([0, 1, 2, 3]));
+    expect(new Set(faces.map((face) => face.nosePreset))).toEqual(new Set([0, 1, 2, 3]));
+    expect(new Set(faces.map((face) => face.mouthPreset))).toEqual(new Set([0, 1, 2, 3]));
+    expect(new Set(faces.map((face) => face.hairPreset))).toEqual(new Set([0, 1, 2, 3, 4]));
+    expect(faces.every((face) => face.eyeSpacing >= 0.078 && face.eyeSpacing <= 0.14)).toBe(true);
+    expect(faces.every((face) => Math.abs(face.noseOffsetX) <= 0.024)).toBe(true);
+    expect(faces.every((face) => Math.abs(face.eyeHeightOffset) <= 0.032)).toBe(true);
   });
 
   it('builds every variant as a composed, visibly distinct model', () => {
@@ -112,6 +135,6 @@ describe('expanded procedural asset catalog', () => {
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(540);
+    expect(used.size).toBeGreaterThanOrEqual(780);
   }, 30_000);
 });

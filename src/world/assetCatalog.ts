@@ -486,7 +486,7 @@ export function catalogPromptSummary(): string {
     const first = variants[0]!;
     const last = variants.at(-1)!;
     const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
-    return `${family}|${first.category}|ids:${first.id}..${last.id}|n:${variants.length}|tags:${first.tags.join(',')}|moods:${moods}`;
+    return `${family}|${first.category}|ids:${first.id}..${last.id}|tags:${first.tags.join(',')}|moods:${moods}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
   return `ASSETS:\n${[...baseLines, ...familyLines].join('\n')}\nTHEMES:\n${themes.join('\n')}`;

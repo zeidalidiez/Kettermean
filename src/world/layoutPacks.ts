@@ -211,6 +211,12 @@ export function stampRoomPacks(
     if (lane === 'contrast') contrastPlaced += 1;
   }
 
+  // A planned contrast should be visible, even when every larger contrast pack
+  // fails to fit a closet or a massively scaled landscape.
+  if (composition.contrastSet && contrastPlaced === 0) {
+    placeCompactSetAccent(rng, placements, occupied, ctx, composition.contrastSet);
+  }
+
   // Fill leftover with a few lone scatter props for liminal mess.
   scatterFill(
     rng,
@@ -254,6 +260,7 @@ function buildPackLibrary(): LayoutPack[] {
     'desk_intake',
     'table_food',
     ...familyVariants(['school_desk', 'coffee_table', 'reception_desk'], 2),
+    ...familyVariants(['folding_table', 'cafeteria_table', 'examination_bed'], 1),
   ];
   const storage = [
     'cabinet_file',
@@ -267,6 +274,7 @@ function buildPackLibrary(): LayoutPack[] {
     'sign_wet',
     'payphone_wall',
     ...familyVariants(['washer', 'phone_booth', 'pallet_stack', 'aquarium_tank'], 1),
+    ...familyVariants(['utility_shelf', 'breaker_panel', 'boiler', 'pipe_cluster', 'snack_machine', 'maintenance_sink'], 1),
   ];
   const nursery = ['crib_empty', 'bottle_giant', 'shelf_toy'];
   const npcs = [
@@ -286,9 +294,26 @@ function buildPackLibrary(): LayoutPack[] {
       'npc_tourist',
       'npc_mechanic',
       'npc_lifeguard',
+      'npc_vendor',
+      'npc_firefighter',
+      'npc_librarian',
+      'npc_lab_tech',
+      'npc_coach',
+      'npc_musician',
     ]),
   ];
-  const creatures = ['creature_deer', 'creature_balloon'];
+  const creatures = [
+    'creature_deer',
+    'creature_balloon',
+    ...familyVariants([
+      'creature_cat',
+      'creature_dog',
+      'creature_crow',
+      'creature_rabbit',
+      'creature_horse',
+      'creature_fish',
+    ], 2),
+  ];
   const anomalies = ['anomaly_giant_baby', 'bottle_giant', 'npc_shadow'];
 
   // --- Seating clusters (many variants) ---
@@ -1055,6 +1080,60 @@ function scatterFill(
       z,
       r: Math.max(asset.defaultScale.x, asset.defaultScale.z) * scaleMul * worldScale * 0.65,
     });
+  }
+}
+
+function placeCompactSetAccent(
+  rng: SeededRng,
+  placements: DirectedPlacement[],
+  occupied: Array<{ x: number; z: number; r: number }>,
+  ctx: PackStampContext,
+  setId: string,
+): void {
+  const worldScale = ctx.worldScale ?? 1;
+  const candidates = assetsForSets([setId])
+    .filter(
+      (asset) =>
+        asset.category !== 'portal' &&
+        asset.category !== 'npc' &&
+        asset.category !== 'creature' &&
+        asset.category !== 'anomaly',
+    )
+    .sort(
+      (a, b) =>
+        Math.max(a.defaultScale.x, a.defaultScale.z) -
+        Math.max(b.defaultScale.x, b.defaultScale.z),
+    )
+    .slice(0, 32);
+  if (!candidates.length) return;
+
+  for (let attempt = 0; attempt < 36; attempt += 1) {
+    const asset = rng.pick(candidates);
+    const scaleMul = clamp(rng.float(0.82, 1.08), asset.scaleRange.min, asset.scaleRange.max);
+    const radius = Math.max(asset.defaultScale.x, asset.defaultScale.z) * scaleMul * worldScale * 0.7;
+    const hw = ctx.width * 0.5 - radius - 0.35;
+    const hd = ctx.depth * 0.5 - radius - 0.35;
+    if (hw <= 0.4 || hd <= 0.4) continue;
+    const x = rng.float(-hw, hw);
+    const z = rng.float(-hd, hd);
+    const rotY = rng.float(0, Math.PI * 2);
+    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul * worldScale)) continue;
+    if (occupied.some((entry) => Math.hypot(x - entry.x, z - entry.z) < entry.r + radius)) continue;
+    const placement: DirectedPlacement = {
+      assetId: asset.id,
+      x,
+      z,
+      rotY,
+      scaleMul,
+      linksOnTouch: false,
+      solid: asset.solidDefault !== false,
+    };
+    const firstNonPortal = placements.findIndex(
+      (entry) => getAsset(entry.assetId)?.category !== 'portal',
+    );
+    placements.splice(firstNonPortal < 0 ? placements.length : firstNonPortal, 0, placement);
+    occupied.push({ x, z, r: radius });
+    return;
   }
 }
 
