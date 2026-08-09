@@ -20,6 +20,7 @@ import type {
 } from '../types';
 import {
   THEME_PRESETS,
+  type DirectedPlacement,
   type RoomDirection,
   type ThemePreset,
   getAsset,
@@ -215,7 +216,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   const worldScale = clamp(dir.worldScale ?? 1, 0.6, 24);
 
   let actorIndex = 0;
-  dir.placements.forEach((p, i) => {
+  const placements = prioritizeContrastProp(dir);
+  placements.forEach((p, i) => {
     const asset = getAsset(p.assetId);
     if (!asset || asset.category === 'portal') return;
     const mul = clamp(p.scaleMul ?? 1, asset.scaleRange.min, asset.scaleRange.max);
@@ -365,6 +367,35 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     entities,
     offline: Boolean(dir.offline),
   };
+}
+
+/**
+ * Preserve one deliberately selected contrast prop before render-cost budgets
+ * are consumed by coherent packs. Actor order remains untouched, so authored
+ * dialogue continues to align with its original NPC/entity sequence.
+ */
+function prioritizeContrastProp(dir: RoomDirection): DirectedPlacement[] {
+  const contrastSet = dir.composition?.contrastSet;
+  if (!contrastSet) return dir.placements;
+  const coherentSets = new Set([
+    dir.composition!.primarySet,
+    ...(dir.composition!.supportingSet ? [dir.composition!.supportingSet] : []),
+  ]);
+  const index = dir.placements.findIndex((placement) => {
+    const asset = getAsset(placement.assetId);
+    if (!asset || asset.category === 'portal') return false;
+    if (asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly') {
+      return false;
+    }
+    return asset.setIds.some((setId) => setId === contrastSet) &&
+      !asset.setIds.some((setId) => coherentSets.has(setId));
+  });
+  if (index <= 0) return dir.placements;
+  return [
+    dir.placements[index]!,
+    ...dir.placements.slice(0, index),
+    ...dir.placements.slice(index + 1),
+  ];
 }
 
 const SHADER_STYLES: RoomVisuals['shader'][] = [
