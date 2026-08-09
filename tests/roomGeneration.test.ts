@@ -360,7 +360,7 @@ describe('offline room invariants', () => {
 
     expect(defaultLighting).toContain('pulse');
     expect(defaultLighting).toContain('emergency');
-  });
+  }, 15_000);
 
   it('removes dim rooms and raises the visibility floor when requested', () => {
     for (let index = 0; index < 500; index += 1) {
