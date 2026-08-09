@@ -634,8 +634,7 @@ kbd {
 #hud-seed,
 #hud-ai-status,
 #hud-hint,
-#hud-rule,
-#hud-npc-line {
+#hud-rule {
   margin-top: 5px;
   color: rgba(232, 230, 242, 0.78);
   font-size: 0.72rem;
@@ -652,13 +651,23 @@ kbd {
 }
 
 #hud-npc-line {
-  width: fit-content;
-  max-width: min(390px, calc(100vw - 36px));
-  margin-top: 10px;
-  border-left: 2px solid rgba(180, 160, 236, 0.72);
-  background: rgba(7, 10, 12, 0.7);
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  left: 50%;
+  width: min(680px, calc(100vw - 48px));
+  transform: translate(-50%, -50%);
+  border-top: 1px solid rgba(180, 160, 236, 0.42);
+  border-bottom: 1px solid rgba(180, 160, 236, 0.42);
+  background: linear-gradient(90deg, transparent, rgba(7, 10, 12, 0.84) 14%, rgba(7, 10, 12, 0.84) 86%, transparent);
   color: #f0eafb;
-  padding: 7px 10px;
+  padding: 12px 42px;
+  pointer-events: none;
+  font-size: clamp(0.76rem, 1.25vw, 0.94rem);
+  line-height: 1.5;
+  letter-spacing: 0.025em;
+  text-align: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95);
 }
 
 #hud-actions {
@@ -788,22 +797,6 @@ kbd {
   opacity: 1;
 }
 
-#status-toast {
-  position: absolute;
-  z-index: 30;
-  left: 50%;
-  bottom: 28px;
-  max-width: min(90vw, 560px);
-  transform: translateX(-50%);
-  border: 1px solid rgba(213, 255, 37, 0.32);
-  border-radius: 0;
-  background: rgba(7, 10, 12, 0.92);
-  color: #c7cbc6;
-  padding: 10px 16px;
-  font-size: 0.72rem;
-  text-align: center;
-}
-
 #touch-controls {
   position: absolute;
   inset: 0;
@@ -909,6 +902,13 @@ kbd {
 }
 
 @media (max-width: 760px) {
+  #hud-npc-line {
+    top: 48%;
+    width: calc(100vw - 28px);
+    padding: 10px 20px;
+    font-size: 0.72rem;
+  }
+
   .menu-shell {
     overflow-y: auto;
     overscroll-behavior: contain;

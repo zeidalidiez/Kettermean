@@ -57,7 +57,6 @@ export class DreamGame {
   private nextRoomPlan: NextRoomPlan | null = null;
   private nextDreamState: NextDreamState = 'instant';
   private lastNpcDialogue = '';
-  private toastTimer: number | null = null;
   private contextLost = false;
   private readonly touchFirst: boolean;
 
@@ -78,7 +77,6 @@ export class DreamGame {
   private readonly pauseRoom: HTMLElement;
   private readonly pauseMood: HTMLElement;
   private readonly pauseSeed: HTMLElement;
-  private readonly toast: HTMLElement;
   private readonly aiRecovery: HTMLElement;
   private readonly aiRecoveryMessage: HTMLElement;
   private readonly retryAiButton: HTMLButtonElement;
@@ -104,7 +102,6 @@ export class DreamGame {
     this.pauseRoom = must('pause-room');
     this.pauseMood = must('pause-mood');
     this.pauseSeed = must('pause-seed');
-    this.toast = must('status-toast');
     this.aiRecovery = must('ai-recovery');
     this.aiRecoveryMessage = must('ai-recovery-message');
     this.retryAiButton = must('retry-ai-btn') as HTMLButtonElement;
@@ -140,7 +137,7 @@ export class DreamGame {
     this.input = new InputManager(this.canvas, () => this.pause());
     this.generator = new RoomGenerator(settings);
     this.generator.setStatusHandler((msg) => {
-      this.updateAiStatus(msg, true);
+      this.updateAiStatus(msg);
     });
 
     window.addEventListener('resize', this.onResize);
@@ -162,7 +159,7 @@ export class DreamGame {
   }
 
   notify(message: string): void {
-    this.showToast(message);
+    this.updateAiStatus(message);
   }
 
   start(): void {
@@ -207,7 +204,6 @@ export class DreamGame {
     this.startLoop();
     if (!useLlm) {
       this.updateAiStatus('Procedural direction only');
-      this.showToast('Offline room');
       this.setNextDreamState('instant');
       return;
     }
@@ -250,7 +246,6 @@ export class DreamGame {
     (must('start-btn') as HTMLButtonElement).focus({ preventScroll: true });
     this.roomWorld.dispose(this.scene);
     this.setFlashlightEnabled(false);
-    this.hideToast();
     this.hideRecovery();
   }
 
@@ -421,13 +416,11 @@ export class DreamGame {
       }
       if (readiness.state !== 'ready') {
         if (readiness.state === 'idle') this.schedulePrefetch();
-        this.showToast('The next dream is still forming · keep exploring', false);
         return;
       }
       spec = this.generator.getReadyRoom(plan.context);
       if (!spec) {
         this.schedulePrefetch();
-        this.showToast('Validating the next dream · please wait', false);
         return;
       }
     } else {
@@ -463,7 +456,8 @@ export class DreamGame {
       if (runEpoch === this.runEpoch) {
         this.state = 'playing';
         this.startLoop();
-        this.showToast('Could not reach the next dream · press R to retry');
+        this.updateAiStatus('Next dream failed · press R to retry');
+        this.setNextDreamState('failed', 'Could not reach the next dream. Press R to retry or O for a procedural room.');
       }
     } finally {
       if (runEpoch === this.runEpoch) {
@@ -486,7 +480,7 @@ export class DreamGame {
         void this.advanceDream();
       } else {
         if (frame.flashlightPressed) {
-          this.setFlashlightEnabled(!this.flashlightEnabled, true);
+          this.setFlashlightEnabled(!this.flashlightEnabled);
         }
         const colliders = this.roomWorld.getColliders();
         this.player.update(dt, frame, colliders);
@@ -537,7 +531,7 @@ export class DreamGame {
     this.contextLost = true;
     this.stopLoop();
     if (this.state !== 'menu') {
-      this.showToast('Graphics paused · restoring the scene…', true);
+      this.updateAiStatus('Graphics paused · restoring the scene…');
     }
   };
 
@@ -545,7 +539,7 @@ export class DreamGame {
     this.contextLost = false;
     this.onResize();
     if (this.state === 'playing') {
-      this.showToast('Scene restored');
+      this.updateAiStatus('Scene restored');
       this.renderFrame();
       this.startLoop();
     }
@@ -558,7 +552,7 @@ export class DreamGame {
     }
   };
 
-  private setFlashlightEnabled(enabled: boolean, announce = false): void {
+  private setFlashlightEnabled(enabled: boolean): void {
     this.flashlightEnabled = enabled;
     this.flashlight.visible = enabled;
     this.flashlightFill.visible = enabled;
@@ -567,7 +561,6 @@ export class DreamGame {
     const touchButton = must('touch-flashlight') as HTMLButtonElement;
     touchButton.classList.toggle('is-active', enabled);
     touchButton.setAttribute('aria-pressed', String(enabled));
-    if (announce) this.showToast(`Flashlight ${enabled ? 'on' : 'off'}`);
   }
 
   private updateFlashlightTransform(): void {
@@ -586,7 +579,6 @@ export class DreamGame {
       event.preventDefault();
       if (this.isAiMode() && this.nextDreamState !== 'ready') {
         if (this.nextDreamState === 'failed') this.retryNextAiRoom();
-        else this.showToast('The next dream is still forming · keep exploring', false);
         return;
       }
       this.resume();
@@ -631,21 +623,8 @@ export class DreamGame {
     }
   };
 
-  private showToast(msg: string, persistent = isProgressMessage(msg)): void {
-    if (this.toastTimer !== null) {
-      window.clearTimeout(this.toastTimer);
-      this.toastTimer = null;
-    }
-    this.toast.textContent = msg;
-    this.toast.classList.remove('hidden');
-    if (!persistent) {
-      this.toastTimer = window.setTimeout(() => this.hideToast(), 2600);
-    }
-  }
-
-  private updateAiStatus(message: string, announce = false): void {
+  private updateAiStatus(message: string): void {
     this.hudAiStatus.textContent = `AI · ${message}`;
-    if (announce && this.state !== 'menu') this.showToast(message);
   }
 
   private isAiMode(): boolean {
@@ -681,7 +660,7 @@ export class DreamGame {
 
   private retryNextAiRoom(): void {
     if (!this.isAiMode() || this.nextDreamState === 'pending') return;
-    this.showToast('Retrying the next AI dream…', true);
+    this.updateAiStatus('Retrying the next AI dream…');
     this.schedulePrefetch(true);
   }
 
@@ -697,12 +676,6 @@ export class DreamGame {
     this.hudNpcLine.textContent = text;
     this.hudNpcLine.classList.toggle('hidden', !nearby);
   }
-
-  private hideToast(): void {
-    if (this.toastTimer !== null) window.clearTimeout(this.toastTimer);
-    this.toastTimer = null;
-    this.toast.classList.add('hidden');
-  }
 }
 
 function must(id: string): HTMLElement {
@@ -713,8 +686,4 @@ function must(id: string): HTMLElement {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => window.setTimeout(r, ms));
-}
-
-function isProgressMessage(message: string): boolean {
-  return /loading|downloading|fetching|warming|requesting|compiling|forming|creating|writing|directing|retrying|pass \d|shader|model url|cache/i.test(message);
 }

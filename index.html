@@ -25,7 +25,6 @@
         <div id="hud-ai-status">AI · preparing direction</div>
         <div id="hud-hint">The room waits.</div>
         <div id="hud-rule" class="hidden"></div>
-        <div id="hud-npc-line" class="hidden"></div>
         <div id="hud-actions">
           <div id="hud-action" class="hud-action"><kbd>R</kbd><span id="hud-next-state">Next dream · anytime</span></div>
           <div id="hud-flashlight" class="hud-action">
@@ -33,6 +32,8 @@
           </div>
         </div>
       </div>
+
+      <div id="hud-npc-line" class="hidden" role="status" aria-live="polite" aria-atomic="true"></div>
 
       <div id="fade-overlay" aria-hidden="true"></div>
 
@@ -264,8 +265,6 @@
           </div>
         </section>
       </div>
-
-      <div id="status-toast" class="hidden" role="status"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
