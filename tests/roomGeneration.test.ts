@@ -60,7 +60,24 @@ describe('offline room invariants', () => {
     }
 
     expect(shaderStyles).toEqual(
-      new Set(['none', 'retro', 'tint', 'dream', 'noir', 'crt']),
+      new Set([
+        'none',
+        'retro',
+        'tint',
+        'dream',
+        'noir',
+        'crt',
+        'underwater',
+        'kaleidoscope',
+        'acid',
+        'fisheye',
+        'thermal',
+        'prism',
+        'vhs',
+        'strobe',
+        'mirror',
+        'tunnel',
+      ]),
     );
     expect(lightingStyles).toEqual(
       new Set(['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse']),
@@ -131,6 +148,8 @@ describe('offline room invariants', () => {
       });
 
       expect(safeRoom.visuals?.lighting).not.toBe('pulse');
+      expect(safeRoom.visuals?.shader).not.toBe('strobe');
+      expect(safeRoom.visuals?.flashStrength).toBe(0);
       expect(safeRoom.visuals?.flashingDisabled).toBe(true);
     }
 
@@ -153,6 +172,45 @@ describe('offline room invariants', () => {
       expect(room.visuals?.highVisibility).toBe(true);
       expect(room.visuals?.exposure).toBeGreaterThanOrEqual(1.2);
     }
+  });
+
+  it('randomizes dynamic treatment parameters while keeping each seed stable', () => {
+    const treatments = Array.from({ length: 120 }, (_, index) =>
+      generateOfflineRoom({
+        seed: `treatment-values-${index}`,
+        previousTitles: [],
+        moodBias: 'dynamic',
+        allowGore: false,
+        linkIndex: index,
+      }).visuals,
+    );
+    const signatures = new Set(
+      treatments.map((visuals) =>
+        [
+          visuals?.motionSpeed.toFixed(3),
+          visuals?.distortion.toFixed(3),
+          visuals?.colorCycle.toFixed(3),
+          visuals?.viewScale.toFixed(3),
+          visuals?.mirrorSegments,
+          visuals?.rotationSpeed.toFixed(3),
+        ].join('|'),
+      ),
+    );
+
+    expect(signatures.size).toBeGreaterThan(110);
+    expect(generateOfflineRoom({
+      seed: 'stable-treatment-values',
+      previousTitles: [],
+      moodBias: 'dynamic',
+      allowGore: false,
+      linkIndex: 0,
+    }).visuals).toEqual(generateOfflineRoom({
+      seed: 'stable-treatment-values',
+      previousTitles: [],
+      moodBias: 'dynamic',
+      allowGore: false,
+      linkIndex: 0,
+    }).visuals);
   });
 });
 

@@ -29,7 +29,14 @@ export interface SteeringResult {
 }
 
 const MOODS: MoodAxis[] = ['static', 'upper', 'downer', 'dynamic'];
-const SHADERS: RoomShaderStyle[] = ['none', 'retro', 'tint', 'dream', 'noir', 'crt'];
+const SHADER_FAMILIES: readonly (readonly RoomShaderStyle[])[] = [
+  ['none', 'fisheye', 'mirror'],
+  ['retro', 'vhs'],
+  ['tint', 'thermal', 'prism'],
+  ['dream', 'acid', 'underwater'],
+  ['noir', 'kaleidoscope', 'tunnel'],
+  ['crt', 'prism', 'strobe'],
+];
 const LIGHTING: RoomLightingStyle[] = [
   'fluorescent',
   'dim',
@@ -59,7 +66,7 @@ export function browserSteeringPrompt(
     ...themes.map((theme, index) => `${index} = ${theme}`),
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
-    'Shader digit: 0 clean, 1 retro, 2 tinted, 3 dream, 4 noir, 5 CRT.',
+    `Shader family digit: 0 clean/lens, 1 retro/VHS, 2 tint/thermal, 3 dream/acid, 4 noir/kaleidoscope, 5 ${ctx.noFlashingLights ? 'CRT/prism' : 'CRT/prism/strobe'}.`,
     `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',
@@ -83,7 +90,7 @@ export function parseSteeringDirection(
     modelDigits[index] ?? fallbackDigit(index, rng),
   );
   const themes = themeShortlist(ctx.seed);
-  const shader = SHADERS[digits[3]! % SHADERS.length]!;
+  const shader = shaderForDigit(digits[3]!, ctx);
   const lighting = constrainLighting(
     LIGHTING[digits[4]! % LIGHTING.length]!,
     ctx,
@@ -112,6 +119,14 @@ export function parseSteeringDirection(
     modelDigitCount: modelDigits.length,
     fallbackFields: STEERING_FIELDS.slice(modelDigits.length),
   };
+}
+
+function shaderForDigit(digit: number, ctx: GenerationContext): RoomShaderStyle {
+  const family = SHADER_FAMILIES[digit % SHADER_FAMILIES.length]!;
+  const allowed = family.filter(
+    (shader) => !ctx.noFlashingLights || shader !== 'strobe',
+  );
+  return new SeededRng(`${ctx.seed}:browser-shader-family:${digit}`).pick(allowed);
 }
 
 function constrainLighting(

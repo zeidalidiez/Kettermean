@@ -86,7 +86,23 @@ export interface RoomPalette {
   ambient: string;
 }
 
-export type RoomShaderStyle = 'none' | 'retro' | 'tint' | 'dream' | 'noir' | 'crt';
+export type RoomShaderStyle =
+  | 'none'
+  | 'retro'
+  | 'tint'
+  | 'dream'
+  | 'noir'
+  | 'crt'
+  | 'underwater'
+  | 'kaleidoscope'
+  | 'acid'
+  | 'fisheye'
+  | 'thermal'
+  | 'prism'
+  | 'vhs'
+  | 'strobe'
+  | 'mirror'
+  | 'tunnel';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'
@@ -103,6 +119,22 @@ export interface RoomVisuals {
   pixelSize: number;
   wireframe: boolean;
   exposure: number;
+  /** Seeded animation multiplier used by temporal treatments. */
+  motionSpeed: number;
+  /** Seeded UV/lens deformation strength. */
+  distortion: number;
+  /** Seeded animated hue displacement. */
+  colorCycle: number;
+  /** Seeded post-process zoom used to hide warped texture edges. */
+  viewScale: number;
+  /** Mirror wedges for kaleidoscopic treatments. */
+  mirrorSegments: number;
+  /** Slow seeded view rotation in radians per second. */
+  rotationSpeed: number;
+  /** Stable initial post-process view angle. */
+  angleOffset: number;
+  /** Brightness modulation used only by explicit strobing treatments. */
+  flashStrength: number;
   /** Accessibility preference: lighting must not pulse or flash. */
   flashingDisabled?: boolean;
   /** Accessibility preference: add a stronger neutral visibility floor. */

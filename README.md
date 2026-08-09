@@ -12,7 +12,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 - Indoor chambers, vast open halls, and outdoor dreamscapes with procedural skies and horizons
 - Door-only room links with mood-tinted fades and fog-independent exit beacons
 - Per-room gravity, movement, friction, bounce, and sway
-- Seeded lighting, tint, retro, dream, noir, CRT, and wireframe treatments
+- Seeded lighting plus sixteen randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, fisheye, thermal, prism, VHS, mirror, tunnel, strobe, and wireframe modes
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - Keyboard/mouse, gamepad, and complete touch controls
 - Optional OpenAI-compatible, OpenRouter, Anthropic, and WebLLM providers

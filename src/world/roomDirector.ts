@@ -268,11 +268,22 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
 const SHADER_STYLES: RoomVisuals['shader'][] = [
   'none',
   'none',
+  'none',
   'tint',
   'retro',
   'dream',
   'noir',
   'crt',
+  'underwater',
+  'kaleidoscope',
+  'acid',
+  'fisheye',
+  'thermal',
+  'prism',
+  'vhs',
+  'strobe',
+  'mirror',
+  'tunnel',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
@@ -307,9 +318,12 @@ export function resolveRoomVisuals(
   const rng = new SeededRng(`${seed}:visuals`);
   const recentShaders = recentRooms.slice(-2).map((room) => room.shader);
   const recentLighting = recentRooms.slice(-2).map((room) => room.lighting);
-  const shader = pickNovelVisual(rng, SHADER_STYLES, recentShaders, override?.shader);
   const flashingDisabled = preferences.noFlashingLights === true;
   const highVisibility = preferences.noLowLight === true;
+  const availableShaders = SHADER_STYLES.filter(
+    (style) => !flashingDisabled || style !== 'strobe',
+  );
+  const shader = pickNovelVisual(rng, availableShaders, recentShaders, override?.shader);
   const availableLighting = LIGHTING_STYLES.filter(
     (style) =>
       (!flashingDisabled || style !== 'pulse') &&
@@ -363,6 +377,16 @@ export function resolveRoomVisuals(
       highVisibility ? 1.2 : 1.02,
       highVisibility ? 1.38 : 1.35,
     ),
+    motionSpeed: clamp(override?.motionSpeed ?? rng.float(0.22, 1.45), 0.05, 2.4),
+    distortion: clamp(override?.distortion ?? rng.float(0.12, 0.74), 0, 1),
+    colorCycle: clamp(override?.colorCycle ?? rng.float(0.08, 0.86), 0, 1),
+    viewScale: clamp(override?.viewScale ?? rng.float(1.015, 1.13), 1, 1.24),
+    mirrorSegments: clamp(Math.round(override?.mirrorSegments ?? rng.int(3, 9)), 2, 12),
+    rotationSpeed: clamp(override?.rotationSpeed ?? rng.float(-0.11, 0.11), -0.22, 0.22),
+    angleOffset: clamp(override?.angleOffset ?? rng.float(-Math.PI, Math.PI), -Math.PI, Math.PI),
+    flashStrength: flashingDisabled
+      ? 0
+      : clamp(override?.flashStrength ?? rng.float(0.08, 0.2), 0, 0.24),
     flashingDisabled,
     highVisibility,
   };

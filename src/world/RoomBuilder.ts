@@ -781,6 +781,14 @@ function defaultVisuals(): RoomVisuals {
     pixelSize: 4,
     wireframe: false,
     exposure: 1,
+    motionSpeed: 0.5,
+    distortion: 0,
+    colorCycle: 0,
+    viewScale: 1,
+    mirrorSegments: 4,
+    rotationSpeed: 0,
+    angleOffset: 0,
+    flashStrength: 0,
   };
 }
 
