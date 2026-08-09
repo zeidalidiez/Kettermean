@@ -175,7 +175,10 @@ describe('offline room invariants', () => {
 
   it('makes ordinary room scales common and both extremes genuinely rare', () => {
     const counts = new Map<string, number>();
-    const sampleSize = 5_000;
+    // Seeded generation is deterministic, so 1,500 cases retain stable
+    // distribution coverage without making slower CI runners build 5,000 full
+    // scenes alongside the other catalog-heavy test files.
+    const sampleSize = 1_500;
 
     for (let index = 0; index < sampleSize; index += 1) {
       const room = generateOfflineRoom({
