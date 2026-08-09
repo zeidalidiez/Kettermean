@@ -19,11 +19,11 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - A player flashlight on **F**, gamepad X, and touch, independent of room lighting
-- Billboards that interleave model-authored notices with longer tagged procedural notices from a 584-entry semantic lexicon, so neither writing source replaces the other
+- Billboards that interleave model-authored notices with longer tagged procedural notices from an 860-entry semantic lexicon and seventy-two caption endings, so neither writing source replaces the other
 - Three high-detail expansion rounds contribute 908 props and 454 NPC/animal variants across 189 artisan families, with geometry changes—not palette swaps—between variants in every family
 - Every selectable actor and prop is built as 3D geometry; the former prerendered character cutouts are excluded from the catalog and production bundle
 - Deliberately cheap low-poly forms and room-scale voxel giants remain as intentional contrasts to the increasingly intricate catalog
-- Body-independent face kits that cross-mount animal faces on people, human faces on animals, and both kinds on furniture, fixtures, and other objects
+- Twenty-three body-independent face-kit archetypes with separately seeded eyes, brows, noses, mouths, hair, markings, and accessories; animal faces cross-mount on people, human faces on animals, and both kinds appear on furniture, fixtures, and other objects
 - Keyboard/mouse, gamepad, and complete touch controls
 - WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings
 - Persisted Light, Standard, and Deep AI direction levels with adaptive passes for room language, signs, inhabitants, and strange room rules

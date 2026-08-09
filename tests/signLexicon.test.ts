@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { combineBillboardSigns } from '../src/world/billboardContent';
-import { generateRoomSigns, SIGN_WORDS } from '../src/world/signLexicon';
+import {
+  CAPTION_TAILS,
+  generateRoomSigns,
+  SIGN_WORDS,
+  SIGN_WORDS_ROUND_FOUR,
+} from '../src/world/signLexicon';
 
 const tropicalContext = (seed: string) => ({
   seed,
@@ -14,7 +19,11 @@ const tropicalContext = (seed: string) => ({
 
 describe('tagged procedural signage', () => {
   it('keeps a broad data-only vocabulary with explicit Jungle correlations', () => {
-    expect(SIGN_WORDS.length).toBeGreaterThan(580);
+    expect(SIGN_WORDS).toHaveLength(860);
+    expect(SIGN_WORDS_ROUND_FOUR).toHaveLength(180);
+    expect(CAPTION_TAILS).toHaveLength(72);
+    expect(new Set(SIGN_WORDS_ROUND_FOUR.map((word) => `${word.role}:${word.text}`)).size).toBe(180);
+    expect(SIGN_WORDS_ROUND_FOUR.every((word) => word.text.trim() && word.tags.length >= 3)).toBe(true);
     expect(SIGN_WORDS).toContainEqual(expect.objectContaining({
       text: 'Jungle',
       role: 'place',
@@ -25,6 +34,18 @@ describe('tagged procedural signage', () => {
       role: 'place',
       tags: expect.arrayContaining(['furniture', 'meeting', 'banquet']),
     }));
+  });
+
+  it('uses the expanded billboard language with high seeded variety and bounded complete captions', () => {
+    const signs = Array.from({ length: 600 }, (_, index) =>
+      generateRoomSigns(tropicalContext(`expanded-sign-language-${index}`)),
+    ).flat();
+    const combined = signs.map((sign) => combineBillboardSigns([], [sign], 1)[0]!).filter(Boolean);
+
+    expect(new Set(signs.map((sign) => sign.headline)).size).toBeGreaterThan(900);
+    expect(new Set(combined.map((sign) => sign.caption)).size).toBeGreaterThan(900);
+    expect(combined.every((sign) => sign.caption.length <= 128)).toBe(true);
+    expect(combined.every((sign) => sign.caption.trim().split(/\s+/).length >= 8)).toBe(true);
   });
 
   it('is deterministic while composing multiple different signs per large room', () => {

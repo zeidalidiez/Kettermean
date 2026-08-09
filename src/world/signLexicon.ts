@@ -44,6 +44,87 @@ const wordGroup = (
   words: readonly string[],
 ): TaggedSignWord[] => words.map((text) => ({ text, role, tags: [...tags] }));
 
+/** Fourth expansion: 180 additional, semantically tagged billboard fragments. */
+export const SIGN_WORDS_ROUND_FOUR: TaggedSignWord[] = [
+  ...wordGroup('place', ['place', 'observatory', 'celestial', 'night'], [
+    'Meridian Gallery', 'Lunar Annex', 'Comet Hall', 'Planetarium Steps', 'Solar Archive',
+    'Transit Dome', 'Star Chamber', 'Eclipse Balcony', 'Meteor Court', 'Sidereal Lobby',
+  ]),
+  ...wordGroup('place', ['place', 'subterranean', 'industrial', 'service'], [
+    'Pump Cavern', 'Cable Vault', 'Lower Sump', 'Ventilation Drift', 'Generator Grotto',
+    'Pressure Tunnel', 'Maintenance Well', 'Drainage Hall', 'Bedrock Office', 'Utility Descent',
+  ]),
+  ...wordGroup('place', ['place', 'nursery', 'domestic', 'uncanny'], [
+    'Nap Room', 'Toy Census', 'Cradle Office', 'Quiet Playhouse', 'Lost Bedroom',
+    'Story Corner', 'Night Nursery', 'Blanket Exchange', 'Small Door Hall', 'Indoor Sandbox',
+  ]),
+
+  ...wordGroup('modifier', ['optical', 'celestial', 'projection', 'dynamic'], [
+    'Prismatic', 'Lenticular', 'Afterimage', 'Orbital', 'Parallax',
+    'Spectral', 'Mirrored', 'Astral', 'Refracted', 'Peripheral',
+  ]),
+  ...wordGroup('modifier', ['botanical', 'weather', 'nature', 'overgrown'], [
+    'Pollen', 'Monsoon', 'Rootbound', 'Cloudgrown', 'Hothouse',
+    'Seeded', 'Rainwashed', 'Spore', 'Windpruned', 'Verdant',
+  ]),
+  ...wordGroup('modifier', ['archive', 'dream', 'uncanny', 'static'], [
+    'Misfiled', 'Carbon Copy', 'Provisional', 'Unremembered', 'Duplicate',
+    'Postdated', 'Unclaimed', 'Redacted', 'Recursive', 'Retrospective',
+  ]),
+
+  ...wordGroup('institution', ['broadcast', 'cinema', 'public', 'projection'], [
+    'Signal Ministry', 'Transmission Office', 'Public Frequency', 'Picture Authority', 'Relay Bureau',
+    'Continuity Studio', 'Audience Services', 'Emergency Broadcast', 'Test Pattern Council', 'Night Programming',
+  ]),
+  ...wordGroup('institution', ['maritime', 'water', 'transit', 'service'], [
+    'Harbor Authority', 'Tide Commission', 'Ferry Office', 'Depth Registry', 'Buoy Service',
+    'Canal Ministry', 'Navigation Board', 'Flood Control', 'Dredging Council', 'Mariner Intake',
+  ]),
+  ...wordGroup('institution', ['domestic', 'ceremonial', 'home', 'uncanny'], [
+    'Household Council', 'Table Committee', 'Curtain Authority', 'Domestic Weather', 'Lamp Registry',
+    'Guest Department', 'Carpet Office', 'Family Archive', 'Kitchen Tribunal', 'Hallway Ministry',
+  ]),
+
+  ...wordGroup('instruction', ['optical', 'observatory', 'celestial', 'warning'], [
+    'Face the False Moon', 'Observe With One Eye', 'Keep Stars Numbered', 'Follow the Afterimage', 'Report Moving Constellations',
+    'Stand Outside the Shadow', 'Adjust to Interior Night', 'Do Not Focus Twice', 'Return the Borrowed Horizon', 'Wait for Correct Alignment',
+  ]),
+  ...wordGroup('instruction', ['botanical', 'lab', 'nature', 'service'], [
+    'Declare All Pollen', 'Water Only Recorded Plants', 'Keep Roots Below Reception', 'Present a Viable Cutting', 'Do Not Wake the Ferns',
+    'Follow the Green Cable', 'Return Soil After Use', 'Count Leaves Before Entry', 'Quarantine Familiar Blossoms', 'Wait Until Germination',
+  ]),
+  ...wordGroup('instruction', ['civic', 'time', 'public', 'uncanny'], [
+    'Arrive During Yesterday', 'Queue in Birth Order', 'Use Your Future Signature', 'Remain Until Previously Called', 'Correct the Nearest Clock',
+    'Apply Before Existing', 'Renew Your Current Minute', 'Present Proof of Tomorrow', 'Keep the Earlier Appointment', 'Exit in Numerical Order',
+  ]),
+
+  ...wordGroup('service', ['broadcast', 'cinema', 'projection', 'public'], [
+    'Static Removal', 'Audience Replacement', 'Lost Signal Claims', 'Subtitle Repair', 'Emergency Applause',
+    'Test Pattern Rental', 'Voice Synchronization', 'Channel Reassignment', 'Picture Delay', 'Transmission Memories',
+  ]),
+  ...wordGroup('service', ['subterranean', 'industrial', 'maintenance', 'restricted'], [
+    'Pressure Accounting', 'Echo Inspection', 'Cable Reburial', 'Sump Reservations', 'Tunnel Weather',
+    'Valve Confession', 'Bedrock Claims', 'Emergency Ventilation', 'Foundation Listening', 'Unauthorized Depths',
+  ]),
+  ...wordGroup('service', ['domestic', 'dream', 'home', 'uncanny'], [
+    'Second Breakfast', 'Blanket Licensing', 'Spare Parent Desk', 'Dream Laundry', 'Cupboard Admissions',
+    'Quiet Toy Repair', 'Borrowed Bed Service', 'Nightlight Exchange', 'Family Resemblance', 'Indoor Childhood',
+  ]),
+
+  ...wordGroup('time', ['celestial', 'observatory', 'night', 'static'], [
+    'At the Next Eclipse', 'Before Moonrise Repeats', 'During False Dawn', 'Until the Comet Stops', 'At Sidereal Closing',
+    'Between Two Midnights', 'After the Stars Clock Out', 'When the Dome Opens', 'One Orbit From Now', 'Before Daylight Is Filed',
+  ]),
+  ...wordGroup('time', ['weather', 'nature', 'dynamic', 'outdoor'], [
+    'Until the Rain Returns', 'During the Indoor Storm', 'After the Last Thunder', 'Before Fog Check-In', 'When Pollen Clears',
+    'At High Interior Tide', 'Until Wind Changes Rooms', 'After the Cloud Inventory', 'During Scheduled Lightning', 'Before the Snow Remembers',
+  ]),
+  ...wordGroup('time', ['civic', 'archive', 'uncanny', 'service'], [
+    'While Records Disagree', 'Until Your Number Ages', 'After Retroactive Opening', 'Before the Clerk Arrives', 'During Previous Business Hours',
+    'When the Queue Reverses', 'Until Further Yesterdays', 'After Your File Wakes', 'Before the Office Forgets', 'At the Earlier Closing Time',
+  ]),
+];
+
 /**
  * A deliberately data-only vocabulary. Geometry and typography live in
  * RoomBuilder, while this module owns meaning and correlation. A word can
@@ -305,6 +386,7 @@ export const SIGN_WORDS: TaggedSignWord[] = [
   ...wordGroup('time', ['night', 'dream', 'uncanny', 'service'], [
     'At 00:00 Again', 'Until the Lights Decide', 'Before the Previous Shift', 'After Your Name Is Called', 'Every Other Yesterday', 'During Indoor Weather', 'Until Further Memory', 'Between the Same Minutes', 'One Hour Before Now', 'When the Corridor Returns', 'After the Empty Train', 'Until Reception Wakes',
   ]),
+  ...SIGN_WORDS_ROUND_FOUR,
 ];
 
 const TAG_RELATIONS: Record<string, readonly string[]> = {
@@ -331,6 +413,15 @@ const TAG_RELATIONS: Record<string, readonly string[]> = {
   laundry: ['service', 'home', 'motel'],
   cinema: ['leisure', 'projection', 'ceremonial'],
   projection: ['cinema', 'leisure', 'museum'],
+  observatory: ['celestial', 'night', 'museum'],
+  celestial: ['observatory', 'night', 'optical'],
+  optical: ['projection', 'museum', 'observation'],
+  broadcast: ['cinema', 'projection', 'public'],
+  subterranean: ['industrial', 'service', 'restricted'],
+  nursery: ['domestic', 'home', 'school'],
+  domestic: ['home', 'hotel', 'interior'],
+  botanical: ['nature', 'garden', 'lab'],
+  maritime: ['water', 'transit', 'service'],
   baggage: ['airport', 'terminal', 'transit'],
   community: ['civic', 'leisure', 'public'],
   hospitality: ['hotel', 'motel', 'lobby'],
@@ -341,7 +432,7 @@ const TAG_RELATIONS: Record<string, readonly string[]> = {
   interior: ['environment', 'place'],
 };
 
-const CAPTION_TAILS = [
+export const CAPTION_TAILS = [
   'Keep this notice until your name changes',
   'Present the receipt you have not received',
   'All returning visitors must wait to be remembered',
@@ -366,6 +457,54 @@ const CAPTION_TAILS = [
   'Your position in line will be preserved during any spatial changes',
   'Return this notice before the corridor completes its next rotation',
   'Only one member of each reflection may use this service',
+  'Keep both copies until the original visitor can be identified',
+  'Your assigned constellation must remain folded while inside the building',
+  'Report unauthorized moonlight to the nearest staffed observation window',
+  'Viewing equipment remembers every eye and may request proof of ownership',
+  'The horizon is available by appointment during approved interior weather',
+  'Return all telescopes facing the direction in which they were found',
+  'Stars omitted from the directory are not authorized for public navigation',
+  'Night service ends when the ceiling produces its first correct sunrise',
+  'Declare all seeds before entering rooms with an artificial season',
+  'Roots crossing marked walkways must carry a current circulation permit',
+  'Watering schedules apply to furniture showing any sign of new growth',
+  'Pollen collected indoors becomes property of the ventilation department',
+  'Please avoid flowers that repeat instructions in a familiar voice',
+  'Unregistered soil will be returned to the landscape of probable origin',
+  'Garden visitors must leave with the same number of shadows',
+  'Fruit found in administrative areas should be surrendered unopened',
+  'All broadcasts are delayed until the audience reaches the correct room',
+  'Do not adjust the picture when it begins displaying your arrival',
+  'Static belongs to the station and must not leave the premises',
+  'Recorded applause will continue until an appropriate event is located',
+  'Subtitles may describe a neighboring room without further notice',
+  'Return borrowed voices to transmission before the final test pattern',
+  'Audience members appearing twice should occupy alternate rows',
+  'Emergency programming begins after ordinary reality has concluded',
+  'Depth restrictions remain active even when the floor appears level',
+  'Maintenance echoes must be accompanied by their original mechanical sound',
+  'Do not enter tunnels currently being remembered by another building',
+  'Pressure changes should be reported before they acquire a personal name',
+  'Every valve must remain closed except the one shown on no diagram',
+  'Utility staff may ask visitors to verify the weight of the ceiling',
+  'Keep loose minutes away from exposed cables and standing water',
+  'Foundation listening occurs quietly beneath all scheduled announcements',
+  'Children must be accompanied by the adult shown in their oldest photograph',
+  'Nightlights remain active until every toy reports the same morning',
+  'Blankets issued here may contain weather from a previous bedroom',
+  'Please return imaginary companions through the designated service hatch',
+  'The small door is reserved for visitors who remember being shorter',
+  'Unclaimed lullabies will be replayed during administrative quiet hours',
+  'Cradles must face away from corridors that have not been built',
+  'Story time concludes only when the room accepts the ending',
+  'Harbor passengers should confirm that the water travels with their vessel',
+  'Tide schedules are posted according to the moon inside reception',
+  'Navigation remains compulsory after all recognizable coastlines disappear',
+  'Buoys heard underground must be logged with the depth registry',
+  'Passengers may collect one dry reflection from the ferry office',
+  'Flood routes remain valid until the arrows begin pointing upstream',
+  'All borrowed oceans must be returned before the building closes',
+  'Present your indoor weather permit before boarding the submerged platform',
 ] as const;
 
 export function generateRoomSigns(context: SignageContext): ProceduralSignText[] {

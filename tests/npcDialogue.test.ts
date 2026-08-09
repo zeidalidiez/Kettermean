@@ -5,25 +5,30 @@ import { wordCount } from '../src/world/textQuality';
 
 describe('procedural NPC dialogue', () => {
   it('provides a broad deterministic default vocabulary', () => {
-    expect(NPC_DIALOGUE_VOCABULARY.size).toBeGreaterThan(240);
-    const lines = Array.from({ length: 500 }, (_, index) =>
+    expect(NPC_DIALOGUE_VOCABULARY.size).toBe(942);
+    const expandedTags = [
+      ['hotel', 'archive'], ['garden', 'aquarium'], ['observatory', 'celestial'],
+      ['broadcast', 'cinema'], ['nursery', 'domestic'], ['subterranean', 'industrial'],
+      ['botanical', 'maritime'],
+    ] as const;
+    const lines = Array.from({ length: 1_200 }, (_, index) =>
       generateNpcDialogue({
         seed: `dialogue-variety-${index}`,
         label: index % 2 ? 'night clerk' : 'waiting animal',
-        tags: index % 3 ? ['hotel', 'archive'] : ['garden', 'aquarium'],
+        tags: expandedTags[index % expandedTags.length]!,
         mood: index % 2 ? 'static' : 'dynamic',
         condition: index % 4 ? 'normal' : 'haunted',
       }),
     );
 
-    expect(new Set(lines).size).toBeGreaterThan(470);
+    expect(new Set(lines).size).toBeGreaterThan(1_175);
     expect(lines.every((line) => line.length <= 140)).toBe(true);
     expect(lines.every((line) => wordCount(line) >= 7)).toBe(true);
     expect(lines.every((line) => /[.!?]$/.test(line))).toBe(true);
     expect(lines[17]).toBe(generateNpcDialogue({
       seed: 'dialogue-variety-17',
       label: 'night clerk',
-      tags: ['hotel', 'archive'],
+      tags: expandedTags[17 % expandedTags.length]!,
       mood: 'static',
       condition: 'normal',
     }));
