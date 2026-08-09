@@ -18,6 +18,10 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   strobe: 13,
   mirror: 14,
   tunnel: 15,
+  posterize: 16,
+  duotone: 17,
+  dither: 18,
+  solarize: 19,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -169,7 +173,7 @@ export class RoomPostProcessor {
           uv.y += sin(time * 2.2) * 0.0015 * uDistortion;
         }
 
-        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0;
+        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0;
         if (pixelated) {
           vec2 cells = max(uResolution / max(2.0, uPixelSize), vec2(1.0));
           uv = (floor(uv * cells) + 0.5) / cells;
@@ -247,6 +251,28 @@ export class RoomPostProcessor {
         } else if (uMode == 15.0) {
           color = hueShift(color, time * uColorCycle * 0.18);
           color = mix(color, color * uTint * 1.2, uStrength * 0.16);
+        } else if (uMode == 16.0) {
+          float levels = mix(7.0, 3.0, uStrength);
+          vec3 poster = floor(color * levels + 0.5) / levels;
+          color = mix(color, poster * mix(vec3(1.0), uTint, 0.16), 0.56 + uStrength * 0.32);
+        } else if (uMode == 17.0) {
+          float value = smoothstep(0.06, 0.94, luma(color));
+          vec3 shadowTone = uTint * 0.14;
+          vec3 highlightTone = mix(uTint, vec3(1.0), 0.68);
+          vec3 duo = mix(shadowTone, highlightTone, value);
+          color = mix(color, duo, 0.48 + uStrength * 0.4);
+        } else if (uMode == 18.0) {
+          vec2 cell = mod(floor(gl_FragCoord.xy), vec2(4.0));
+          float threshold = hash21(cell + vec2(2.7, 8.3));
+          float levels = mix(6.0, 3.0, uStrength);
+          vec3 dithered = floor(color * levels + threshold) / levels;
+          color = mix(color, dithered * mix(vec3(1.0), uTint, 0.12), 0.52 + uStrength * 0.34);
+        } else if (uMode == 19.0) {
+          float value = luma(color);
+          vec3 inverted = vec3(1.0) - color;
+          vec3 solar = mix(color, inverted, smoothstep(0.38, 0.72, value));
+          solar = hueShift(solar, uAngleOffset * 0.2 + time * uColorCycle * 0.12);
+          color = mix(color, solar * mix(vec3(1.0), uTint, 0.18), 0.46 + uStrength * 0.4);
         }
 
         if (

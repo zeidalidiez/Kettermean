@@ -30,10 +30,10 @@ export interface SteeringResult {
 
 const MOODS: MoodAxis[] = ['static', 'upper', 'downer', 'dynamic'];
 const SHADER_FAMILIES: readonly (readonly RoomShaderStyle[])[] = [
-  ['none', 'fisheye', 'mirror'],
-  ['retro', 'vhs'],
-  ['tint', 'thermal', 'prism'],
-  ['dream', 'acid', 'underwater'],
+  ['none', 'fisheye', 'mirror', 'posterize'],
+  ['retro', 'vhs', 'dither'],
+  ['tint', 'thermal', 'prism', 'duotone'],
+  ['dream', 'acid', 'underwater', 'solarize'],
   ['noir', 'mirror', 'tunnel'],
   ['crt', 'prism', 'strobe'],
 ];
@@ -66,7 +66,7 @@ export function browserSteeringPrompt(
     ...themes.map((theme, index) => `${index} = ${theme}`),
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
-    `Shader family digit: 0 clean/lens, 1 retro/VHS, 2 tint/thermal, 3 dream/acid, 4 noir/mirror/tunnel, 5 ${ctx.noFlashingLights ? 'CRT/prism' : 'CRT/prism/strobe'}.`,
+    `Shader family digit: 0 clean/lens/poster, 1 retro/VHS/dither, 2 tint/thermal/duotone, 3 dream/acid/solar, 4 noir/mirror/tunnel, 5 ${ctx.noFlashingLights ? 'CRT/prism' : 'CRT/prism/strobe'}.`,
     `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',

@@ -325,6 +325,10 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
   'strobe',
   'mirror',
   'tunnel',
+  'posterize',
+  'duotone',
+  'dither',
+  'solarize',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',

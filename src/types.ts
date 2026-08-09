@@ -122,7 +122,11 @@ export type RoomShaderStyle =
   | 'vhs'
   | 'strobe'
   | 'mirror'
-  | 'tunnel';
+  | 'tunnel'
+  | 'posterize'
+  | 'duotone'
+  | 'dither'
+  | 'solarize';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'

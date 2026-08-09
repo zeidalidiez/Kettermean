@@ -88,6 +88,10 @@ describe('offline room invariants', () => {
         'strobe',
         'mirror',
         'tunnel',
+        'posterize',
+        'duotone',
+        'dither',
+        'solarize',
       ]),
     );
     expect(lightingStyles).toEqual(

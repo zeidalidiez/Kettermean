@@ -14,7 +14,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 - Indoor chambers, vast open halls, and outdoor dreamscapes with procedural skies and horizons
 - Door-only room links with mood-tinted fades and fog-independent exit beacons
 - Per-room gravity, movement, friction, bounce, and sway
-- Seeded lighting plus sixteen randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, fisheye, thermal, prism, VHS, mirror, tunnel, strobe, and wireframe modes
+- Seeded lighting plus twenty randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and wireframe modes
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - Keyboard/mouse, gamepad, and complete touch controls
