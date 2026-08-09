@@ -15,6 +15,7 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 - Door-only room links with mood-tinted fades and fog-independent exit beacons
 - Per-room gravity, movement, friction, bounce, and sway
 - Seeded lighting plus sixteen randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, fisheye, thermal, prism, VHS, mirror, tunnel, strobe, and wireframe modes
+- Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - Keyboard/mouse, gamepad, and complete touch controls
 - WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings

@@ -103,7 +103,7 @@ export function parseQaDirection(
     giant,
   };
 
-  // Offline director owns placement density, doors, packs, palette jitter.
+  // Offline director owns placement density, door landmarks, packs, and palette jitter.
   const dir = generateOfflineDirection(
     {
       seed,

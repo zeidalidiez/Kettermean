@@ -447,7 +447,7 @@ function withSettingsConstraints(
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v17|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
+  return `v18|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
 function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
@@ -468,9 +468,9 @@ function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
     'Do NOT invent meshes. SELECT assets from the catalog by assetId.',
     'You may scale assets for atmosphere (e.g. anomaly_giant_baby scaleMul 2.5-3.8).',
     'Schema: themeId?, title, blurb, mood, tags, width, depth, height, fogNear, fogFar, linkColor, palette?, physics?, placements[].',
-    'placements item: {assetId,x,z,rotY,scaleMul,linksOnTouch,behavior?}.',
+    'placements item: {assetId,x,z,rotY,scaleMul,behavior?}.',
     'mood: upper|downer|static|dynamic. Keep spawn center clear (no solid near 0,0 within 1.8).',
-    '6-12 placements. Include at least one portal/link asset (door_fake often).',
+    '6-12 placements. Include at least one decorative portal or door landmark (door_fake often).',
     goreLine,
     flashingLine,
     lowLightLine,
@@ -491,9 +491,9 @@ function buildPrompt(ctx: GenerationContext): { system: string; user: string } {
     linkColor: '#15203f',
     placements: [
       { assetId: 'crib_empty', x: -2, z: -1.5, rotY: 0.2, scaleMul: 1 },
-      { assetId: 'anomaly_giant_baby', x: 1.5, z: 2, scaleMul: 3.1, linksOnTouch: true, behavior: 'idle' },
+      { assetId: 'anomaly_giant_baby', x: 1.5, z: 2, scaleMul: 3.1, behavior: 'idle' },
       { assetId: 'bottle_giant', x: 3, z: -2.5, scaleMul: 1.4 },
-      { assetId: 'door_fake', x: -5.2, z: 0, rotY: 1.57, linksOnTouch: true },
+      { assetId: 'door_fake', x: -5.2, z: 0, rotY: 1.57 },
       { assetId: 'lamp_floor', x: -3.5, z: 3, scaleMul: 1 },
       { assetId: 'mirror_tall', x: 5, z: 0, rotY: -1.57, scaleMul: 1.1 },
     ],

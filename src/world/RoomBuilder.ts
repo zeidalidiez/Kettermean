@@ -87,6 +87,7 @@ export class RoomWorld {
     if (visuals.flashingDisabled) lighting.pulseAmplitude = 0;
     const outdoor = spec.environment === 'outdoor';
     const highVisibility = visuals.highVisibility === true;
+    const detailScale = clampNumber(spec.worldScale ?? 1, 0.72, 10);
 
     const floorMat = surfaceMaterial(styleForMood('floor', spec.mood, tags), spec.palette.floor, seedKey);
     const ceilMat = surfaceMaterial(styleForMood('ceiling', spec.mood, tags), spec.palette.ceiling, seedKey);
@@ -166,15 +167,19 @@ export class RoomWorld {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.group.add(mesh);
-      // Walls are solid only — never room links. Doors are the only teleports.
+      // Walls and doors are solid landmarks; R/Y/touch advances the dream.
       this.addCollider(wallCollider(side, halfW, halfD, h, wallT, false), `wall:${side}`);
 
       // Fake window / panel insets so walls aren't flat slabs
       const panel = new THREE.Mesh(
         new THREE.BoxGeometry(
-          side === 'north' || side === 'south' ? Math.min(2.4, spec.width * 0.25) : 0.06,
-          Math.min(1.6, h * 0.45),
-          side === 'east' || side === 'west' ? Math.min(2.4, spec.depth * 0.25) : 0.06,
+          side === 'north' || side === 'south'
+            ? Math.min(2.4 * detailScale, spec.width * 0.25)
+            : 0.06 * detailScale,
+          Math.min(1.6 * detailScale, h * 0.45),
+          side === 'east' || side === 'west'
+            ? Math.min(2.4 * detailScale, spec.depth * 0.25)
+            : 0.06 * detailScale,
         ),
         plainMaterial(spec.palette.light, 0.35, 0.05, spec.palette.light, 0.25),
       );
@@ -201,7 +206,11 @@ export class RoomWorld {
     const fixtureRows = Math.max(1, Math.ceil(fixtureCount / fixtureColumns));
     for (let i = 0; i < fixtureCount; i += 1) {
       const strip = new THREE.Mesh(
-        new THREE.BoxGeometry(Math.min(4.2, spec.width * 0.28), 0.06, 0.4),
+        new THREE.BoxGeometry(
+          Math.min(4.2 * detailScale, spec.width * 0.28),
+          0.06 * detailScale,
+          0.4 * detailScale,
+        ),
         new THREE.MeshStandardMaterial({
           color: lighting.primary,
           emissive: new THREE.Color(lighting.primary),
@@ -214,11 +223,11 @@ export class RoomWorld {
       const x =
         fixtureColumns === 1
           ? 0
-          : (column / (fixtureColumns - 1) - 0.5) * Math.min(spec.width * 0.68, 32);
+          : (column / (fixtureColumns - 1) - 0.5) * Math.min(spec.width * 0.68, 32 * detailScale);
       const z =
         fixtureRows === 1
           ? 0
-          : (row / (fixtureRows - 1) - 0.5) * Math.min(spec.depth * 0.62, 28);
+          : (row / (fixtureRows - 1) - 0.5) * Math.min(spec.depth * 0.62, 28 * detailScale);
       strip.position.set(x, h - 0.12, z);
       this.group.add(strip);
 
@@ -409,6 +418,7 @@ export class RoomWorld {
     const rng = new SeededRng(`${spec.seed}:architecture:${architecture}`);
     const halfW = spec.width * 0.5;
     const halfD = spec.depth * 0.5;
+    const detailScale = clampNumber(spec.worldScale ?? 1, 0.72, 10);
     const structural = plainMaterial(spec.palette.walls, 0.82, 0.08);
     const trim = plainMaterial(spec.palette.accent, 0.55, 0.18);
     const glow = new THREE.MeshBasicMaterial({
@@ -504,32 +514,39 @@ export class RoomWorld {
         for (let row = 0; row < rows; row += 1) {
           const z = rows === 1 ? 0 : -halfD * 0.68 + (row / (rows - 1)) * halfD * 1.36;
           for (const side of [-1, 1]) {
-            addColumn(`column-${row}-${side}`, side * halfW * 0.31, z, Math.min(spec.height * 0.92, 7), 0.34 + rng.float(0, 0.12));
+            addColumn(
+              `column-${row}-${side}`,
+              side * halfW * 0.31,
+              z,
+              Math.min(spec.height * 0.92, 7 * detailScale),
+              (0.34 + rng.float(0, 0.12)) * detailScale,
+            );
           }
         }
-        addBox('entablature-left', 0.28, 0.26, spec.depth * 0.82, -halfW * 0.31, Math.min(spec.height * 0.92, 7), 0, trim);
-        addBox('entablature-right', 0.28, 0.26, spec.depth * 0.82, halfW * 0.31, Math.min(spec.height * 0.92, 7), 0, trim);
+        const beamHeight = Math.min(spec.height * 0.92, 7 * detailScale);
+        addBox('entablature-left', 0.28 * detailScale, 0.26 * detailScale, spec.depth * 0.82, -halfW * 0.31, beamHeight, 0, trim);
+        addBox('entablature-right', 0.28 * detailScale, 0.26 * detailScale, spec.depth * 0.82, halfW * 0.31, beamHeight, 0, trim);
         break;
       }
       case 'atrium': {
         const x = halfW * 0.3;
         const z = halfD * 0.3;
-        const height = Math.min(spec.height * 0.84, 8.5);
-        for (const sx of [-1, 1]) for (const sz of [-1, 1]) addColumn(`atrium-${sx}-${sz}`, sx * x, sz * z, height, 0.48);
-        addBox('beam-north', x * 2, 0.28, 0.28, 0, height, -z, trim);
-        addBox('beam-south', x * 2, 0.28, 0.28, 0, height, z, trim);
-        addBox('beam-east', 0.28, 0.28, z * 2, x, height, 0, trim);
-        addBox('beam-west', 0.28, 0.28, z * 2, -x, height, 0, trim);
-        addFloorMark('atrium-center', Math.min(spec.width * 0.28, 14), Math.min(spec.depth * 0.28, 14), 0, 0, Math.PI * 0.25);
+        const height = Math.min(spec.height * 0.84, 8.5 * detailScale);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) addColumn(`atrium-${sx}-${sz}`, sx * x, sz * z, height, 0.48 * detailScale);
+        addBox('beam-north', x * 2, 0.28 * detailScale, 0.28 * detailScale, 0, height, -z, trim);
+        addBox('beam-south', x * 2, 0.28 * detailScale, 0.28 * detailScale, 0, height, z, trim);
+        addBox('beam-east', 0.28 * detailScale, 0.28 * detailScale, z * 2, x, height, 0, trim);
+        addBox('beam-west', 0.28 * detailScale, 0.28 * detailScale, z * 2, -x, height, 0, trim);
+        addFloorMark('atrium-center', Math.min(spec.width * 0.28, 14 * detailScale), Math.min(spec.depth * 0.28, 14 * detailScale), 0, 0, Math.PI * 0.25);
         break;
       }
       case 'arena': {
-        const gap = Math.min(6, spec.width * 0.22);
-        const segment = Math.max(2.2, (spec.width - gap - 4) * 0.5);
+        const gap = Math.min(6 * detailScale, spec.width * 0.22);
+        const segment = Math.max(2.2 * detailScale, (spec.width - gap - 4 * detailScale) * 0.5);
         for (let tier = 0; tier < 3; tier += 1) {
-          const height = 0.26 + tier * 0.28;
-          const depth = 0.82;
-          const inset = 1.1 + tier * 0.78;
+          const height = (0.26 + tier * 0.28) * detailScale;
+          const depth = 0.82 * detailScale;
+          const inset = (1.1 + tier * 0.78) * detailScale;
           for (const side of [-1, 1]) {
             for (const xSide of [-1, 1]) {
               addBox(
@@ -546,8 +563,8 @@ export class RoomWorld {
             }
           }
         }
-        addFloorMark('arena-axis', Math.min(spec.width * 0.62, 42), 0.12, 0, 0);
-        addFloorMark('arena-cross', 0.12, Math.min(spec.depth * 0.58, 34), 0, 0);
+        addFloorMark('arena-axis', Math.min(spec.width * 0.62, 42 * detailScale), 0.12 * detailScale, 0, 0);
+        addFloorMark('arena-cross', 0.12 * detailScale, Math.min(spec.depth * 0.58, 34 * detailScale), 0, 0);
         break;
       }
       case 'concourse': {
@@ -555,11 +572,11 @@ export class RoomWorld {
         for (let index = 0; index < gantries; index += 1) {
           const z = gantries === 1 ? 0 : -halfD * 0.56 + (index / (gantries - 1)) * halfD * 1.12;
           const x = halfW * 0.36;
-          const height = Math.min(spec.height * 0.78, 6.5);
-          addColumn(`gantry-${index}-left`, -x, z, height, 0.3);
-          addColumn(`gantry-${index}-right`, x, z, height, 0.3);
-          addBox(`gantry-${index}-beam`, x * 2, 0.24, 0.24, 0, height, z, trim);
-          addBox(`gantry-${index}-sign`, Math.min(4.8, spec.width * 0.18), 0.86, 0.08, 0, height - 0.55, z, glow);
+          const height = Math.min(spec.height * 0.78, 6.5 * detailScale);
+          addColumn(`gantry-${index}-left`, -x, z, height, 0.3 * detailScale);
+          addColumn(`gantry-${index}-right`, x, z, height, 0.3 * detailScale);
+          addBox(`gantry-${index}-beam`, x * 2, 0.24 * detailScale, 0.24 * detailScale, 0, height, z, trim);
+          addBox(`gantry-${index}-sign`, Math.min(4.8 * detailScale, spec.width * 0.18), 0.86 * detailScale, 0.08 * detailScale, 0, height - 0.55 * detailScale, z, glow);
         }
         for (const x of [-halfW * 0.19, 0, halfW * 0.19]) addFloorMark(`lane-${x}`, 0.09, spec.depth * 0.72, x, 0);
         break;
@@ -567,14 +584,14 @@ export class RoomWorld {
       case 'courtyard': {
         const pavilionX = halfW * 0.34;
         const pavilionZ = halfD * 0.34;
-        const height = Math.min(spec.height * 0.52, 5.2);
+        const height = Math.min(spec.height * 0.52, 5.2 * detailScale);
         for (const sx of [-1, 1]) {
           for (const sz of [-1, 1]) {
             const x = sx * pavilionX;
             const z = sz * pavilionZ;
-            addColumn(`pavilion-${sx}-${sz}-a`, x - 0.7, z, height, 0.22);
-            addColumn(`pavilion-${sx}-${sz}-b`, x + 0.7, z, height, 0.22);
-            addBox(`pavilion-${sx}-${sz}-roof`, 2.1, 0.2, 1.65, x, height + 0.1, z, trim);
+            addColumn(`pavilion-${sx}-${sz}-a`, x - 0.7 * detailScale, z, height, 0.22 * detailScale);
+            addColumn(`pavilion-${sx}-${sz}-b`, x + 0.7 * detailScale, z, height, 0.22 * detailScale);
+            addBox(`pavilion-${sx}-${sz}-roof`, 2.1 * detailScale, 0.2 * detailScale, 1.65 * detailScale, x, height + 0.1 * detailScale, z, trim);
           }
         }
         addFloorMark('courtyard-cross-a', spec.width * 0.68, 0.22, 0, 0);
@@ -583,7 +600,7 @@ export class RoomWorld {
       }
       case 'causeway': {
         const alongDepth = spec.depth >= spec.width;
-        const pathWidth = Math.min(7, (alongDepth ? spec.width : spec.depth) * 0.28);
+        const pathWidth = Math.min(7 * detailScale, (alongDepth ? spec.width : spec.depth) * 0.28);
         addFloorMark(
           'causeway-path',
           alongDepth ? pathWidth : spec.width * 0.82,
@@ -597,9 +614,9 @@ export class RoomWorld {
           for (const side of [-1, 1]) {
             const x = alongDepth ? side * pathWidth * 0.7 : along * halfW;
             const z = alongDepth ? along * halfD : side * pathWidth * 0.7;
-            addColumn(`causeway-${index}-${side}`, x, z, 2.6 + rng.float(0, 1.2), 0.16, false);
-            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), glow);
-            orb.position.set(x, 3 + rng.float(0, 0.5), z);
+            addColumn(`causeway-${index}-${side}`, x, z, (2.6 + rng.float(0, 1.2)) * detailScale, 0.16 * detailScale, false);
+            const orb = new THREE.Mesh(new THREE.SphereGeometry(0.2 * detailScale, 12, 8), glow);
+            orb.position.set(x, (3 + rng.float(0, 0.5)) * detailScale, z);
             orb.userData.keepSolid = true;
             this.group.add(orb);
           }
@@ -612,9 +629,9 @@ export class RoomWorld {
           const angle = (index / landmarks) * Math.PI * 2 + rng.float(-0.08, 0.08);
           const x = Math.cos(angle) * halfW * rng.float(0.56, 0.76);
           const z = Math.sin(angle) * halfD * rng.float(0.56, 0.76);
-          const height = rng.float(1.4, Math.min(5.5, spec.height * 0.38));
+          const height = rng.float(1.4 * detailScale, Math.min(5.5 * detailScale, spec.height * 0.38));
           const spire = new THREE.Mesh(
-            new THREE.ConeGeometry(rng.float(0.22, 0.55), height, rng.int(5, 9)),
+            new THREE.ConeGeometry(rng.float(0.22, 0.55) * detailScale, height, rng.int(5, 9)),
             index % 3 === 0 ? trim : structural,
           );
           spire.name = `architecture-field-landmark-${index}`;
@@ -643,10 +660,10 @@ export class RoomWorld {
           addBox(
             `basin-seat-${index}`,
             radius * 0.44,
-            0.32,
-            0.42,
+            0.32 * detailScale,
+            0.42 * detailScale,
             Math.cos(angle) * radius * 1.42,
-            0.16,
+            0.16 * detailScale,
             Math.sin(angle) * radius * 1.42,
             structural,
             true,
@@ -660,7 +677,7 @@ export class RoomWorld {
           const ribs = clampInt(Math.round((spec.width + spec.depth) / 18), 2, 6);
           for (let index = 0; index < ribs; index += 1) {
             const z = ribs === 1 ? 0 : -halfD * 0.55 + (index / (ribs - 1)) * halfD * 1.1;
-            addBox(`chamber-rib-${index}`, spec.width * 0.72, 0.08, 0.11, 0, spec.height * 0.82, z, trim);
+            addBox(`chamber-rib-${index}`, spec.width * 0.72, 0.08 * detailScale, 0.11 * detailScale, 0, spec.height * 0.82, z, trim);
           }
         }
       }
@@ -669,6 +686,7 @@ export class RoomWorld {
 
   private addOutdoorSky(spec: RoomSpec): void {
     const radius = Math.max(spec.width, spec.depth) * 2.2 + 35;
+    const detailScale = clampNumber(spec.worldScale ?? 1, 0.72, 10);
     const skyMaterial = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
@@ -774,9 +792,9 @@ export class RoomWorld {
     const horizonCount = clampInt(Math.round(Math.max(spec.width, spec.depth) / 2.8), 24, 48);
     for (let index = 0; index < horizonCount; index += 1) {
       const angle = (index / horizonCount) * Math.PI * 2 + rng.float(-0.08, 0.08);
-      const height = rng.float(2.5, Math.min(13, spec.height * 0.72));
-      const width = rng.float(2.5, 8.5);
-      const depth = rng.float(2.5, 6.5);
+      const height = rng.float(2.5 * detailScale, Math.min(13 * detailScale, spec.height * 0.72));
+      const width = rng.float(2.5, 8.5) * detailScale;
+      const depth = rng.float(2.5, 6.5) * detailScale;
       const geometry = rng.chance(0.34)
         ? new THREE.ConeGeometry(width * 0.52, height, rng.int(5, 9))
         : new THREE.BoxGeometry(width, height, depth);
@@ -908,7 +926,7 @@ export class RoomWorld {
       frame.add(marker);
     }
 
-    const light = new THREE.PointLight(color, 3.2, 9, 1.4);
+    const light = new THREE.PointLight(color, 3.2, Math.max(9, height * 2.4), 1.4);
     light.position.set(0, Math.min(height - 0.2, 1.8), 0.65);
     frame.add(light);
     this.group.add(frame);
@@ -1243,4 +1261,8 @@ function wallCollider(
 
 function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

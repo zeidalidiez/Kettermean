@@ -28,6 +28,11 @@ export class PlayerController {
     this.physics = physics;
   }
 
+  setViewDistance(distance: number): void {
+    this.camera.far = Math.max(200, distance);
+    this.camera.updateProjectionMatrix();
+  }
+
   spawnAt(x: number, y: number, z: number, yaw = 0): void {
     this.position.set(x, y, z);
     this.velocity.set(0, 0, 0);

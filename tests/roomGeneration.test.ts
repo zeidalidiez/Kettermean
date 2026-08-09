@@ -13,8 +13,11 @@ describe('offline room invariants', () => {
     const wireframeModes = new Set<boolean>();
     const environments = new Set<string>();
     const architectures = new Set<string>();
+    const scaleProfiles = new Set<string>();
     let dimRooms = 0;
     let largestSide = 0;
+    let smallestSide = Infinity;
+    let largestWorldScale = 0;
 
     for (let index = 0; index < 1_000; index += 1) {
       const room = generateOfflineRoom({
@@ -43,7 +46,13 @@ describe('offline room invariants', () => {
       expect(`${room.title} ${room.blurb}`).not.toMatch(/\bagain\b|you have been here/i);
       environments.add(room.environment ?? 'interior');
       architectures.add(room.architecture ?? 'chamber');
+      scaleProfiles.add(room.scaleProfile ?? 'human');
       largestSide = Math.max(largestSide, room.width, room.depth);
+      smallestSide = Math.min(smallestSide, room.width, room.depth);
+      largestWorldScale = Math.max(largestWorldScale, room.worldScale ?? 1);
+      if (room.scaleProfile === 'colossal') {
+        expect(room.environment).not.toBe('interior');
+      }
       expect(room.visuals).toBeDefined();
       if (room.visuals) {
         shaderStyles.add(room.visuals.shader);
@@ -89,7 +98,12 @@ describe('offline room invariants', () => {
     expect(architectures).toEqual(
       new Set(['chamber', 'colonnade', 'atrium', 'arena', 'concourse', 'courtyard', 'causeway', 'field', 'basin']),
     );
-    expect(largestSide).toBeGreaterThan(110);
+    expect(scaleProfiles).toEqual(
+      new Set(['closet', 'human', 'grand', 'monumental', 'colossal']),
+    );
+    expect(smallestSide).toBeLessThan(6);
+    expect(largestSide).toBeGreaterThan(320);
+    expect(largestWorldScale).toBeGreaterThan(20);
     expect(dimRooms).toBeLessThan(150);
   });
 
@@ -115,6 +129,7 @@ describe('offline room invariants', () => {
       expect(lastTwo.some((entry) => entry.shader === room.visuals?.shader)).toBe(false);
       expect(lastTwo.some((entry) => entry.lighting === room.visuals?.lighting)).toBe(false);
       expect(lastTwo.some((entry) => entry.mood === room.mood)).toBe(false);
+      expect(lastTwo.at(-1)?.scaleProfile).not.toBe(room.scaleProfile);
 
       recentRooms.push(roomHistoryEntryFor(room));
       if (recentRooms.length > 12) recentRooms.shift();

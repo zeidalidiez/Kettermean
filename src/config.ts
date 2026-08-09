@@ -1,7 +1,7 @@
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
   sessionApiKey: 'kettermean.apiKey.session.v1',
-  roomCache: 'kettermean.roomCache.v17',
+  roomCache: 'kettermean.roomCache.v18',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
@@ -79,8 +79,9 @@ export const LLM_BUDGET = {
 } as const;
 
 export const ROOM = {
-  minSize: 8,
-  maxSize: 128,
+  minSize: 5.5,
+  maxSize: 360,
+  maxHeight: 140,
   wallHeightMin: 2.4,
   wallHeightMax: 8,
   propCountMin: 2,

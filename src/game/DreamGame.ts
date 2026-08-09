@@ -259,6 +259,7 @@ export class DreamGame {
     );
     const built = this.roomWorld.build(spec, this.scene);
     this.player.setPhysics(spec.physics);
+    this.player.setViewDistance(Math.max(spec.width, spec.depth) * 2.8 + 90);
     this.player.spawnAt(built.spawn.x, built.spawn.y, built.spawn.z, 0);
     this.previousTitles.push(spec.title);
     if (this.previousTitles.length > 12) this.previousTitles.shift();
@@ -272,6 +273,7 @@ export class DreamGame {
     this.pauseMood.textContent = spec.mood;
     this.pauseSeed.textContent = spec.seed;
     const visualLabels = [
+      spec.scaleProfile && spec.scaleProfile !== 'human' ? spec.scaleProfile : '',
       spec.visuals?.wireframe ? 'wireframe' : '',
       spec.visuals?.shader && spec.visuals.shader !== 'none' ? spec.visuals.shader : '',
       spec.visuals?.lighting ?? '',

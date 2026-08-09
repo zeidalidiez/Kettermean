@@ -11,6 +11,7 @@ import type {
   RoomHistoryEntry,
   RoomLayoutStyle,
   RoomProp,
+  RoomScaleProfile,
   RoomSpec,
   RoomVisuals,
 } from '../types';
@@ -43,14 +44,20 @@ export interface DirectorSteer {
 
 /**
  * Offline / hybrid director.
- * Rooms are composed from many small layout packs (10-30), scored by tags/mood
+ * Rooms are composed from many small layout packs, scored by tags/mood
  * with intentional liminal clash — not a handful of whole-room layouts.
  */
 export function generateOfflineDirection(ctx: GenerationContext, steer?: DirectorSteer): RoomDirection {
   const rng = new SeededRng(ctx.seed);
   const recentRooms = ctx.recentRooms ?? [];
   const theme = selectNovelTheme(rng, recentRooms, steer?.themeId);
-  const environment = steer?.environment ?? environmentForTheme(theme);
+  const scaleProfile = selectScaleProfile(rng, recentRooms);
+  const worldScale = worldScaleForProfile(rng, scaleProfile);
+  const environment = environmentForScale(
+    rng,
+    steer?.environment ?? environmentForTheme(theme),
+    scaleProfile,
+  );
   const layoutStyle = steer?.layoutStyle ?? selectNovelLayout(rng, recentRooms, environment);
   const architecture =
     steer?.architecture ??
@@ -60,18 +67,20 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
   const mood = selectNovelMood(rng, recentRooms, proposedMood);
 
-  const sizeJitterW = rng.float(0.72, 1.4);
-  const sizeJitterD = rng.float(0.72, 1.4);
-  const sizeJitterH = rng.float(0.82, 1.45);
-  const width = clamp(steer?.width ?? theme.width * sizeJitterW, ROOM.minSize, ROOM.maxSize);
-  const depth = clamp(steer?.depth ?? theme.depth * sizeJitterD, ROOM.minSize, ROOM.maxSize);
-  const height = clamp(steer?.height ?? theme.height * sizeJitterH, 2.5, 22);
+  const { width, depth, height } = dimensionsForScale(
+    rng,
+    theme,
+    scaleProfile,
+    steer,
+  );
 
   const area = width * depth;
+  const effectiveArea = area / Math.max(0.6, worldScale * worldScale);
   const density = clamp(steer?.density ?? 1, 0.65, 1.4);
+  const minimumPacks = scaleProfile === 'closet' ? 4 : scaleProfile === 'human' ? 8 : 6;
   const targetPacks = clamp(
-    Math.round((10 + area / 48 + rng.float(-2, 3)) * density),
-    10,
+    Math.round((6 + effectiveArea / 48 + rng.float(-2, 3)) * density),
+    minimumPacks,
     environment === 'outdoor' ? 42 : 50,
   );
 
@@ -86,13 +95,14 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     layoutStyle,
     avoidAssets: recentRooms.slice(-2).flatMap((room) => room.assetIds),
     environment,
+    worldScale,
     avoidSceneSets: recentRooms
       .slice(-3)
       .flatMap((room) => [room.primarySet, room.contrastSet])
       .filter((setId): setId is string => Boolean(setId)),
   });
 
-  // Door-only safety net
+  // Always retain at least one atmospheric threshold landmark.
   for (const p of placements) {
     const a = getAsset(p.assetId);
     p.linksOnTouch = a?.category === 'portal';
@@ -130,6 +140,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
       ...theme.tags,
       mood,
       'packs',
+      `scale:${scaleProfile}`,
       `set:${composition.primarySet}`,
       ...(composition.supportingSet ? [`support:${composition.supportingSet}`] : []),
       ...(composition.contrastSet ? [`contrast:${composition.contrastSet}`] : []),
@@ -137,6 +148,8 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     width,
     depth,
     height,
+    scaleProfile,
+    worldScale,
     environment,
     layoutStyle,
     architecture,
@@ -166,15 +179,21 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   let nonPortalProps = 0;
   let propRenderCost = 0;
   let entityRenderCost = 0;
+  const worldScale = clamp(dir.worldScale ?? 1, 0.6, 24);
 
   dir.placements.forEach((p, i) => {
     const asset = getAsset(p.assetId);
     if (!asset) return;
     const mul = clamp(p.scaleMul ?? 1, asset.scaleRange.min, asset.scaleRange.max);
-    const scale = p.scale ?? {
+    const localScale = p.scale ?? {
       x: asset.defaultScale.x * mul,
       y: asset.defaultScale.y * mul,
       z: asset.defaultScale.z * mul,
+    };
+    const scale = {
+      x: localScale.x * worldScale,
+      y: localScale.y * worldScale,
+      z: localScale.z * worldScale,
     };
     const isActor =
       asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly';
@@ -234,7 +253,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
       label: 'chair',
       shape: 'box',
       position: { x: 2, y: 0, z: 2 },
-      scale: { x: 0.6, y: 1.2, z: 0.6 },
+      scale: { x: 0.6 * worldScale, y: 1.2 * worldScale, z: 0.6 * worldScale },
       color: '#888',
       solid: true,
       kind: 'chair',
@@ -264,6 +283,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     layoutStyle: dir.layoutStyle ?? 'clusters',
     architecture: dir.architecture ?? theme?.architecture ?? 'chamber',
     composition: dir.composition,
+    scaleProfile: dir.scaleProfile ?? 'human',
+    worldScale,
     width: dir.width,
     depth: dir.depth,
     height: dir.height,
@@ -653,6 +674,108 @@ function selectNovelMood(
   return rng.pick(moods.filter((mood) => !recent.has(mood)));
 }
 
+const SCALE_PROFILE_WEIGHTS: ReadonlyArray<{
+  profile: RoomScaleProfile;
+  weight: number;
+}> = [
+  { profile: 'closet', weight: 0.12 },
+  { profile: 'human', weight: 0.52 },
+  { profile: 'grand', weight: 0.2 },
+  { profile: 'monumental', weight: 0.12 },
+  { profile: 'colossal', weight: 0.04 },
+];
+
+function selectScaleProfile(
+  rng: SeededRng,
+  recentRooms: RoomHistoryEntry[],
+): RoomScaleProfile {
+  const previous = recentRooms.at(-1)?.scaleProfile;
+  const choices = previous
+    ? SCALE_PROFILE_WEIGHTS.filter(({ profile }) => profile !== previous)
+    : SCALE_PROFILE_WEIGHTS;
+  const total = choices.reduce((sum, choice) => sum + choice.weight, 0);
+  let roll = rng.float(0, total);
+  for (const choice of choices) {
+    roll -= choice.weight;
+    if (roll <= 0) return choice.profile;
+  }
+  return choices.at(-1)?.profile ?? 'human';
+}
+
+function worldScaleForProfile(rng: SeededRng, profile: RoomScaleProfile): number {
+  switch (profile) {
+    case 'closet':
+      return rng.float(0.72, 1.04);
+    case 'grand':
+      return rng.float(1.3, 2.45);
+    case 'monumental':
+      return rng.float(3.5, 8.5);
+    case 'colossal':
+      return rng.float(11, 22);
+    default:
+      return rng.float(0.82, 1.3);
+  }
+}
+
+function environmentForScale(
+  rng: SeededRng,
+  proposed: RoomEnvironment,
+  profile: RoomScaleProfile,
+): RoomEnvironment {
+  if (profile === 'closet') return 'interior';
+  if (profile === 'colossal') return rng.chance(0.76) ? 'outdoor' : 'open-hall';
+  if (profile === 'monumental' && proposed === 'interior') {
+    return rng.chance(0.64) ? rng.pick(['open-hall', 'outdoor'] as const) : proposed;
+  }
+  if (profile === 'grand' && proposed === 'interior' && rng.chance(0.22)) {
+    return 'open-hall';
+  }
+  return proposed;
+}
+
+function dimensionsForScale(
+  rng: SeededRng,
+  theme: ThemePreset,
+  profile: RoomScaleProfile,
+  steer?: DirectorSteer,
+): { width: number; depth: number; height: number } {
+  const proposedWidth = steer?.width ?? theme.width;
+  const proposedDepth = steer?.depth ?? theme.depth;
+  const proposedHeight = steer?.height ?? theme.height;
+  if (profile === 'closet') {
+    return {
+      width: clamp(steer?.width ?? rng.float(5.5, 9.4), ROOM.minSize, 10.2),
+      depth: clamp(steer?.depth ?? rng.float(5.5, 10.4), ROOM.minSize, 10.8),
+      height: clamp(steer?.height ?? rng.float(2.35, 3.35), 2.3, 3.5),
+    };
+  }
+  if (profile === 'human') {
+    return {
+      width: clamp(proposedWidth * rng.float(0.72, 1.4), 8, 128),
+      depth: clamp(proposedDepth * rng.float(0.72, 1.4), 8, 128),
+      height: clamp(proposedHeight * rng.float(0.82, 1.45), 2.5, 22),
+    };
+  }
+
+  const aspect = Math.sqrt(clamp(proposedWidth / Math.max(1, proposedDepth), 0.45, 2.2));
+  const span =
+    profile === 'grand'
+      ? rng.float(44, 142)
+      : profile === 'monumental'
+        ? rng.float(128, 246)
+        : rng.float(252, 348);
+  const minimumSide = profile === 'grand' ? 34 : profile === 'monumental' ? 105 : 220;
+  const width = clamp(span * aspect * rng.float(0.88, 1.12), minimumSide, ROOM.maxSize);
+  const depth = clamp(span / aspect * rng.float(0.88, 1.12), minimumSide, ROOM.maxSize);
+  const height =
+    profile === 'grand'
+      ? clamp(proposedHeight * rng.float(2.3, 5.2), 8, 40)
+      : profile === 'monumental'
+        ? rng.float(28, 82)
+        : rng.float(65, ROOM.maxHeight);
+  return { width, depth, height };
+}
+
 function sizeClassForDimensions(width: number, depth: number): RoomHistoryEntry['sizeClass'] {
   const longestSide = Math.max(width, depth);
   return longestSide >= 46
@@ -727,6 +850,7 @@ export function roomHistoryEntryFor(spec: RoomSpec): RoomHistoryEntry {
     layoutStyle: spec.layoutStyle ?? 'clusters',
     architecture: spec.architecture ?? 'chamber',
     sizeClass: sizeClassForDimensions(spec.width, spec.depth),
+    scaleProfile: spec.scaleProfile ?? 'human',
     mood: spec.mood,
     shader: spec.visuals?.shader ?? 'none',
     lighting: spec.visuals?.lighting ?? 'fluorescent',

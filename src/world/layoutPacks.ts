@@ -79,6 +79,8 @@ export interface PackStampContext {
   /** Recent catalog ids to strongly deprioritize. */
   avoidAssets?: string[];
   environment?: RoomEnvironment;
+  /** Macro uniform scale for every catalog object in this room. */
+  worldScale?: number;
   /** Recent scene sets to lightly deprioritize across linked rooms. */
   avoidSceneSets?: string[];
 }
@@ -114,7 +116,7 @@ export function stampRoomPacks(
   const densityMultiplier = ctx.layoutStyle === 'sparse' ? 0.62 : 1;
   const target = clamp(
     Math.round((ctx.targetPacks ?? Math.round(8 + area / 28)) * densityMultiplier),
-    10,
+    4,
     52,
   );
   const preferredSetIds = (ctx.preferAssets ?? []).flatMap(
@@ -200,7 +202,11 @@ export function stampRoomPacks(
     if (!stamped.length) continue;
 
     for (const s of stamped) placements.push(s);
-    occupied.push({ x: anchor.x, z: anchor.z, r: pack.radius * anchor.uniformScale });
+    occupied.push({
+      x: anchor.x,
+      z: anchor.z,
+      r: pack.radius * anchor.uniformScale * (ctx.worldScale ?? 1),
+    });
     placed += 1;
     if (lane === 'contrast') contrastPlaced += 1;
   }
@@ -215,7 +221,7 @@ export function stampRoomPacks(
     Math.min(14, Math.max(4, 54 - placements.length)),
   );
 
-  // Door-only links.
+  // Preserve portal semantics for rendering and beacon styling.
   for (const p of placements) {
     const a = getAsset(p.assetId);
     p.linksOnTouch = Boolean(a && (a.category === 'portal' || PORTALS.has(p.assetId)));
@@ -820,13 +826,14 @@ function stampPack(
     }
     scaleMul = clamp(scaleMul, asset.scaleRange.min, asset.scaleRange.max);
 
-    const lx = slot.x * anchor.uniformScale;
-    const lz = slot.z * anchor.uniformScale;
+    const worldScale = ctx.worldScale ?? 1;
+    const lx = slot.x * anchor.uniformScale * worldScale;
+    const lz = slot.z * anchor.uniformScale * worldScale;
     const x = anchor.x + lx * cos - lz * sin;
     const z = anchor.z + lx * sin + lz * cos;
     const rotY = (slot.rotY ?? 0) + anchor.rot + rng.float(-0.08, 0.08);
 
-    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul)) continue;
+    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul * worldScale)) continue;
 
     out.push({
       assetId,
@@ -853,7 +860,7 @@ function findAnchor(
   occupied: Array<{ x: number; z: number; r: number }>,
 ): { x: number; z: number; rot: number; uniformScale: number } | null {
   const uniformScale = rng.float(0.82, 1.22);
-  const r = pack.radius * uniformScale;
+  const r = pack.radius * uniformScale * (ctx.worldScale ?? 1);
   const margin = r + 0.9;
   const hw = ctx.width / 2 - margin;
   const hd = ctx.depth / 2 - margin;
@@ -932,7 +939,7 @@ function placeDoors(
   ctx: PackStampContext,
 ): void {
   const area = ctx.width * ctx.depth;
-  const count = area > 240 ? 3 : area > 130 ? 2 : 1;
+  const count = area > 55_000 ? 5 : area > 18_000 ? 4 : area > 240 ? 3 : area > 130 ? 2 : 1;
   const sides: Array<'n' | 's' | 'e' | 'w'> = ['n', 's', 'e', 'w'];
   for (let i = sides.length - 1; i > 0; i -= 1) {
     const j = rng.int(0, i);
@@ -947,24 +954,31 @@ function placeDoors(
   for (let i = 0; i < count; i += 1) {
     const side = sides[i % sides.length]!;
     const doorId = doorIds[i % doorIds.length]!;
+    const doorScale = doorId === 'arch_portal' ? rng.float(1.0, 1.4) : 1;
+    const worldScale = ctx.worldScale ?? 1;
+    const door = getAsset(doorId) ?? getAsset('door_fake');
+    const edgeInset = Math.max(
+      0.4,
+      (door?.defaultScale.z ?? 0.2) * doorScale * worldScale * 0.52,
+    );
     const along = rng.float(-0.4, 0.4);
     let x = 0;
     let z = 0;
     let rotY = 0;
     if (side === 'w') {
-      x = -ctx.width / 2 + 0.4;
+      x = -ctx.width / 2 + edgeInset;
       z = ctx.depth * along * 0.5;
       rotY = Math.PI / 2;
     } else if (side === 'e') {
-      x = ctx.width / 2 - 0.4;
+      x = ctx.width / 2 - edgeInset;
       z = ctx.depth * along * 0.5;
       rotY = -Math.PI / 2;
     } else if (side === 'n') {
-      z = -ctx.depth / 2 + 0.4;
+      z = -ctx.depth / 2 + edgeInset;
       x = ctx.width * along * 0.5;
       rotY = 0;
     } else {
-      z = ctx.depth / 2 - 0.4;
+      z = ctx.depth / 2 - edgeInset;
       x = ctx.width * along * 0.5;
       rotY = Math.PI;
     }
@@ -973,11 +987,11 @@ function placeDoors(
       x,
       z,
       rotY,
-      scaleMul: doorId === 'arch_portal' ? rng.float(1.0, 1.4) : 1,
+      scaleMul: doorScale,
       linksOnTouch: true,
       solid: true,
     });
-    occupied.push({ x, z, r: 1.2 });
+    occupied.push({ x, z, r: 1.2 * doorScale * worldScale });
   }
 }
 
@@ -999,15 +1013,17 @@ function scatterFill(
     ? freshCandidates
     : alignedCandidates;
   if (!candidates.length) return;
-  const hw = ctx.width / 2 - 1.4;
-  const hd = ctx.depth / 2 - 1.4;
+  const worldScale = ctx.worldScale ?? 1;
+  const hw = ctx.width / 2 - 1.4 * worldScale;
+  const hd = ctx.depth / 2 - 1.4 * worldScale;
+  if (hw <= 0.5 || hd <= 0.5) return;
   for (let i = 0; i < count; i += 1) {
     const asset = rng.pick(candidates);
     const x = rng.float(-hw, hw);
     const z = rng.float(-hd, hd);
     let blocked = false;
     for (const o of occupied) {
-      if (Math.hypot(x - o.x, z - o.z) < o.r + 0.7) {
+      if (Math.hypot(x - o.x, z - o.z) < o.r + 0.7 * worldScale) {
         blocked = true;
         break;
       }
@@ -1019,7 +1035,7 @@ function scatterFill(
     }
     scaleMul = clamp(scaleMul, asset.scaleRange.min, asset.scaleRange.max);
     const rotY = rng.float(0, Math.PI * 2);
-    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul)) continue;
+    if (overlapsSpawnIsland(x, z, rotY, asset.defaultScale, scaleMul * worldScale)) continue;
     placements.push({
       assetId: asset.id,
       x,
@@ -1034,7 +1050,11 @@ function scatterFill(
         asset.category !== 'anomaly',
       behavior: asset.defaultBehavior,
     });
-    occupied.push({ x, z, r: 0.8 });
+    occupied.push({
+      x,
+      z,
+      r: Math.max(asset.defaultScale.x, asset.defaultScale.z) * scaleMul * worldScale * 0.65,
+    });
   }
 }
 

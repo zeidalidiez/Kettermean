@@ -5,6 +5,7 @@ import type {
   RoomComposition,
   RoomEnvironment,
   RoomLayoutStyle,
+  RoomScaleProfile,
   RoomVisuals,
 } from '../types';
 import { EXPANDED_ASSETS } from './expandedAssets';
@@ -98,6 +99,8 @@ export interface RoomDirection {
   layoutStyle?: RoomLayoutStyle;
   architecture?: RoomArchitecture;
   composition?: RoomComposition;
+  scaleProfile?: RoomScaleProfile;
+  worldScale?: number;
   tags: string[];
   width: number;
   depth: number;
