@@ -89,6 +89,31 @@ describe('WebLLM engine lifecycle', () => {
     expect(webllm.completion).toHaveBeenCalledTimes(1);
   });
 
+  it('bounds tiny-model completions and penalizes repetition', async () => {
+    webllm.completion.mockResolvedValueOnce({
+      choices: [{ finish_reason: 'stop', message: { content: 'KMR12345678' } }],
+    });
+    const { browserChatCompletion } = await import('../src/llm/browserEngine');
+
+    await browserChatCompletion({
+      modelId: 'model-a',
+      system: 'Return a code.',
+      user: 'Choose eight digits.',
+      maxTokens: 40,
+      temperature: 0.2,
+    });
+
+    expect(webllm.completion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        max_tokens: 40,
+        repetition_penalty: 1.18,
+        frequency_penalty: 0.35,
+        presence_penalty: 0.15,
+        stop: ['\n\n'],
+      }),
+    );
+  });
+
   it('does not leave a cancelled load reported as an engine error', async () => {
     const { disposeBrowserEngine, ensureBrowserEngine, getBrowserEngineStatus } = await import(
       '../src/llm/browserEngine'

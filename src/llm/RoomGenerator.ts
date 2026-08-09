@@ -14,13 +14,17 @@ import {
   generateOfflineRoom,
   parseRoomDirection,
 } from '../world/offlineGenerator';
-import { browserQaPrompt, parseQaDirection } from '../world/qaDirector';
+import { parseQaDirection } from '../world/qaDirector';
 import {
   browserChatCompletion,
   disposeBrowserEngine,
   ensureBrowserEngine,
 } from './browserEngine';
 import { extractJsonObject, normalizeRoomSpec } from './schema';
+import {
+  browserSteeringPrompt,
+  parseSteeringDirection,
+} from '../world/steeringCode';
 
 interface CacheEntry {
   spec: RoomSpec;
@@ -232,19 +236,14 @@ export class RoomGenerator {
 
   private async callBrowser(ctx: GenerationContext, settings: AppSettings): Promise<string> {
     const model = settings.model.trim() || DEFAULT_BROWSER_MODEL;
-    // The local model supplies a compact keyed record; the client owns the room structure.
-    const qa = browserQaPrompt({
-      seed: ctx.seed,
-      moodBias: ctx.moodBias,
-      previousTitles: ctx.previousTitles,
-      allowGore: settings.allowGore,
-    });
+    // The local model supplies eight bounded digits; the client owns everything else.
+    const qa = browserSteeringPrompt(ctx);
     const text = await browserChatCompletion({
       modelId: model,
       system: qa.system,
       user: qa.user,
       maxTokens: LLM_BUDGET.browserMaxTokens,
-      temperature: 0.2,
+      temperature: 0.25,
       forceJson: false,
       onProgress: (msg) => this.onStatus?.(msg),
     });
@@ -420,7 +419,7 @@ export class RoomGenerator {
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v11|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
+  return `v12|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
 }
 
 function buildPrompt(
@@ -491,22 +490,45 @@ function parseDirectedOrLegacy(text: string, seed: string): RoomSpec | null {
 }
 
 function parseBrowserDirection(text: string, ctx: GenerationContext): RoomSpec | null {
+  const steering = parseSteeringDirection(text, ctx);
+  if (steering.modelDigitCount > 0) {
+    if (steering.fallbackFields.length > 0) {
+      console.warn(
+        `[Kettermean] Browser model used procedural steering for: ${steering.fallbackFields.join(', ')}.`,
+        `Resolved code: ${steering.code}. Preview: ${responsePreview(text)}`,
+      );
+    }
+    return assembleRoomSpec(steering.direction);
+  }
+
   // Model fields only steer; the procedural director fills any invalid fields and
-  // always owns the full room structure (density/layouts/doors).
+  // always owns the full room structure. Retain the previous format for cached or
+  // manually tested model responses during the protocol transition.
   const qa = parseQaDirection(text, ctx.seed, ctx, (fields) => {
-    const preview = text.replace(/\s+/g, ' ').trim().slice(0, 220);
     console.warn(
       `[Kettermean] Browser model used procedural fallback for fields: ${fields.join(', ')}.`,
-      `Preview: ${preview}`,
+      `Preview: ${responsePreview(text)}`,
     );
   });
   if (qa) return assembleRoomSpec(qa);
 
   // JSON salvage also goes through director via parseRoomDirection.
   const legacy = parseDirectedOrLegacy(text, ctx.seed);
-  if (!legacy) return null;
-  if (isBadDisplayText(legacy.title) || isBadDisplayText(legacy.blurb)) return null;
-  return legacy;
+  if (legacy && !isBadDisplayText(legacy.title) && !isBadDisplayText(legacy.blurb)) {
+    return legacy;
+  }
+
+  // A malformed completion is not an engine failure. Use every procedural digit,
+  // cache the result, and continue asking the model on later room seeds.
+  console.warn(
+    `[Kettermean] Browser model steering code missing; used procedural code ${steering.code}.`,
+    `Preview: ${responsePreview(text)}`,
+  );
+  return assembleRoomSpec(steering.direction);
+}
+
+function responsePreview(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 180);
 }
 
 function isBadDisplayText(s: string): boolean {

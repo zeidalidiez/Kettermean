@@ -1,4 +1,4 @@
-import type { EntityBehavior, MoodAxis } from '../types';
+import type { EntityBehavior, MoodAxis, RoomVisuals } from '../types';
 
 /**
  * Curated kit library. LLMs (cloud or tiny browser models) should SELECT and
@@ -90,6 +90,7 @@ export interface RoomDirection {
     bounce?: number;
     sway?: number;
   };
+  visuals?: RoomVisuals;
   placements: DirectedPlacement[];
   /** true if assembled without live LLM */
   offline?: boolean;

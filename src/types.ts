@@ -77,6 +77,25 @@ export interface RoomPalette {
   ambient: string;
 }
 
+export type RoomShaderStyle = 'none' | 'retro' | 'tint' | 'dream' | 'noir' | 'crt';
+export type RoomLightingStyle =
+  | 'fluorescent'
+  | 'dim'
+  | 'cold'
+  | 'warm'
+  | 'emergency'
+  | 'pulse';
+
+export interface RoomVisuals {
+  shader: RoomShaderStyle;
+  lighting: RoomLightingStyle;
+  tint: string;
+  effectStrength: number;
+  pixelSize: number;
+  wireframe: boolean;
+  exposure: number;
+}
+
 export interface RoomSpec {
   id: string;
   seed: string;
@@ -92,6 +111,7 @@ export interface RoomSpec {
   fogFar: number;
   physics: PhysicsModifiers;
   linkColor: string;
+  visuals?: RoomVisuals;
   props: RoomProp[];
   entities: RoomEntity[];
   /** true when produced without an LLM call */

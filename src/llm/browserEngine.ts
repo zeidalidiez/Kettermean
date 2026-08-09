@@ -144,6 +144,10 @@ export async function browserChatCompletion(params: {
         ],
         temperature: params.temperature,
         max_tokens: params.maxTokens,
+        repetition_penalty: 1.18,
+        frequency_penalty: 0.35,
+        presence_penalty: 0.15,
+        stop: ['\n\n'],
         stream: false,
       })) as NonStream;
 

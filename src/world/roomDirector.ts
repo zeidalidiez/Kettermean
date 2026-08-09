@@ -8,6 +8,7 @@ import type {
   RoomEntity,
   RoomProp,
   RoomSpec,
+  RoomVisuals,
 } from '../types';
 import {
   THEME_PRESETS,
@@ -29,6 +30,8 @@ export interface DirectorSteer {
   width?: number;
   depth?: number;
   height?: number;
+  density?: number;
+  visuals?: Partial<RoomVisuals>;
 }
 
 /**
@@ -59,7 +62,12 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
   const height = clamp(steer?.height ?? theme.height * sizeJitterH, 2.5, 9);
 
   const area = width * depth;
-  const targetPacks = clamp(Math.round(12 + area / 22 + rng.float(-2, 3)), 12, 30);
+  const density = clamp(steer?.density ?? 1, 0.65, 1.4);
+  const targetPacks = clamp(
+    Math.round((12 + area / 22 + rng.float(-2, 3)) * density),
+    10,
+    30,
+  );
 
   const placements = stampRoomPacks(rng, {
     width,
@@ -114,6 +122,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     linkColor: moodLinkColor(mood),
     palette: tintPalette(rng, theme.palette, mood),
     physics: physicsForMood(rng, mood),
+    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals),
     placements,
     offline: !steer,
   };
@@ -219,9 +228,78 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
       sway: dir.physics?.sway ?? 0.3,
     },
     linkColor: dir.linkColor ?? moodLinkColor(dir.mood),
+    visuals: dir.visuals ?? resolveRoomVisuals(dir.seed, dir.mood),
     props,
     entities,
     offline: Boolean(dir.offline),
+  };
+}
+
+const SHADER_STYLES: RoomVisuals['shader'][] = [
+  'none',
+  'none',
+  'tint',
+  'retro',
+  'dream',
+  'noir',
+  'crt',
+];
+const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
+  'fluorescent',
+  'fluorescent',
+  'dim',
+  'cold',
+  'warm',
+  'emergency',
+  'pulse',
+];
+const EFFECT_TINTS = [
+  '#ffffff',
+  '#78c8ff',
+  '#ff786f',
+  '#83f28f',
+  '#c89cff',
+  '#ffc36f',
+  '#75f0df',
+];
+
+/** Stable visual treatment for every room, whether or not a model contributes. */
+export function resolveRoomVisuals(
+  seed: string,
+  mood: MoodAxis,
+  override?: Partial<RoomVisuals>,
+): RoomVisuals {
+  const rng = new SeededRng(`${seed}:visuals`);
+  const shader = override?.shader ?? rng.pick(SHADER_STYLES);
+  const moodLighting: RoomVisuals['lighting'] =
+    mood === 'downer'
+      ? 'dim'
+      : mood === 'upper'
+        ? 'warm'
+        : mood === 'dynamic'
+          ? 'pulse'
+          : 'fluorescent';
+  const lighting =
+    override?.lighting ?? (rng.chance(0.45) ? moodLighting : rng.pick(LIGHTING_STYLES));
+  const defaultExposure =
+    lighting === 'dim'
+      ? 0.72
+      : lighting === 'emergency'
+        ? 0.82
+        : lighting === 'cold'
+          ? 0.92
+          : lighting === 'warm'
+            ? 1.08
+            : 1;
+
+  return {
+    shader,
+    lighting,
+    tint: override?.tint ?? rng.pick(EFFECT_TINTS),
+    effectStrength: clamp(override?.effectStrength ?? rng.float(0.42, 0.78), 0, 1),
+    pixelSize: clamp(Math.round(override?.pixelSize ?? rng.int(3, 8)), 2, 12),
+    wireframe: override?.wireframe ?? rng.chance(0.1),
+    exposure: clamp(override?.exposure ?? defaultExposure + rng.float(-0.08, 0.08), 0.55, 1.3),
   };
 }
 
