@@ -114,6 +114,8 @@ export async function browserChatCompletion(params: {
   temperature: number;
   onProgress?: ProgressCb;
   forceJson?: boolean;
+  /** Omit to stop compact replies at a blank line; pass [] for multi-line packets. */
+  stopSequences?: string[];
 }): Promise<string> {
   const id = params.modelId.trim() || DEFAULT_BROWSER_MODEL;
   return enqueueOperation(async () => {
@@ -137,7 +139,7 @@ export async function browserChatCompletion(params: {
     };
 
     try {
-      const completion = (await activeEngine.generate({
+      const request: Record<string, unknown> = {
         messages: [
           { role: 'system', content: params.system },
           { role: 'user', content: userContent },
@@ -147,9 +149,12 @@ export async function browserChatCompletion(params: {
         repetition_penalty: 1.18,
         frequency_penalty: 0.35,
         presence_penalty: 0.15,
-        stop: ['\n\n'],
         stream: false,
-      })) as NonStream;
+      };
+      const stopSequences = params.stopSequences ?? ['\n\n'];
+      if (stopSequences.length) request.stop = stopSequences;
+
+      const completion = (await activeEngine.generate(request)) as NonStream;
 
       const choice = completion.choices?.[0];
       const content = choice?.message?.content;

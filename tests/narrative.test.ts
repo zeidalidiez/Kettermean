@@ -46,6 +46,21 @@ describe('adaptive AI narrative packets', () => {
     ]);
   });
 
+  it('puts the blurb first so an early-stop response still improves room text', () => {
+    const ctx = context('early-stop-room');
+    const spec = room(ctx.seed);
+    const prompt = browserNarrativePrompt('language', ctx, spec);
+    const packet = prompt.user.slice(prompt.user.lastIndexOf(prompt.marker));
+
+    expect(packet.indexOf('BLURB=')).toBeLessThan(packet.indexOf('TITLE='));
+    expect(parseBrowserNarrative([
+      prompt.marker,
+      'BLURB=The ceiling keeps its own calendar. Every tile marks the same lost Tuesday.',
+    ].join('\n'), prompt.marker)).toEqual({
+      blurb: 'The ceiling keeps its own calendar. Every tile marks the same lost Tuesday.',
+    });
+  });
+
   it('applies valid fields without erasing procedural fallbacks', () => {
     const spec = room('patch-room');
     spec.entities = spec.entities.length ? spec.entities : [{

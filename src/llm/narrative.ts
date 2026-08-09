@@ -40,7 +40,8 @@ export function browserNarrativePrompt(
       system: [
         'Write compact, uncanny language for one liminal dream room.',
         `Begin with the exact response tag ${marker}.`,
-        'Then write exactly four labeled lines: TITLE, BLURB, SIGN, SIGN.',
+        'Then write exactly four adjacent labeled lines: BLURB, TITLE, SIGN, SIGN.',
+        'Do not put blank lines between fields.',
         'TITLE is two to five invented words.',
         'BLURB is two short atmospheric sentences that combine the supplied ideas.',
         'Each SIGN is HEADLINE | CAPTION using actual sign text.',
@@ -49,8 +50,8 @@ export function browserNarrativePrompt(
       user: [
         ...shared,
         `${marker}`,
-        'TITLE=',
         'BLURB=',
+        'TITLE=',
         'SIGN=',
         'SIGN=',
       ].join('\n'),

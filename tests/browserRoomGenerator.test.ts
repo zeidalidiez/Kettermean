@@ -75,6 +75,7 @@ describe('RoomGenerator browser steering recovery', () => {
 
     expect(browser.completion).toHaveBeenCalledTimes(8);
     expect(generator.getApiCallCount()).toBe(8);
+    expect(browser.completion.mock.calls[1]?.[0]).toMatchObject({ stopSequences: [] });
     expect(rooms.every((room) => room.offline === false)).toBe(true);
     expect(rooms.every((room) => room.visuals)).toBe(true);
     expect(rooms.map((room) => room.title)).toEqual([

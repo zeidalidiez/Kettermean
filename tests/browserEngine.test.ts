@@ -114,6 +114,26 @@ describe('WebLLM engine lifecycle', () => {
     );
   });
 
+  it('does not stop multi-line packets at the first blank line', async () => {
+    webllm.completion.mockResolvedValueOnce({
+      choices: [{ finish_reason: 'stop', message: { content: 'BLURB=Two sentences. Still here.' } }],
+    });
+    const { browserChatCompletion } = await import('../src/llm/browserEngine');
+
+    await browserChatCompletion({
+      modelId: 'model-a',
+      system: 'Write several labeled lines.',
+      user: 'BLURB=\nTITLE=',
+      maxTokens: 150,
+      temperature: 0.7,
+      stopSequences: [],
+    });
+
+    expect(webllm.completion).toHaveBeenCalledWith(
+      expect.not.objectContaining({ stop: expect.anything() }),
+    );
+  });
+
   it('does not leave a cancelled load reported as an engine error', async () => {
     const { disposeBrowserEngine, ensureBrowserEngine, getBrowserEngineStatus } = await import(
       '../src/llm/browserEngine'

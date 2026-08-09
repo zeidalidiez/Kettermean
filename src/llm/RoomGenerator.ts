@@ -364,6 +364,7 @@ export class RoomGenerator {
     pass: number,
     totalPasses: number,
     temperature: number,
+    stopSequences?: string[],
   ): Promise<string> {
     const model = settings.model.trim() || DEFAULT_BROWSER_MODEL;
     const text = await browserChatCompletion({
@@ -373,6 +374,7 @@ export class RoomGenerator {
       maxTokens,
       temperature,
       forceJson: false,
+      stopSequences,
       onProgress: (msg) => this.onStatus?.(
         /loading|downloading|fetching|compiling|model url|cache/i.test(msg)
           ? msg
@@ -430,6 +432,7 @@ export class RoomGenerator {
         pass,
         totalPasses,
         0.72,
+        [],
       );
       const applied = applyNarrativePatch(room, parseBrowserNarrative(text, prompt.marker));
       console.info(
@@ -721,7 +724,7 @@ function withSettingsConstraints(
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v23|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
+  return `v24|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
 function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; user: string } {
