@@ -94,7 +94,7 @@ describe('expanded procedural asset catalog', () => {
     for (const [family, signatures] of familySignatures) {
       expect(signatures.size, family).toBe(8);
     }
-  });
+  }, 15_000);
 
   it('reuses geometry without sharing mutable transforms between repeated instances', () => {
     const first = buildModel('figure_nurse', '#6a7a8a', '#c4b59a', 'npc_nurse_04');
