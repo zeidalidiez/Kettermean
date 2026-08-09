@@ -2,17 +2,18 @@
 
 A browser-first, first-person liminal dream walker inspired by *LSD: Dream Emulator*.
 
-Walk rooms that feel slightly wrong. Pass through a marked door to link into another seeded space. Every room is playable with the offline procedural director; optional cloud or in-browser models can steer future rooms without owning geometry or physics.
+Walk rooms that feel slightly wrong, then press **R** when you are ready for the next dream. Every room is playable with the offline procedural director; optional cloud or in-browser models can steer future rooms without owning geometry or physics.
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated prop kit, including 824 composed furniture, fixture, animal, and NPC variants across 103 families
+- Three.js first-person rooms assembled from a curated prop kit, including 920 composed furniture, fixture, animal, and NPC variants across 115 families
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
-- History-aware novelty across themes, layouts, lighting, shaders, moods, and room contents
+- History-aware novelty across themes, layouts, scene conditions, lighting, shaders, moods, and room contents
 - Indoor chambers, vast open halls, and outdoor dreamscapes with procedural skies and horizons
-- Door-only room links with mood-tinted fades and fog-independent exit beacons
+- Explicit next-dream navigation with mood-tinted fades through keyboard, gamepad, and touch input
+- Coherent whole-scene blood, slime, scorch, active fire, ruin, overgrowth, and ice modifiers, with gore gated by the player setting
 - Per-room gravity, movement, friction, bounce, and sway
 - Seeded lighting plus twenty randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and wireframe modes
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
@@ -46,12 +47,12 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 
 1. The deterministic offline director builds the current playable room.
 2. While the player explores, the selected provider may steer exactly the next room.
-3. At a door, Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
+3. When the player presses **R** (gamepad Y or touch **Next**), Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
 4. A late provider result is cached for its seed; it never replaces a room underneath the player.
 
-Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets. Press **R** at any time (gamepad Y or the touch **Next** button) to move to the next dream; doors remain atmospheric landmarks rather than collision-triggered exits. Recent-room fingerprints actively steer the director away from repeated themes, layouts, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
+Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, scene conditions, lighting, visual effects, safety validation, and performance budgets. Press **R** at any time (gamepad Y or the touch **Next** button) to move to the next dream. Recent-room fingerprints actively steer the director away from repeated themes, layouts, conditions, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
 
-The procedural catalog includes furniture, public-space fixtures, outdoor objects, six expanded animal families, and twenty-six richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions.
+The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, six expanded animal families, and twenty-six richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions.
 
 ## Cost and lifecycle controls
 
@@ -70,7 +71,7 @@ Use a disposable or spend-limited key. A browser-delivered application cannot pr
 
 ### Providers
 
-- **Offline procedural only** — default and fully local.
+- **Offline procedural only** — fully local and available without a model download.
 - **Browser model (WebLLM / WebGPU)** — the fresh-install default, with local inference and no API key. The lightweight `SmolLM2-360M-Instruct-q4f16_1-MLC` is recommended; stronger options remain in AI settings for machines that can comfortably run them. Browsers without WebGPU automatically continue with procedural generation for that run.
 - **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
 - **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
@@ -94,7 +95,7 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 | Mouse / right stick / right touch stick | Look |
 | Shift / gamepad B / touch Sprint | Sprint |
 | Space / gamepad A / touch Jump | Jump |
-| Walk into a marked door | Link rooms |
+| R / gamepad Y / touch Next | Enter the next dream |
 | Escape / gamepad Menu / touch pause | Pause |
 
 The setup menu permits normal touch scrolling and browser zoom. Gameplay input disables page gestures only over the canvas and touch controls.

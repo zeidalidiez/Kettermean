@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PLAYER, ROOM } from '../src/config';
 import { childSeed, randomSeed } from '../src/core/rng';
 import type { RoomHistoryEntry, RoomProp } from '../src/types';
-import { generateOfflineRoom } from '../src/world/offlineGenerator';
+import { generateOfflineDirection, generateOfflineRoom } from '../src/world/offlineGenerator';
 import { getAsset, THEME_PRESETS } from '../src/world/assetCatalog';
 import { resolveRoomVisuals, roomHistoryEntryFor } from '../src/world/roomDirector';
 
@@ -189,6 +189,30 @@ describe('offline room invariants', () => {
       }
     }
     expect(goreEnabledRoomFound).toBe(true);
+  });
+
+  it.each([
+    ['burning_hotel', 'burning'],
+    ['wildfire_service_station', 'burning'],
+    ['ash_city_plaza', 'scorched'],
+    ['collapsed_cathedral', 'ruined'],
+    ['slime_substation', 'slimed'],
+    ['overgrown_greenhouse_lab', 'overgrown'],
+    ['frozen_observatory', 'frozen'],
+  ] as const)('keeps %s visually coherent with its %s condition', (themeId, condition) => {
+    const direction = generateOfflineDirection(
+      {
+        seed: `condition-theme-${themeId}`,
+        previousTitles: [],
+        moodBias: 'static',
+        allowGore: false,
+        linkIndex: 0,
+      },
+      { themeId },
+    );
+
+    expect(direction.themeId).toBe(themeId);
+    expect(direction.condition).toBe(condition);
   });
 
   it('keeps every theme preference attached to a real catalog asset', () => {

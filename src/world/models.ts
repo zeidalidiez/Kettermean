@@ -101,6 +101,18 @@ export type PropKind =
   | 'garden_bench'
   | 'market_stall'
   | 'maintenance_sink'
+  | 'rubble_pile'
+  | 'fire_barrel'
+  | 'broken_column'
+  | 'collapsed_beam'
+  | 'wooden_barricade'
+  | 'altar'
+  | 'office_cubicle'
+  | 'restaurant_booth'
+  | 'warehouse_crate'
+  | 'generator'
+  | 'greenhouse_table'
+  | 'telescope'
   | 'animal_cat'
   | 'animal_dog'
   | 'animal_crow'
@@ -366,6 +378,19 @@ function buildExpandedModel(
     case 'market_stall':
     case 'maintenance_sink':
       return buildIterationExpansion(kind, variant, accent, body);
+    case 'rubble_pile':
+    case 'fire_barrel':
+    case 'broken_column':
+    case 'collapsed_beam':
+    case 'wooden_barricade':
+    case 'altar':
+    case 'office_cubicle':
+    case 'restaurant_booth':
+    case 'warehouse_crate':
+    case 'generator':
+    case 'greenhouse_table':
+    case 'telescope':
+      return buildConditionExpansion(kind, variant, accent, body);
     case 'animal_cat':
     case 'animal_dog':
     case 'animal_crow':
@@ -1521,6 +1546,197 @@ function buildIterationExpansion(
   }
 }
 
+/** Condition-focused props: damage, emergency infrastructure, and denser room furniture. */
+function buildConditionExpansion(
+  kind: PropKind,
+  variant: number,
+  accent: string,
+  body: string,
+): THREE.Group {
+  const color = variantColor(accent, variant);
+  const secondary = variantColor(body, variant, 0.08);
+  const dark = variantColor('#282522', variant);
+  const metal = variantColor('#667178', variant, 0.04);
+  const wood = variantColor('#775235', variant, 0.03);
+  const glow = variantColor('#ff8a32', variant, 0.05);
+
+  switch (kind) {
+    case 'rubble_pile': {
+      const parts: PartSpec[] = [];
+      for (let index = 0; index < 9; index += 1) {
+        const angle = index * 2.19 + variant * 0.31;
+        const radius = 0.16 + (index % 4) * 0.16;
+        const width = 0.32 + ((index + variant) % 4) * 0.13;
+        const height = 0.2 + ((index * 3 + variant) % 4) * 0.11;
+        parts.push({
+          w: width,
+          h: height,
+          d: width * (0.72 + (index % 3) * 0.16),
+          x: Math.cos(angle) * radius,
+          y: height * 0.5 + (index > 5 ? 0.2 : 0),
+          z: Math.sin(angle) * radius,
+          color: variantColor(index % 3 === 0 ? color : secondary, variant, index * 0.035),
+          shape: index % 4 === 0 ? 'sphere' : 'box',
+          rx: (index % 3 - 1) * 0.22,
+          ry: angle,
+          rz: ((index + variant) % 5 - 2) * 0.13,
+        });
+      }
+      return group(parts, `rubble-pile-${variant}`);
+    }
+    case 'fire_barrel': {
+      const parts: PartSpec[] = [
+        { w: 0.78, h: 1.08, d: 0.78, x: 0, y: 0.58, z: 0, color: variantColor('#5f4c42', variant), shape: 'cylinder', metalness: 0.5 },
+        { w: 0.84, h: 0.1, d: 0.84, x: 0, y: 0.16, z: 0, color: metal, shape: 'torus', rx: Math.PI / 2 },
+        { w: 0.84, h: 0.1, d: 0.84, x: 0, y: 1.02, z: 0, color: metal, shape: 'torus', rx: Math.PI / 2 },
+        { w: 0.68, h: 0.07, d: 0.68, x: 0, y: 1.12, z: 0, color: '#161313', shape: 'cylinder' },
+        { w: 0.58, h: 0.82 + variant * 0.025, d: 0.58, x: 0, y: 1.48, z: 0, color: '#f04c16', emissive: '#ff3210', emissiveIntensity: 1.5, shape: 'cone' },
+        { w: 0.3, h: 0.58 + (variant % 3) * 0.06, d: 0.3, x: 0.04, y: 1.39, z: 0, color: '#ffd33d', emissive: '#ffb21a', emissiveIntensity: 1.8, shape: 'cone', rz: 0.12 },
+      ];
+      for (let rib = 0; rib < 4; rib += 1) {
+        const angle = rib * Math.PI * 0.5;
+        parts.push({ w: 0.055, h: 0.88, d: 0.055, x: Math.cos(angle) * 0.38, y: 0.58, z: Math.sin(angle) * 0.38, color: dark, shape: 'cylinder' });
+      }
+      return group(parts, `fire-barrel-${variant}`);
+    }
+    case 'broken_column': {
+      const stone = variantColor('#9b9589', variant, 0.02);
+      return group([
+        { w: 1.3, h: 0.18, d: 1.3, x: 0, y: 0.09, z: 0, color: stone, shape: 'cylinder' },
+        { w: 1.05, h: 0.16, d: 1.05, x: 0, y: 0.25, z: 0, color: secondary, shape: 'cylinder' },
+        { w: 0.72, h: 0.78 + variant * 0.035, d: 0.72, x: 0, y: 0.7, z: 0, color: stone, shape: 'cylinder' },
+        { w: 0.66, h: 0.58, d: 0.66, x: 0.12, y: 1.36, z: 0.04, color: stone, shape: 'cylinder', rz: 0.18 + variant * 0.018 },
+        { w: 0.76, h: 0.16, d: 0.76, x: 0.24, y: 1.72 + variant * 0.02, z: 0.08, color: secondary, shape: 'cylinder', rz: 0.31 },
+        { w: 0.42, h: 0.28, d: 0.38, x: -0.48, y: 0.16, z: 0.34, color: stone, ry: variant * 0.24, rz: -0.24 },
+        { w: 0.35, h: 0.22, d: 0.42, x: 0.52, y: 0.13, z: -0.28, color: secondary, ry: 0.7 + variant * 0.11 },
+        { w: 0.28, h: 0.18, d: 0.3, x: -0.18, y: 0.1, z: -0.52, color: stone, ry: -0.4 },
+      ], `broken-column-${variant}`);
+    }
+    case 'collapsed_beam': {
+      const beamColor = variantColor(variant % 2 ? '#6e4b35' : '#566064', variant);
+      const parts: PartSpec[] = [
+        { w: 2.9, h: 0.25, d: 0.34, x: 0, y: 0.34, z: 0, color: beamColor, metalness: variant % 2 ? 0.05 : 0.48, ry: (variant - 3.5) * 0.035, rz: -0.12 - variant * 0.012 },
+        { w: 2.15, h: 0.2, d: 0.3, x: 0.34, y: 0.48, z: 0.26, color: secondary, ry: -0.22 - variant * 0.025, rz: 0.17 },
+        { w: 0.48, h: 0.12, d: 0.48, x: -1.18, y: 0.15, z: 0.02, color: metal },
+      ];
+      for (let bolt = 0; bolt < 5; bolt += 1) {
+        parts.push({ w: 0.11, h: 0.11, d: 0.12, x: -1.05 + bolt * 0.53, y: 0.51 - bolt * 0.025, z: 0.18, color: dark, shape: 'cylinder', rx: Math.PI / 2 });
+      }
+      return group(parts, `collapsed-beam-${variant}`);
+    }
+    case 'wooden_barricade': {
+      const parts: PartSpec[] = [
+        { w: 0.16, h: 1.58, d: 0.16, x: -0.86, y: 0.79, z: 0, color: dark, rz: -0.08 },
+        { w: 0.16, h: 1.58, d: 0.16, x: 0.86, y: 0.79, z: 0, color: dark, rz: 0.08 },
+        { w: 0.82, h: 0.12, d: 0.4, x: -0.86, y: 0.08, z: 0, color: dark },
+        { w: 0.82, h: 0.12, d: 0.4, x: 0.86, y: 0.08, z: 0, color: dark },
+      ];
+      for (let plank = 0; plank < 3; plank += 1) {
+        parts.push({ w: 2.25, h: 0.28 + (plank === variant % 3 ? 0.07 : 0), d: 0.13, x: 0, y: 0.52 + plank * 0.42, z: 0.05, color: variantColor(wood, variant, plank * 0.04), rz: (plank - 1) * 0.08 + (variant - 3.5) * 0.008 });
+        for (const x of [-0.82, 0.82]) parts.push({ w: 0.1, h: 0.1, d: 0.09, x, y: 0.52 + plank * 0.42, z: 0.14, color: metal, shape: 'cylinder', rx: Math.PI / 2 });
+      }
+      return group(parts, `wooden-barricade-${variant}`);
+    }
+    case 'altar': {
+      const cloth = variantColor(color, variant, 0.12);
+      const parts: PartSpec[] = [
+        { w: 1.9, h: 0.18, d: 0.92, x: 0, y: 0.09, z: 0, color: secondary },
+        { w: 1.65, h: 0.18, d: 0.78, x: 0, y: 0.25, z: 0, color: variantColor(secondary, variant, 0.04) },
+        { w: 1.55, h: 0.18, d: 0.72, x: 0, y: 1.2, z: 0, color: secondary },
+        { w: 0.22, h: 0.88, d: 0.22, x: -0.58, y: 0.72, z: -0.2, color: secondary, shape: 'cylinder' },
+        { w: 0.22, h: 0.88, d: 0.22, x: 0.58, y: 0.72, z: -0.2, color: secondary, shape: 'cylinder' },
+        { w: 0.52, h: 0.82, d: 0.035, x: 0, y: 0.87, z: 0.38, color: cloth },
+      ];
+      for (const x of [-0.48, 0.48]) {
+        parts.push({ w: 0.09, h: 0.34 + variant * 0.012, d: 0.09, x, y: 1.45, z: 0, color: '#e7dec2', shape: 'cylinder' });
+        parts.push({ w: 0.12, h: 0.2, d: 0.12, x, y: 1.7 + variant * 0.012, z: 0, color: glow, emissive: glow, emissiveIntensity: 0.7, shape: 'cone' });
+      }
+      return group(parts, `altar-${variant}`);
+    }
+    case 'office_cubicle':
+      return group([
+        { w: 2.25, h: 1.55, d: 0.09, x: 0, y: 0.78, z: -0.9, color: variantColor('#7c8589', variant) },
+        { w: 0.09, h: 1.55, d: 1.72, x: -1.08, y: 0.78, z: -0.05, color: variantColor('#727c82', variant, 0.03) },
+        { w: 0.09, h: 1.18, d: 1.15, x: 1.08, y: 0.6, z: -0.32, color: variantColor('#727c82', variant, 0.03) },
+        { w: 1.82, h: 0.1, d: 0.72, x: -0.08, y: 0.78, z: -0.5, color: secondary },
+        { w: 0.12, h: 0.7, d: 0.12, x: -0.78, y: 0.38, z: -0.53, color: metal, shape: 'cylinder' },
+        { w: 0.12, h: 0.7, d: 0.12, x: 0.62, y: 0.38, z: -0.53, color: metal, shape: 'cylinder' },
+        { w: 0.72, h: 0.5, d: 0.08, x: -0.05, y: 1.2, z: -0.47, color: '#17242b', emissive: variantColor('#58a2b7', variant), emissiveIntensity: 0.34 },
+        { w: 0.11, h: 0.42, d: 0.11, x: -0.05, y: 0.96, z: -0.5, color: dark, shape: 'cylinder' },
+        { w: 0.62, h: 0.05, d: 0.24, x: 0, y: 0.84, z: 0, color: dark, rz: (variant - 3.5) * 0.01 },
+      ], `office-cubicle-${variant}`);
+    case 'restaurant_booth':
+      return group([
+        { w: 2.15, h: 0.38, d: 0.48, x: 0, y: 0.42, z: -0.62, color },
+        { w: 2.15, h: 0.38, d: 0.48, x: 0, y: 0.42, z: 0.62, color: variantColor(color, variant, 0.04) },
+        { w: 2.15, h: 0.9, d: 0.18, x: 0, y: 0.96, z: -0.84, color },
+        { w: 2.15, h: 0.9, d: 0.18, x: 0, y: 0.96, z: 0.84, color: variantColor(color, variant, 0.04) },
+        { w: 1.5, h: 0.1, d: 0.72, x: 0, y: 0.86, z: 0, color: secondary },
+        { w: 0.15, h: 0.78, d: 0.15, x: 0, y: 0.44, z: 0, color: metal, shape: 'cylinder' },
+        { w: 0.58, h: 0.08, d: 0.58, x: 0, y: 0.06, z: 0, color: dark },
+        { w: 0.18, h: 0.22 + variant * 0.01, d: 0.18, x: -0.42, y: 1.02, z: 0, color: variantColor('#d7d1c5', variant), shape: 'cylinder' },
+        { w: 0.18, h: 0.16, d: 0.18, x: 0.38, y: 0.98, z: 0, color: variantColor('#b54a38', variant), shape: 'cylinder' },
+      ], `restaurant-booth-${variant}`);
+    case 'warehouse_crate': {
+      const parts: PartSpec[] = [
+        { w: 1.22, h: 1.1, d: 1.22, x: 0, y: 0.58, z: 0, color: variantColor(wood, variant) },
+      ];
+      for (const z of [-0.63, 0.63]) {
+        for (const x of [-0.48, 0, 0.48]) parts.push({ w: 0.12, h: 1.16, d: 0.08, x, y: 0.6, z, color: dark, rz: x === 0 ? (variant - 3.5) * 0.012 : 0 });
+        for (const y of [0.16, 1.04]) parts.push({ w: 1.3, h: 0.12, d: 0.08, x: 0, y, z, color: dark });
+      }
+      for (const x of [-0.55, 0.55]) for (const z of [-0.55, 0.55]) parts.push({ w: 0.1, h: 1.16, d: 0.1, x, y: 0.6, z, color: metal });
+      return group(parts, `warehouse-crate-${variant}`);
+    }
+    case 'generator': {
+      const parts: PartSpec[] = [
+        { w: 1.25, h: 0.88, d: 0.82, x: 0, y: 0.7, z: 0, color: variantColor('#555e5f', variant), metalness: 0.42 },
+        { w: 0.95, h: 0.28, d: 0.62, x: -0.08, y: 1.2, z: 0, color },
+        { w: 0.5, h: 0.45, d: 0.06, x: 0.36, y: 0.78, z: 0.44, color: dark },
+        { w: 0.26, h: 0.18, d: 0.08, x: 0.35, y: 0.86, z: 0.48, color: glow, emissive: glow, emissiveIntensity: 0.28 },
+        { w: 0.14, h: 0.48, d: 0.14, x: -0.42, y: 1.43, z: -0.14, color: metal, shape: 'cylinder' },
+      ];
+      for (const x of [-0.72, 0.72]) for (const z of [-0.46, 0.46]) parts.push({ w: 0.08, h: 1.28, d: 0.08, x, y: 0.68, z, color: dark, shape: 'cylinder' });
+      for (const x of [-0.56, 0.56]) parts.push({ w: 0.32, h: 0.32, d: 0.2, x, y: 0.22, z: 0.45, color: '#17191a', shape: 'cylinder', rx: Math.PI / 2 });
+      return group(parts, `generator-${variant}`);
+    }
+    case 'greenhouse_table': {
+      const parts: PartSpec[] = [
+        { w: 2.15, h: 0.12, d: 1.02, x: 0, y: 0.9, z: 0, color: secondary },
+        { w: 1.9, h: 0.1, d: 0.82, x: 0, y: 0.36, z: 0, color: metal },
+      ];
+      for (const x of [-0.88, 0.88]) for (const z of [-0.38, 0.38]) parts.push({ w: 0.1, h: 0.86, d: 0.1, x, y: 0.44, z, color: metal, shape: 'cylinder' });
+      for (const z of [-0.28, 0.28]) parts.push({ w: 1.82, h: 0.12, d: 0.34, x: 0, y: 1.0, z, color: variantColor('#40564b', variant) });
+      for (let pot = 0; pot < 4; pot += 1) {
+        const x = -0.72 + pot * 0.48;
+        parts.push({ w: 0.28, h: 0.28, d: 0.28, x, y: 1.16, z: pot % 2 ? 0.28 : -0.28, color: variantColor('#9b5d38', variant), shape: 'cone' });
+        parts.push({ w: 0.32, h: 0.5 + ((pot + variant) % 3) * 0.08, d: 0.18, x, y: 1.48, z: pot % 2 ? 0.28 : -0.28, color: variantColor('#43823d', variant, pot * 0.04), shape: 'sphere', rz: (pot - 1.5) * 0.22 });
+      }
+      return group(parts, `greenhouse-table-${variant}`);
+    }
+    case 'telescope':
+      return group([
+        { w: 0.34, h: 0.32, d: 0.34, x: 0, y: 1.25, z: 0, color: metal, shape: 'sphere' },
+        { w: 0.14, h: 1.3, d: 0.14, x: 0, y: 0.68, z: 0, color: metal, shape: 'cylinder' },
+        { w: 0.12, h: 1.2, d: 0.12, x: -0.42, y: 0.58, z: 0.22, color: dark, shape: 'cylinder', rz: -0.42 },
+        { w: 0.12, h: 1.2, d: 0.12, x: 0.42, y: 0.58, z: 0.22, color: dark, shape: 'cylinder', rz: 0.42 },
+        { w: 0.12, h: 1.2, d: 0.12, x: 0, y: 0.58, z: -0.46, color: dark, shape: 'cylinder', rx: -0.42 },
+        { w: 0.48, h: 1.55 + variant * 0.035, d: 0.48, x: 0.12, y: 1.72, z: 0, color, shape: 'cylinder', rz: -1.08 + variant * 0.018 },
+        { w: 0.58, h: 0.18, d: 0.58, x: 0.78, y: 2.1 + variant * 0.015, z: 0, color: variantColor('#8fc5d4', variant), emissive: '#284d5a', emissiveIntensity: 0.18, shape: 'cylinder', rz: -1.08 + variant * 0.018 },
+        { w: 0.25, h: 0.36, d: 0.25, x: -0.58, y: 1.28, z: 0, color: dark, shape: 'cylinder', rz: -1.08 + variant * 0.018 },
+        { w: 0.32, h: 0.32, d: 0.32, x: -0.08, y: 1.08, z: 0, color: secondary, shape: 'sphere' },
+      ], `telescope-${variant}`);
+    default:
+      return group([
+        { w: 1, h: 1, d: 1, x: 0, y: 0.5, z: 0, color },
+        { w: 0.2, h: 0.2, d: 0.2, x: -0.35, y: 0.1, z: -0.35, color: dark },
+        { w: 0.2, h: 0.2, d: 0.2, x: 0.35, y: 0.1, z: -0.35, color: dark },
+        { w: 0.2, h: 0.2, d: 0.2, x: -0.35, y: 0.1, z: 0.35, color: dark },
+        { w: 0.2, h: 0.2, d: 0.2, x: 0.35, y: 0.1, z: 0.35, color: dark },
+      ], `condition-expansion-${variant}`);
+  }
+}
+
 function buildAnimal(kind: PropKind, variant: number, accent: string): THREE.Group {
   const coats = ['#8d7158', '#34383b', '#c7b69a', '#7b5644', '#d7d1c2', '#845f48', '#a89c8b', '#25282b'];
   const coat = variantColor(coats[variant]!, variant, 0.03);
@@ -2325,6 +2541,18 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
   garden_bench: { w: 1.95, h: 1.2, d: 0.78 },
   market_stall: { w: 2.8, h: 2.65, d: 1.8 },
   maintenance_sink: { w: 1.15, h: 1.55, d: 0.82 },
+  rubble_pile: { w: 1.8, h: 0.9, d: 1.5 },
+  fire_barrel: { w: 1, h: 1.8, d: 1 },
+  broken_column: { w: 1.5, h: 2.1, d: 1.5 },
+  collapsed_beam: { w: 3.2, h: 0.8, d: 1 },
+  wooden_barricade: { w: 2.5, h: 1.7, d: 0.7 },
+  altar: { w: 2, h: 1.6, d: 1 },
+  office_cubicle: { w: 2.4, h: 1.7, d: 2 },
+  restaurant_booth: { w: 2.4, h: 1.4, d: 1.8 },
+  warehouse_crate: { w: 1.4, h: 1.3, d: 1.4 },
+  generator: { w: 1.7, h: 1.5, d: 1.1 },
+  greenhouse_table: { w: 2.3, h: 1.5, d: 1.2 },
+  telescope: { w: 1.5, h: 2.4, d: 1.5 },
   animal_cat: { w: 0.75, h: 0.72, d: 1.05 },
   animal_dog: { w: 0.95, h: 1.15, d: 1.4 },
   animal_crow: { w: 0.75, h: 0.78, d: 0.85 },

@@ -208,6 +208,21 @@ const EXPANSION_THEMES: ThemePreset[] = [
   t('banquet_void', 'Banquet Hall Without Guests', 'Every place setting is arranged for a different hour.', 'downer', 'open-hall', ['banquet', 'atrium', 'motel', 'vast'], ['dining_chair_02', 'coffee_table_06', 'reception_desk_08', 'npc_cook_04', 'door_glass'], 86, 72, 18, p('#5d3e43', '#21191d', '#7e545b', '#d6b16e', '#33262b', '#ffe4af', '#71575b'), 'atrium'),
 ];
 
+const CONDITION_THEMES: ThemePreset[] = [
+  t('burning_hotel', 'Hotel During the Fire', 'Every room key is warm enough to bend.', 'dynamic', 'open-hall', ['motel', 'atrium', 'fire', 'burning', 'ruined'], ['fire_barrel_03', 'hotel_bed_06', 'restaurant_booth_02', 'rubble_pile_05', 'npc_firefighter_04'], 72, 58, 18, p('#21100b', '#160807', '#3b1710', '#ff5422', '#2a100c', '#ffad42', '#6f2a19'), 'atrium'),
+  t('wildfire_service_station', 'Service Station at the Fireline', 'The pumps display prices in degrees.', 'dynamic', 'outdoor', ['outdoor', 'roadside', 'industrial', 'wildfire', 'fire'], ['fire_barrel_06', 'generator_04', 'wooden_barricade_03', 'traffic_cone_07', 'npc_firefighter_02'], 105, 66, 22, p('#2a160d', '#3c140b', '#51301d', '#ff6a24', '#3a170e', '#ffc05a', '#74391e'), 'causeway'),
+  t('ash_city_plaza', 'Plaza Beneath the Ash', 'Stone figures face the orange edge of the sky.', 'downer', 'outdoor', ['outdoor', 'plaza', 'ash', 'scorched', 'ruined'], ['broken_column_04', 'rubble_pile_07', 'streetlight_03', 'wooden_barricade_05', 'creature_crow_06'], 96, 82, 25, p('#302c28', '#3d3028', '#51473f', '#bf6938', '#4a403a', '#e6b087', '#5c4a3e'), 'courtyard'),
+  t('collapsed_cathedral', 'Collapsed Cathedral Concourse', 'The remaining columns hum the missing part of the roof.', 'downer', 'open-hall', ['cathedral', 'chapel', 'ruined', 'ceremonial', 'echo'], ['broken_column_02', 'altar_07', 'rubble_pile_04', 'collapsed_beam_06', 'npc_musician_03'], 84, 60, 24, p('#514a47', '#242126', '#655d59', '#b99b7d', '#393438', '#ead5bd', '#6f6258'), 'colonnade'),
+  t('abandoned_office_maze', 'Abandoned Cubicle Maze', 'Every monitor shows a cursor waiting in the same place.', 'static', 'interior', ['office', 'civic', 'abandoned', 'ruined', 'backrooms'], ['office_cubicle_02', 'filing_cabinet_06', 'copy_machine_04', 'rubble_pile_01', 'npc_worker_07'], 44, 42, 5.8, p('#555753', '#c6c1b2', '#86877f', '#719099', '#88877f', '#e9e3ce', '#787970'), 'concourse'),
+  t('ruined_food_court', 'Ruined Food Court', 'Plastic trays remain stacked beneath a ceiling open to nowhere.', 'downer', 'open-hall', ['mall', 'food', 'retail', 'ruined', 'atrium'], ['restaurant_booth_05', 'cafeteria_table_03', 'wooden_barricade_07', 'rubble_pile_02', 'npc_vendor_06'], 78, 62, 16, p('#594a43', '#2c2928', '#725d52', '#d78452', '#49413e', '#f1c99e', '#6c5a50'), 'atrium'),
+  t('slime_substation', 'Slime Substation', 'Green bubbles climb cables that were never insulated.', 'dynamic', 'interior', ['industrial', 'service', 'slime', 'goo', 'utility'], ['generator_06', 'breaker_panel_02', 'pipe_cluster_05', 'maintenance_sink_03', 'npc_hazmat_08'], 26, 24, 6.5, p('#17321d', '#1b2c1d', '#315a35', '#70d34b', '#28462d', '#ceff91', '#396c3c'), 'chamber'),
+  t('overgrown_greenhouse_lab', 'Greenhouse Laboratory Reclaimed', 'Roots have learned the combination to every cabinet.', 'upper', 'open-hall', ['garden', 'lab', 'overgrown', 'school', 'open'], ['greenhouse_table_04', 'planter_06', 'lab_bench_02', 'npc_groundskeeper_05', 'creature_rabbit_03'], 64, 48, 17, p('#31523a', '#9db58b', '#55785a', '#78bd50', '#6e8e70', '#dfffb6', '#557b58'), 'atrium'),
+  t('frozen_observatory', 'Frozen Observatory Field', 'The telescope is aimed beneath the horizon.', 'static', 'outdoor', ['outdoor', 'field', 'tech', 'frozen', 'ice'], ['telescope_08', 'generator_01', 'server_rack_04', 'wooden_barricade_02', 'creature_crow_01'], 112, 92, 28, p('#7ba5b4', '#cceaf2', '#99c2ce', '#62cce8', '#b9dce4', '#ecfeff', '#7daab7'), 'field'),
+  t('derelict_freight_yard', 'Derelict Freight Yard', 'Shipping labels list destinations that are all behind you.', 'downer', 'outdoor', ['outdoor', 'warehouse', 'loading', 'derelict', 'ruined'], ['warehouse_crate_07', 'collapsed_beam_03', 'pallet_stack_06', 'rubble_pile_08', 'npc_mechanic_05'], 118, 76, 24, p('#4a4d49', '#3b464d', '#65665f', '#d49b54', '#5e6463', '#ead0a5', '#676a64'), 'causeway'),
+  t('bunker_after_alarm', 'Bunker After the Alarm', 'The generator continues powering a siren that has stopped.', 'dynamic', 'interior', ['industrial', 'service', 'scorched', 'utility', 'liminal'], ['generator_08', 'wooden_barricade_06', 'utility_shelf_04', 'collapsed_beam_01', 'npc_firefighter_07'], 34, 28, 7.2, p('#322b27', '#1f1b19', '#50443d', '#bb5b35', '#3f3631', '#e4aa79', '#5d4638'), 'chamber'),
+  t('empty_roadside_diner', 'Roadside Diner at 4:13', 'Coffee circles appear on tables before the cups arrive.', 'static', 'interior', ['food', 'roadside', 'motel', 'retail', 'liminal'], ['restaurant_booth_08', 'folding_table_02', 'snack_machine_05', 'warehouse_crate_01', 'npc_vendor_03'], 38, 24, 5.5, p('#735449', '#dcc9ac', '#a57b68', '#58aeb1', '#9a8175', '#fff0cf', '#896d62'), 'concourse'),
+];
+
 export const THEME_PRESETS: ThemePreset[] = [
   {
     id: 'fluorescent_lobby',
@@ -450,6 +465,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     palette: p('#8a4a20', '#2a180c', '#b86830', '#ff9a40', '#3a2010', '#ffe0c0', '#a06030'),
   },
   ...EXPANSION_THEMES,
+  ...CONDITION_THEMES,
 ];
 
 const byId = new Map(ASSETS.map((x) => [x.id, x]));
@@ -490,7 +506,7 @@ export function catalogPromptSummary(): string {
     const first = variants[0]!;
     const last = variants.at(-1)!;
     const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
-    return `${family}|${first.category}|ids:${first.id}..${last.id}|tags:${first.tags.join(',')}|moods:${moods}`;
+    return `${family}|${first.category}|${first.id}..${last.id}|${first.tags.join(',')}|${moods}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
   return `ASSETS:\n${[...baseLines, ...familyLines].join('\n')}\nTHEMES:\n${themes.join('\n')}`;

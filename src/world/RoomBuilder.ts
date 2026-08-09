@@ -175,7 +175,7 @@ export class RoomWorld {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.group.add(mesh);
-      // Walls and doors are solid landmarks; R/Y/touch advances the dream.
+      // Walls are solid landmarks; R/Y/touch advances the dream.
       this.addCollider(wallCollider(side, halfW, halfD, h, wallT, false), `wall:${side}`);
 
       // Fake window / panel insets so walls aren't flat slabs

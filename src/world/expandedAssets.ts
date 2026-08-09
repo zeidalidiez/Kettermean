@@ -98,6 +98,18 @@ const PROP_FAMILIES: AssetFamily[] = [
   family('garden_bench', 'garden_bench', 'slatted garden bench', 'furniture', ['outdoor', 'park', 'garden', 'plaza'], { x: 1.95, y: 1.2, z: 0.78 }),
   family('market_stall', 'market_stall', 'empty market stall', 'fixture', ['outdoor', 'market', 'plaza', 'retail'], { x: 2.8, y: 2.65, z: 1.8 }),
   family('maintenance_sink', 'maintenance_sink', 'deep maintenance sink', 'fixture', ['service', 'industrial', 'clinic', 'utility'], { x: 1.15, y: 1.55, z: 0.82 }),
+  family('rubble_pile', 'rubble_pile', 'collapsed rubble pile', 'decor', ['industrial', 'abandoned', 'ruined', 'service'], { x: 1.8, y: 0.9, z: 1.5 }),
+  family('fire_barrel', 'fire_barrel', 'burning barrel', 'fixture', ['industrial', 'outdoor', 'fire', 'roadside'], { x: 1, y: 1.8, z: 1 }),
+  family('broken_column', 'broken_column', 'broken stone column', 'fixture', ['cathedral', 'museum', 'ruined', 'courtyard'], { x: 1.5, y: 2.1, z: 1.5 }),
+  family('collapsed_beam', 'collapsed_beam', 'collapsed structural beam', 'fixture', ['industrial', 'warehouse', 'ruined', 'service'], { x: 3.2, y: 0.8, z: 1 }),
+  family('wooden_barricade', 'wooden_barricade', 'wooden barricade', 'fixture', ['roadside', 'service', 'ruined', 'outdoor'], { x: 2.5, y: 1.7, z: 0.7 }),
+  family('altar', 'altar', 'ceremonial altar', 'furniture', ['chapel', 'cathedral', 'museum', 'ceremonial'], { x: 2, y: 1.6, z: 1 }),
+  family('office_cubicle', 'office_cubicle', 'office cubicle', 'furniture', ['office', 'civic', 'archive', 'abandoned'], { x: 2.4, y: 1.7, z: 2 }),
+  family('restaurant_booth', 'restaurant_booth', 'restaurant booth', 'furniture', ['food', 'mall', 'motel', 'retail'], { x: 2.4, y: 1.4, z: 1.8 }),
+  family('warehouse_crate', 'warehouse_crate', 'shipping crate', 'fixture', ['warehouse', 'industrial', 'loading', 'service'], { x: 1.4, y: 1.3, z: 1.4 }),
+  family('generator', 'generator', 'portable generator', 'fixture', ['industrial', 'service', 'tech', 'outdoor'], { x: 1.7, y: 1.5, z: 1.1 }),
+  family('greenhouse_table', 'greenhouse_table', 'greenhouse worktable', 'furniture', ['garden', 'lab', 'school', 'overgrown'], { x: 2.3, y: 1.5, z: 1.2 }),
+  family('telescope', 'telescope', 'observatory telescope', 'fixture', ['tech', 'outdoor', 'museum', 'field'], { x: 1.5, y: 2.4, z: 1.5 }),
 ];
 
 const NPC_FAMILIES: AssetFamily[] = [
@@ -192,7 +204,7 @@ function renderCostFor(kind: string, category: AssetCategory): number {
   if (category === 'npc') return 5;
   if (category === 'creature') return 4;
   if (['bookcase', 'bus_shelter', 'swing_set', 'server_rack', 'aquarium_tank'].includes(kind)) return 5;
-  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree', 'reception_desk', 'sectional', 'hotel_bed', 'phone_booth', 'lifeguard_chair', 'pallet_stack', 'privacy_screen', 'departure_board', 'shopping_cart', 'retail_display', 'lab_bench', 'drum_stack', 'luggage_cart', 'exercise_bike'].includes(kind)) {
+  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree', 'reception_desk', 'sectional', 'hotel_bed', 'phone_booth', 'lifeguard_chair', 'pallet_stack', 'privacy_screen', 'departure_board', 'shopping_cart', 'retail_display', 'lab_bench', 'drum_stack', 'luggage_cart', 'exercise_bike', 'rubble_pile', 'fire_barrel', 'broken_column', 'collapsed_beam', 'wooden_barricade', 'altar', 'office_cubicle', 'restaurant_booth', 'warehouse_crate', 'generator', 'greenhouse_table', 'telescope'].includes(kind)) {
     return 3;
   }
   return 2;

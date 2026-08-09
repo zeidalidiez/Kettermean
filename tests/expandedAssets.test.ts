@@ -14,12 +14,12 @@ import {
 afterAll(() => clearModelMaterialCache());
 
 describe('expanded procedural asset catalog', () => {
-  it('contains 824 unique variants across 103 eight-member families', () => {
-    expect(EXPANDED_ASSET_COUNT).toBe(824);
-    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(824);
+  it('contains 920 unique variants across 115 eight-member families', () => {
+    expect(EXPANDED_ASSET_COUNT).toBe(920);
+    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(920);
 
     const families = Map.groupBy(EXPANDED_ASSETS, (asset) => asset.family);
-    expect(families.size).toBe(103);
+    expect(families.size).toBe(115);
     for (const variants of families.values()) {
       expect(variants).toHaveLength(8);
       expect(new Set(variants.map((asset) => asset.variant))).toEqual(
@@ -29,7 +29,7 @@ describe('expanded procedural asset catalog', () => {
 
     expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(208);
     expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(48);
-    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(616);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(712);
     expect(ASSETS).toEqual(expect.arrayContaining(EXPANDED_ASSETS));
   });
 
@@ -135,6 +135,6 @@ describe('expanded procedural asset catalog', () => {
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(780);
+    expect(used.size).toBeGreaterThanOrEqual(860);
   }, 30_000);
 });
