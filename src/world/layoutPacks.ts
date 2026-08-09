@@ -2,6 +2,7 @@
 import type { DirectedPlacement } from './assetCatalog';
 import { ASSETS, getAsset } from './assetCatalog';
 import { SeededRng } from '../core/rng';
+import type { RoomLayoutStyle } from '../types';
 
 /**
  * Layout packs = small local furniture arrangements (relative coords).
@@ -65,6 +66,9 @@ export interface PackStampContext {
   giant?: boolean;
   /** How many packs to aim for (clamped by space). */
   targetPacks?: number;
+  layoutStyle?: RoomLayoutStyle;
+  /** Recent catalog ids to strongly deprioritize. */
+  avoidAssets?: string[];
 }
 
 const PORTALS = new Set(['door_fake', 'door_service', 'door_glass', 'arch_portal']);
@@ -84,8 +88,9 @@ export function stampRoomPacks(
 ): DirectedPlacement[] {
   const packs = allLayoutPacks();
   const area = ctx.width * ctx.depth;
+  const densityMultiplier = ctx.layoutStyle === 'sparse' ? 0.62 : 1;
   const target = clamp(
-    ctx.targetPacks ?? Math.round(8 + area / 28),
+    Math.round((ctx.targetPacks ?? Math.round(8 + area / 28)) * densityMultiplier),
     10,
     30,
   );
@@ -513,6 +518,13 @@ function scorePack(rng: SeededRng, pack: LayoutPack, ctx: PackStampContext): num
     const picks = pack.slots.map((sl) => sl.pick);
     if (picks.some((p) => ctx.preferAssets!.includes(p))) s += 0.8;
   }
+  if (ctx.avoidAssets?.length) {
+    const avoided = new Set(ctx.avoidAssets);
+    const repeated = pack.slots.filter(
+      (slot) => !slot.pick.includes(':') && avoided.has(slot.pick),
+    ).length;
+    s *= Math.max(0.18, 1 - repeated * 0.28);
+  }
 
   // Light noise so order isn't stable
   s *= rng.float(0.85, 1.15);
@@ -589,7 +601,10 @@ function findAnchor(
     let z = 0;
     let rot = rng.float(0, Math.PI * 2);
 
-    const prefer = pack.prefer;
+    const prefer =
+      ctx.layoutStyle === 'perimeter' && (pack.prefer === 'any' || pack.prefer === 'open')
+        ? 'wall'
+        : pack.prefer;
     if (prefer === 'wall') {
       const side = rng.int(0, 3);
       const u = rng.float(-0.9, 0.9);
@@ -616,6 +631,16 @@ function findAnchor(
     } else if (prefer === 'center') {
       x = rng.float(-hw * 0.35, hw * 0.35);
       z = rng.float(-hd * 0.35, hd * 0.35);
+    } else if (ctx.layoutStyle === 'axial') {
+      if (rng.chance(0.5)) {
+        x = rng.float(-hw, hw);
+        z = rng.float(-Math.min(1.2, hd * 0.2), Math.min(1.2, hd * 0.2));
+        rot = rng.chance(0.5) ? 0 : Math.PI;
+      } else {
+        x = rng.float(-Math.min(1.2, hw * 0.2), Math.min(1.2, hw * 0.2));
+        z = rng.float(-hd, hd);
+        rot = rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2;
+      }
     } else {
       x = rng.float(-hw, hw);
       z = rng.float(-hd, hd);
@@ -697,7 +722,13 @@ function scatterFill(
   ctx: PackStampContext,
   count: number,
 ): void {
-  const candidates = ASSETS.filter((a) => a.category !== 'portal');
+  const avoided = new Set(ctx.avoidAssets ?? []);
+  const freshCandidates = ASSETS.filter(
+    (asset) => asset.category !== 'portal' && !avoided.has(asset.id),
+  );
+  const candidates = freshCandidates.length
+    ? freshCandidates
+    : ASSETS.filter((asset) => asset.category !== 'portal');
   const hw = ctx.width / 2 - 1.4;
   const hd = ctx.depth / 2 - 1.4;
   for (let i = 0; i < count; i += 1) {
@@ -738,6 +769,7 @@ function scatterFill(
 }
 
 function resolvePick(rng: SeededRng, pick: string, ctx: PackStampContext): string | null {
+  const avoided = new Set(ctx.avoidAssets ?? []);
   if (pick.startsWith('tag:')) {
     const tag = pick.slice(4);
     const pool = ASSETS.filter(
@@ -747,15 +779,27 @@ function resolvePick(rng: SeededRng, pick: string, ctx: PackStampContext): strin
     // Prefer theme-aligned, sometimes clash
     const themed = pool.filter((a) => a.tags.some((t) => ctx.themeTags.includes(t)));
     const use = themed.length && rng.chance(0.72) ? themed : pool;
-    return rng.pick(use).id;
+    const fresh = use.filter((asset) => !avoided.has(asset.id));
+    return rng.pick(fresh.length ? fresh : use).id;
   }
   if (pick.startsWith('category:')) {
     const cat = pick.slice(9);
     const pool = ASSETS.filter((a) => a.category === cat);
     if (!pool.length) return null;
-    return rng.pick(pool).id;
+    const fresh = pool.filter((asset) => !avoided.has(asset.id));
+    return rng.pick(fresh.length ? fresh : pool).id;
   }
-  return getAsset(pick) ? pick : null;
+  const direct = getAsset(pick);
+  if (!direct) return null;
+  if (!avoided.has(pick)) return pick;
+  const alternatives = ASSETS.filter(
+    (asset) =>
+      asset.id !== pick &&
+      !avoided.has(asset.id) &&
+      asset.category === direct.category &&
+      asset.tags.some((tag) => direct.tags.includes(tag)),
+  );
+  return alternatives.length && rng.chance(0.88) ? rng.pick(alternatives).id : pick;
 }
 
 function tagsForAssets(ids: string[]): string[] {

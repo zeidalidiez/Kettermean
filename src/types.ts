@@ -1,6 +1,9 @@
 export type DreamMode = 'random' | 'seeded';
 export type LlmProvider = 'offline' | 'openai' | 'anthropic' | 'browser';
 export type MoodAxis = 'upper' | 'downer' | 'static' | 'dynamic';
+export type RoomEnvironment = 'interior' | 'open-hall' | 'outdoor';
+export type RoomLayoutStyle = 'clusters' | 'perimeter' | 'axial' | 'scattered' | 'sparse';
+export type RoomSizeClass = 'compact' | 'standard' | 'large' | 'vast';
 
 export interface AppSettings {
   mode: DreamMode;
@@ -43,6 +46,8 @@ export interface RoomProp {
   solid?: boolean;
   /** Composed kit id used by the model library. */
   kind?: string;
+  /** Stable catalog id used to build a genuinely different model variant. */
+  assetId?: string;
 }
 
 export interface RoomEntity {
@@ -57,6 +62,8 @@ export interface RoomEntity {
   speed?: number;
   /** Composed kit id used by the model library. */
   kind?: string;
+  /** Stable catalog id used to build a genuinely different model variant. */
+  assetId?: string;
 }
 
 export interface PhysicsModifiers {
@@ -101,8 +108,11 @@ export interface RoomSpec {
   seed: string;
   title: string;
   blurb: string;
+  themeId?: string;
   themeTags: string[];
   mood: MoodAxis;
+  environment?: RoomEnvironment;
+  layoutStyle?: RoomLayoutStyle;
   width: number;
   depth: number;
   height: number;
@@ -116,6 +126,19 @@ export interface RoomSpec {
   entities: RoomEntity[];
   /** true when produced without an LLM call */
   offline?: boolean;
+}
+
+/** Compact history passed to the procedural director to prevent near-repeats. */
+export interface RoomHistoryEntry {
+  themeId?: string;
+  environment: RoomEnvironment;
+  layoutStyle: RoomLayoutStyle;
+  sizeClass: RoomSizeClass;
+  mood: MoodAxis;
+  shader: RoomShaderStyle;
+  lighting: RoomLightingStyle;
+  wireframe: boolean;
+  assetIds: string[];
 }
 
 export interface ColliderBox {
@@ -153,4 +176,5 @@ export interface GenerationContext {
   moodBias: MoodAxis;
   allowGore: boolean;
   linkIndex: number;
+  recentRooms?: RoomHistoryEntry[];
 }

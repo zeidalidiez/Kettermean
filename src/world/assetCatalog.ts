@@ -1,4 +1,10 @@
-import type { EntityBehavior, MoodAxis, RoomVisuals } from '../types';
+import type {
+  EntityBehavior,
+  MoodAxis,
+  RoomEnvironment,
+  RoomLayoutStyle,
+  RoomVisuals,
+} from '../types';
 
 /**
  * Curated kit library. LLMs (cloud or tiny browser models) should SELECT and
@@ -30,6 +36,9 @@ export interface AssetDef {
   solidDefault?: boolean;
   /** Weight for offline random picks. */
   weight?: number;
+  /** Variants in one family share a semantic role but have different geometry. */
+  family?: string;
+  variant?: number;
 }
 
 export interface ThemePreset {
@@ -37,6 +46,7 @@ export interface ThemePreset {
   title: string;
   blurb: string;
   mood: MoodAxis;
+  environment?: RoomEnvironment;
   tags: string[];
   preferredAssets: string[];
   width: number;
@@ -75,6 +85,8 @@ export interface RoomDirection {
   title: string;
   blurb: string;
   mood: MoodAxis;
+  environment?: RoomEnvironment;
+  layoutStyle?: RoomLayoutStyle;
   tags: string[];
   width: number;
   depth: number;

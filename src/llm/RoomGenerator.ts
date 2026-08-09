@@ -419,7 +419,7 @@ export class RoomGenerator {
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v12|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
+  return `v13|${settings.provider}|${base}|${model}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}`;
 }
 
 function buildPrompt(

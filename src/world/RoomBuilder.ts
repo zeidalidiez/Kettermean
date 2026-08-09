@@ -291,6 +291,7 @@ export class RoomWorld {
     scene.remove(this.group);
     const materials = new Set<THREE.Material>();
     this.group.traverse((obj) => {
+      if (obj instanceof THREE.Light) obj.dispose();
       const mesh = obj as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();
       if (Array.isArray(mesh.material)) {
@@ -329,6 +330,7 @@ export class RoomWorld {
     const box = feetBounds(mesh.position, prop.scale, prop.rotationY ?? 0);
     const isPortal = kind === 'door_fake' || Boolean(prop.linksOnTouch && /door|portal|exit/i.test(prop.label));
     if (isPortal) {
+      this.addPortalBeacon(prop);
       // Slightly generous door trigger so players can walk through painted exits.
       const doorBox = expandBox(box, 0.25, 0.1, 0.35);
       this.addLinkTrigger(doorBox, `door:${prop.id || prop.label}`);
@@ -352,6 +354,59 @@ export class RoomWorld {
     });
     // NPCs/creatures are moving atmosphere. Static AABBs at their origins would
     // become invisible blockers as soon as the model moved away.
+  }
+
+  /** Exit readability is an invariant: these markers ignore fog and room lighting. */
+  private addPortalBeacon(prop: RoomProp): void {
+    const color = this.spec?.palette.light ?? '#f4fbff';
+    const frame = new THREE.Group();
+    frame.name = `portal-beacon-${prop.id}`;
+    frame.position.set(prop.position.x, Math.max(0, prop.position.y), prop.position.z);
+    frame.rotation.y = prop.rotationY ?? 0;
+
+    const width = Math.max(1, prop.scale.x);
+    const height = Math.max(2, prop.scale.y);
+    const depth = Math.max(0.12, prop.scale.z + 0.08);
+    const thickness = Math.max(0.07, Math.min(0.13, width * 0.08));
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      toneMapped: false,
+      fog: false,
+    });
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color,
+      toneMapped: false,
+      fog: false,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide,
+    });
+    const bar = (w: number, h: number, d: number, x: number, y: number): THREE.Mesh => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      mesh.position.set(x, y, 0);
+      mesh.userData.keepSolid = true;
+      return mesh;
+    };
+    frame.add(
+      bar(thickness, height + thickness, depth, -width * 0.5 - thickness * 0.5, height * 0.5),
+      bar(thickness, height + thickness, depth, width * 0.5 + thickness * 0.5, height * 0.5),
+      bar(width + thickness * 2, thickness, depth, 0, height + thickness * 0.5),
+    );
+
+    const header = bar(Math.max(0.65, width * 0.58), 0.13, depth + 0.04, 0, height + 0.3);
+    frame.add(header);
+    for (const z of [-0.72, 0.72]) {
+      const marker = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.48, 24), glowMaterial);
+      marker.rotation.x = -Math.PI / 2;
+      marker.position.set(0, 0.025, z);
+      marker.userData.keepSolid = true;
+      frame.add(marker);
+    }
+
+    const light = new THREE.PointLight(color, 3.2, 9, 1.4);
+    light.position.set(0, Math.min(height - 0.2, 1.8), 0.65);
+    frame.add(light);
+    this.group.add(frame);
   }
 
   private addCollider(box: ColliderBox, label?: string): void {
@@ -459,13 +514,13 @@ function lightingProfile(
         primary: '#aaa1c8',
         ambient: palette.ambient,
         ground: palette.floor,
-        stripCount: 2,
-        stripIntensity: 0.75,
-        pointIntensity: 0.5,
-        ambientIntensity: 0.5,
-        hemiIntensity: 0.4,
-        keyIntensity: 0.4,
-        fillIntensity: 0.18,
+        stripCount: 3,
+        stripIntensity: 1.45,
+        pointIntensity: 0.82,
+        ambientIntensity: 0.72,
+        hemiIntensity: 0.62,
+        keyIntensity: 0.58,
+        fillIntensity: 0.3,
         pulseAmplitude: 0,
         pulseSpeed: 0,
       };
@@ -553,6 +608,7 @@ function setWireframe(group: THREE.Group, lineColor: string): void {
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.material) return;
+    if (mesh.userData.keepSolid === true) return;
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (const material of materials) {
       if (seen.has(material)) continue;

@@ -1,12 +1,18 @@
 import * as THREE from 'three';
 import { LINK, RANDOM_RESEED_EVERY } from '../config';
 import { childSeed, randomSeed } from '../core/rng';
-import type { AppSettings, GenerationContext, MoodAxis, RoomSpec } from '../types';
+import type {
+  AppSettings,
+  GenerationContext,
+  MoodAxis,
+  RoomHistoryEntry,
+  RoomSpec,
+} from '../types';
 import { InputManager } from '../input/InputManager';
 import { RoomGenerator } from '../llm/RoomGenerator';
 import { PlayerController } from '../player/PlayerController';
 import { RoomWorld } from '../world/RoomBuilder';
-import { resolveRoomVisuals } from '../world/roomDirector';
+import { resolveRoomVisuals, roomHistoryEntryFor } from '../world/roomDirector';
 import { RoomPostProcessor } from './RoomPostProcessor';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'linking';
@@ -33,6 +39,7 @@ export class DreamGame {
   private currentSeed = '';
   private linkIndex = 0;
   private previousTitles: string[] = [];
+  private recentRooms: RoomHistoryEntry[] = [];
   private moodBias: MoodAxis = 'static';
   private lastLinkAt = 0;
   private linking = false;
@@ -107,6 +114,7 @@ export class DreamGame {
     this.currentSeed = this.rootSeed;
     this.linkIndex = 0;
     this.previousTitles = [];
+    this.recentRooms = [];
     this.moodBias = 'static';
     this.nextRoomPlan = null;
     this.linking = false;
@@ -215,6 +223,8 @@ export class DreamGame {
     this.player.spawnAt(built.spawn.x, built.spawn.y, built.spawn.z, 0);
     this.previousTitles.push(spec.title);
     if (this.previousTitles.length > 12) this.previousTitles.shift();
+    this.recentRooms.push(roomHistoryEntryFor(spec));
+    if (this.recentRooms.length > 12) this.recentRooms.shift();
     this.moodBias = spec.mood;
     this.post.setProfile(spec.visuals);
     this.renderer.toneMappingExposure = spec.visuals?.exposure ?? 1;
@@ -244,6 +254,10 @@ export class DreamGame {
       moodBias: this.moodBias,
       allowGore: this.settings.allowGore,
       linkIndex,
+      recentRooms: this.recentRooms.map((room) => ({
+        ...room,
+        assetIds: [...room.assetIds],
+      })),
     };
   }
 

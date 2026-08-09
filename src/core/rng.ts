@@ -69,6 +69,22 @@ export function randomSeed(): string {
     'pale',
     'late',
     'narrow',
+    'amber',
+    'vacant',
+    'silver',
+    'sunken',
+    'electric',
+    'velvet',
+    'distant',
+    'hollow',
+    'frosted',
+    'endless',
+    'crooked',
+    'violet',
+    'sleeping',
+    'salt',
+    'glass',
+    'windy',
   ] as const;
   const nouns = [
     'hallway',
@@ -81,7 +97,33 @@ export function randomSeed(): string {
     'courtyard',
     'clinic',
     'basement',
+    'hangar',
+    'meadow',
+    'rooftop',
+    'arcade',
+    'terminal',
+    'plaza',
+    'warehouse',
+    'museum',
+    'highway',
+    'greenhouse',
+    'atrium',
+    'theater',
+    'harbor',
+    'supermarket',
+    'underpass',
+    'observatory',
   ] as const;
-  const rng = new SeededRng(`${Date.now()}-${Math.random()}`);
-  return `${rng.pick(adjectives)}-${rng.pick(nouns)}-${rng.int(1, 99)}`;
+  const entropy = new Uint32Array(2);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(entropy);
+  } else {
+    entropy[0] = Math.floor(Math.random() * 0x1_0000_0000);
+    entropy[1] = Math.floor(Math.random() * 0x1_0000_0000);
+  }
+  const token = `${entropy[0]!.toString(36).padStart(7, '0')}${entropy[1]!
+    .toString(36)
+    .padStart(7, '0')}`.slice(0, 9);
+  const rng = new SeededRng(`${Date.now()}-${token}-${Math.random()}`);
+  return `${rng.pick(adjectives)}-${rng.pick(nouns)}-${rng.int(1, 999)}-${token}`;
 }

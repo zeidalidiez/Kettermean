@@ -5,7 +5,10 @@ import type {
   EntityBehavior,
   GenerationContext,
   MoodAxis,
+  RoomEnvironment,
   RoomEntity,
+  RoomHistoryEntry,
+  RoomLayoutStyle,
   RoomProp,
   RoomSpec,
   RoomVisuals,
@@ -32,6 +35,8 @@ export interface DirectorSteer {
   height?: number;
   density?: number;
   visuals?: Partial<RoomVisuals>;
+  environment?: RoomEnvironment;
+  layoutStyle?: RoomLayoutStyle;
 }
 
 /**
@@ -41,16 +46,10 @@ export interface DirectorSteer {
  */
 export function generateOfflineDirection(ctx: GenerationContext, steer?: DirectorSteer): RoomDirection {
   const rng = new SeededRng(ctx.seed);
-  const recent = new Set(ctx.previousTitles.slice(-8));
-  const pool = THEME_PRESETS.filter((t) => !recent.has(t.title));
-  let theme =
-    (steer?.themeId ? getTheme(steer.themeId) : undefined) ||
-    rng.pick(pool.length ? pool : THEME_PRESETS);
-
-  // Avoid repeating the same theme title when possible.
-  if (recent.has(theme.title) && pool.length) {
-    theme = rng.pick(pool);
-  }
+  const recentRooms = ctx.recentRooms ?? [];
+  const theme = selectNovelTheme(rng, recentRooms, steer?.themeId);
+  const environment = steer?.environment ?? environmentForTheme(theme);
+  const layoutStyle = steer?.layoutStyle ?? selectNovelLayout(rng, recentRooms, environment);
 
   const mood = steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
 
@@ -77,6 +76,8 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     preferAssets: [...new Set([...theme.preferredAssets, ...(steer?.preferAssets ?? [])])],
     giant: steer?.giant,
     targetPacks,
+    layoutStyle,
+    avoidAssets: recentRooms.slice(-2).flatMap((room) => room.assetIds),
   });
 
   // Door-only safety net
@@ -117,12 +118,17 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     width,
     depth,
     height,
-    fogNear: mood === 'downer' ? 7 : mood === 'upper' ? 16 : 11,
-    fogFar: mood === 'downer' ? 26 : mood === 'upper' ? 62 : 44,
+    environment,
+    layoutStyle,
+    fogNear: mood === 'downer' ? 10 : mood === 'upper' ? 18 : 13,
+    fogFar: Math.max(
+      mood === 'downer' ? 36 : mood === 'upper' ? 68 : 48,
+      Math.max(width, depth) * 1.45,
+    ),
     linkColor: moodLinkColor(mood),
     palette: tintPalette(rng, theme.palette, mood),
     physics: physicsForMood(rng, mood),
-    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals),
+    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms),
     placements,
     offline: !steer,
   };
@@ -164,6 +170,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         behavior: (p.behavior || asset.defaultBehavior || 'idle') as EntityBehavior,
         speed: 0.45 + (i % 3) * 0.2,
         kind: asset.kind,
+        assetId: asset.id,
       });
     } else {
       if (isPortal ? props.length >= ROOM.propCountMax : nonPortalProps >= nonPortalBudget) return;
@@ -178,6 +185,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         linksOnTouch: isPortal,
         solid: p.solid ?? asset.solidDefault ?? true,
         kind: asset.kind,
+        assetId: asset.id,
       });
       if (!isPortal) nonPortalProps += 1;
     }
@@ -212,8 +220,11 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     seed: dir.seed,
     title: sanitizeDisplayText(dir.title, theme?.title || 'Unnamed Room', 80),
     blurb: sanitizeDisplayText(dir.blurb, theme?.blurb || 'The room waits.', 160),
+    themeId: dir.themeId,
     themeTags: dir.tags.map((tag) => sanitizeDisplayText(tag, 'liminal', 32)),
     mood: dir.mood,
+    environment: dir.environment ?? (theme ? environmentForTheme(theme) : 'interior'),
+    layoutStyle: dir.layoutStyle ?? 'clusters',
     width: dir.width,
     depth: dir.depth,
     height: dir.height,
@@ -247,11 +258,14 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
   'fluorescent',
-  'dim',
+  'fluorescent',
   'cold',
+  'cold',
+  'warm',
   'warm',
   'emergency',
   'pulse',
+  'dim',
 ];
 const EFFECT_TINTS = [
   '#ffffff',
@@ -268,38 +282,54 @@ export function resolveRoomVisuals(
   seed: string,
   mood: MoodAxis,
   override?: Partial<RoomVisuals>,
+  recentRooms: RoomHistoryEntry[] = [],
 ): RoomVisuals {
   const rng = new SeededRng(`${seed}:visuals`);
-  const shader = override?.shader ?? rng.pick(SHADER_STYLES);
+  const recentShaders = recentRooms.slice(-2).map((room) => room.shader);
+  const recentLighting = recentRooms.slice(-2).map((room) => room.lighting);
+  const shader = pickNovelVisual(rng, SHADER_STYLES, recentShaders, override?.shader);
   const moodLighting: RoomVisuals['lighting'] =
     mood === 'downer'
-      ? 'dim'
+      ? 'cold'
       : mood === 'upper'
         ? 'warm'
         : mood === 'dynamic'
           ? 'pulse'
           : 'fluorescent';
-  const lighting =
-    override?.lighting ?? (rng.chance(0.45) ? moodLighting : rng.pick(LIGHTING_STYLES));
+  const proposedLighting = rng.chance(0.32) ? moodLighting : undefined;
+  const lighting = pickNovelVisual(
+    rng,
+    LIGHTING_STYLES,
+    recentLighting,
+    override?.lighting ?? proposedLighting,
+  );
   const defaultExposure =
     lighting === 'dim'
-      ? 0.82
+      ? 0.98
       : lighting === 'emergency'
-        ? 0.98
+        ? 1.06
         : lighting === 'cold'
-          ? 0.92
+          ? 1.02
           : lighting === 'warm'
-            ? 1.08
-            : 1;
+            ? 1.1
+            : 1.04;
+
+  const previousWasWireframe = recentRooms.at(-1)?.wireframe === true;
+  const wireframe =
+    override?.wireframe === true && !previousWasWireframe
+      ? true
+      : override?.wireframe === false
+        ? false
+        : !previousWasWireframe && rng.chance(0.12);
 
   return {
     shader,
     lighting,
     tint: override?.tint ?? rng.pick(EFFECT_TINTS),
-    effectStrength: clamp(override?.effectStrength ?? rng.float(0.42, 0.78), 0, 1),
+    effectStrength: clamp(override?.effectStrength ?? rng.float(0.36, 0.68), 0, 0.78),
     pixelSize: clamp(Math.round(override?.pixelSize ?? rng.int(3, 8)), 2, 12),
-    wireframe: override?.wireframe ?? rng.chance(0.1),
-    exposure: clamp(override?.exposure ?? defaultExposure + rng.float(-0.08, 0.08), 0.55, 1.3),
+    wireframe,
+    exposure: clamp(override?.exposure ?? defaultExposure + rng.float(-0.04, 0.08), 0.92, 1.35),
   };
 }
 
@@ -429,6 +459,82 @@ function cleanSteerText(v?: string): string | undefined {
   return t.slice(0, 80);
 }
 
+const LAYOUT_STYLES: RoomLayoutStyle[] = [
+  'clusters',
+  'perimeter',
+  'axial',
+  'scattered',
+  'sparse',
+];
+
+function selectNovelTheme(
+  rng: SeededRng,
+  recentRooms: RoomHistoryEntry[],
+  requestedThemeId?: string,
+): ThemePreset {
+  const recent = recentRooms.slice(-8);
+  const recentThemeIds = new Set(
+    recent.map((room) => room.themeId).filter((id): id is string => Boolean(id)),
+  );
+  const recentEnvironments = recent.slice(-2).map((room) => room.environment);
+  const requested = requestedThemeId ? getTheme(requestedThemeId) : undefined;
+
+  const ranked = THEME_PRESETS.map((theme) => {
+    let score = rng.float(0, 1);
+    if (requested?.id === theme.id) score += 4;
+    if (recentThemeIds.has(theme.id)) score -= 9;
+    const environment = environmentForTheme(theme);
+    score -= recentEnvironments.filter((value) => value === environment).length * 1.15;
+    return { theme, score };
+  }).sort((a, b) => b.score - a.score);
+
+  // With a healthy catalog an exact theme cannot recur inside the recent window.
+  return ranked.find(({ theme }) => !recentThemeIds.has(theme.id))?.theme ?? ranked[0]!.theme;
+}
+
+function environmentForTheme(theme: ThemePreset): RoomEnvironment {
+  if (theme.environment) return theme.environment;
+  if (theme.tags.includes('outdoor')) return 'outdoor';
+  if (
+    theme.tags.includes('open') ||
+    theme.tags.includes('courtyard') ||
+    theme.tags.includes('greenhouse') ||
+    theme.tags.includes('gym')
+  ) {
+    return 'open-hall';
+  }
+  return 'interior';
+}
+
+function selectNovelLayout(
+  rng: SeededRng,
+  recentRooms: RoomHistoryEntry[],
+  environment: RoomEnvironment,
+): RoomLayoutStyle {
+  const suitable =
+    environment === 'outdoor'
+      ? LAYOUT_STYLES.filter((style) => style !== 'perimeter')
+      : environment === 'open-hall'
+        ? LAYOUT_STYLES.filter((style) => style !== 'sparse' || rng.chance(0.5))
+        : LAYOUT_STYLES;
+  const recent = new Set(recentRooms.slice(-2).map((room) => room.layoutStyle));
+  const fresh = suitable.filter((style) => !recent.has(style));
+  return rng.pick(fresh.length ? fresh : suitable);
+}
+
+function pickNovelVisual<T extends string>(
+  rng: SeededRng,
+  source: readonly T[],
+  recent: readonly T[],
+  preferred?: T,
+): T {
+  const recentSet = new Set(recent);
+  if (preferred && !recentSet.has(preferred)) return preferred;
+  const unique = [...new Set(source)];
+  const fresh = unique.filter((value) => !recentSet.has(value));
+  return rng.pick(fresh.length ? fresh : unique);
+}
+
 function biasMood(rng: SeededRng, bias: MoodAxis): MoodAxis {
   if (rng.chance(0.55)) return bias;
   return rng.pick(['upper', 'downer', 'static', 'dynamic'] as const);
@@ -470,4 +576,30 @@ function clamp(n: number, min: number, max: number): number {
 
 export function defaultSpawnHeight(): number {
   return PLAYER.eyeHeight;
+}
+
+export function roomHistoryEntryFor(spec: RoomSpec): RoomHistoryEntry {
+  const longestSide = Math.max(spec.width, spec.depth);
+  const sizeClass =
+    longestSide >= 46
+      ? 'vast'
+      : longestSide >= 28
+        ? 'large'
+        : longestSide <= 11
+          ? 'compact'
+          : 'standard';
+  return {
+    themeId: spec.themeId,
+    environment: spec.environment ?? 'interior',
+    layoutStyle: spec.layoutStyle ?? 'clusters',
+    sizeClass,
+    mood: spec.mood,
+    shader: spec.visuals?.shader ?? 'none',
+    lighting: spec.visuals?.lighting ?? 'fluorescent',
+    wireframe: spec.visuals?.wireframe ?? false,
+    assetIds: [
+      ...spec.props.map((prop) => prop.assetId).filter((id): id is string => Boolean(id)),
+      ...spec.entities.map((entity) => entity.assetId).filter((id): id is string => Boolean(id)),
+    ],
+  };
 }
