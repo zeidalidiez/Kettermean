@@ -10,6 +10,11 @@ import {
   MASTERWORK_BOUNDS,
   buildMasterworkModel,
 } from './detailedModelsRound2';
+import type { ExhibitionModelKind } from './detailedAssetsRound3';
+import {
+  EXHIBITION_BOUNDS,
+  buildExhibitionModel,
+} from './detailedModelsRound3';
 import {
   decorateModelWithFaceKit,
   type FaceHostContext,
@@ -185,7 +190,8 @@ export type PropKind =
   | MixedMediaModelKind
   | SemanticModelKind
   | DetailedModelKind
-  | MasterworkModelKind;
+  | MasterworkModelKind
+  | ExhibitionModelKind;
 
 interface PartSpec {
   w: number;
@@ -2235,6 +2241,8 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const exhibition = buildExhibitionModel(kind, assetVariant(assetId), accent, body);
+  if (exhibition) return exhibition;
   const masterwork = buildMasterworkModel(kind, assetVariant(assetId), accent, body);
   if (masterwork) return masterwork;
   const detailed = buildDetailedModel(kind, assetVariant(assetId), accent, body);
@@ -2668,6 +2676,8 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const exhibition = EXHIBITION_BOUNDS[kind as ExhibitionModelKind];
+  if (exhibition) return exhibition;
   const masterwork = MASTERWORK_BOUNDS[kind as MasterworkModelKind];
   if (masterwork) return masterwork;
   const detailed = DETAILED_BOUNDS[kind as DetailedModelKind];

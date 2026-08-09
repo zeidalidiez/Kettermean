@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { DETAILED_ASSETS } from './detailedAssets';
 import { MASTERWORK_ASSETS } from './detailedAssetsRound2';
+import { EXHIBITION_ASSETS } from './detailedAssetsRound3';
 import { EXPANDED_ASSETS } from './expandedAssets';
 import { MIXED_MEDIA_ASSETS } from './mixedMediaAssets';
 import { SEMANTIC_ASSETS } from './semanticAssets';
@@ -181,6 +182,7 @@ export const ASSETS: AssetDef[] = [
   ...MIXED_MEDIA_ASSETS,
   ...DETAILED_ASSETS,
   ...MASTERWORK_ASSETS,
+  ...EXHIBITION_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [
@@ -524,7 +526,7 @@ export function catalogPromptSummary(): string {
     return `${family}|${category}|${first.tags[0]}${moods === 'any' ? '' : `|${moods}`}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
-  return `ASSETS:\n${baseLines.join('\n')}\nFAMILIES (IDs end 01-08):\n${familyLines.join('\n')}\nTHEMES:\n${themes.join('\n')}`;
+  return `ASSETS:\n${baseLines.join('\n')}\nFAMILIES (append a zero-padded variant suffix):\n${familyLines.join('\n')}\nTHEMES:\n${themes.join('\n')}`;
 }
 
 function a(
