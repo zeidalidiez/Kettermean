@@ -229,6 +229,7 @@ export interface InputFrame {
   sprint: boolean;
   jump: boolean;
   pausePressed: boolean;
+  nextDreamPressed: boolean;
 }
 
 export interface GenerationContext {

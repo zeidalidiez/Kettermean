@@ -4,7 +4,7 @@ import { childSeed, randomSeed } from '../src/core/rng';
 import type { RoomHistoryEntry, RoomProp } from '../src/types';
 import { generateOfflineRoom } from '../src/world/offlineGenerator';
 import { getAsset, THEME_PRESETS } from '../src/world/assetCatalog';
-import { roomHistoryEntryFor } from '../src/world/roomDirector';
+import { resolveRoomVisuals, roomHistoryEntryFor } from '../src/world/roomDirector';
 
 describe('offline room invariants', () => {
   it('keeps the spawn island clear and respects logical object budgets', () => {
@@ -142,6 +142,19 @@ describe('offline room invariants', () => {
     expect(generateOfflineRoom(context).visuals).toEqual(
       generateOfflineRoom(context).visuals,
     );
+  });
+
+  it('keeps navigation-heavy kaleidoscope rooms genuinely rare', () => {
+    let kaleidoscopeRooms = 0;
+    const sampleSize = 4_000;
+    for (let index = 0; index < sampleSize; index += 1) {
+      if (resolveRoomVisuals(`kaleidoscope-rate-${index}`, 'dynamic').shader === 'kaleidoscope') {
+        kaleidoscopeRooms += 1;
+      }
+    }
+
+    expect(kaleidoscopeRooms).toBeGreaterThan(0);
+    expect(kaleidoscopeRooms / sampleSize).toBeLessThan(0.02);
   });
 
   it('keeps atmospheric lighting by default but removes flashing when requested', () => {

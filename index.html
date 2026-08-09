@@ -22,7 +22,8 @@
       <div id="hud" class="hidden" aria-live="polite">
         <div id="hud-theme"></div>
         <div id="hud-seed"></div>
-          <div id="hud-hint">Walk through doors to link</div>
+        <div id="hud-hint">The room waits.</div>
+        <div id="hud-action"><kbd>R</kbd><span>Next dream · anytime</span></div>
       </div>
 
       <div id="fade-overlay" aria-hidden="true"></div>
@@ -36,6 +37,7 @@
           <div class="stick-base"><div class="stick-knob"></div></div>
         </div>
         <div class="touch-actions" aria-label="Movement actions">
+          <button id="touch-next" class="touch-action next" type="button">Next</button>
           <button id="touch-sprint" class="touch-action" type="button">Sprint</button>
           <button id="touch-jump" class="touch-action primary" type="button">Jump</button>
         </div>
@@ -56,7 +58,7 @@
           <span class="brand-rule" aria-hidden="true"></span>
           <p class="tagline">
             Walk through liminal rooms.<br />
-            Link through doors.<br />
+            Leave with <strong>R</strong> when you are ready.<br />
             Let the dream drift.
           </p>
           <button id="start-btn" type="button" class="enter-button">
@@ -182,6 +184,7 @@
                 <dt>Look</dt><dd>Mouse</dd>
                 <dt>Jump</dt><dd><kbd>Space</kbd></dd>
                 <dt>Sprint</dt><dd><kbd>Shift</kbd></dd>
+                <dt>Next dream</dt><dd><kbd>R</kbd></dd>
                 <dt>Pause</dt><dd><kbd>Esc</kbd></dd>
               </dl>
               <p class="help">Gamepad and touch controls are also supported.</p>
@@ -212,6 +215,7 @@
           <div class="pause-controls">
             <span>Move <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
             <span>Look Mouse</span>
+            <span>Next dream <kbd>R</kbd> / gamepad Y</span>
             <span>Pause <kbd>Esc</kbd></span>
           </div>
         </section>

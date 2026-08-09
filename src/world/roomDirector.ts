@@ -343,7 +343,18 @@ export function resolveRoomVisuals(
   const availableShaders = SHADER_STYLES.filter(
     (style) => !flashingDisabled || style !== 'strobe',
   );
-  const shader = pickNovelVisual(rng, availableShaders, recentShaders, override?.shader);
+  const proposedShader = pickNovelVisual(rng, availableShaders, recentShaders, override?.shader);
+  // Kaleidoscope destroys reliable spatial landmarks. Keep it as a rare dream event,
+  // including when an LLM explicitly steers toward it; R remains an instant escape.
+  const kaleidoscopeAcceptance = override?.shader === 'kaleidoscope' ? 0.04 : 0.16;
+  const shader =
+    proposedShader === 'kaleidoscope' && !rng.chance(kaleidoscopeAcceptance)
+      ? pickNovelVisual(
+          rng,
+          availableShaders.filter((style) => style !== 'kaleidoscope'),
+          recentShaders,
+        )
+      : proposedShader;
   const availableLighting = LIGHTING_STYLES.filter(
     (style) =>
       (!flashingDisabled || style !== 'pulse') &&

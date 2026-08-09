@@ -12,6 +12,13 @@ interface PointerLockTarget {
   requestPointerLock?: () => Promise<void> | void;
 }
 
+/** The next-dream shortcut is edge-triggered so holding R cannot skip rooms. */
+export function isNextDreamKey(
+  event: Pick<KeyboardEvent, 'code' | 'repeat'>,
+): boolean {
+  return event.code === 'KeyR' && !event.repeat;
+}
+
 /**
  * Pointer Lock is desktop-only in several touch browsers, notably iPhone Safari.
  * A missing method must be treated as a supported input mode difference rather
@@ -41,8 +48,10 @@ export class InputManager {
   private mouseDy = 0;
   private jumpBuffered = false;
   private pausePressed = false;
+  private nextDreamPressed = false;
   private touchSprint = false;
   private gamepadPauseHeld = false;
+  private gamepadNextHeld = false;
   private enabled = false;
   private stickCleanups: Array<() => void> = [];
 
@@ -58,6 +67,7 @@ export class InputManager {
   private readonly jumpButton: HTMLButtonElement;
   private readonly sprintButton: HTMLButtonElement;
   private readonly pauseButton: HTMLButtonElement;
+  private readonly nextButton: HTMLButtonElement;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -72,6 +82,7 @@ export class InputManager {
     this.jumpButton = el('touch-jump') as HTMLButtonElement;
     this.sprintButton = el('touch-sprint') as HTMLButtonElement;
     this.pauseButton = el('touch-pause') as HTMLButtonElement;
+    this.nextButton = el('touch-next') as HTMLButtonElement;
 
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
@@ -86,6 +97,7 @@ export class InputManager {
     this.sprintButton.addEventListener('pointerup', this.onSprintUp);
     this.sprintButton.addEventListener('pointercancel', this.onSprintUp);
     this.pauseButton.addEventListener('pointerdown', this.onPauseDown);
+    this.nextButton.addEventListener('pointerdown', this.onNextDown);
 
     this.bindStick(this.moveZone, 'move');
     this.bindStick(this.lookZone, 'look');
@@ -99,8 +111,10 @@ export class InputManager {
       this.mouseDy = 0;
       this.jumpBuffered = false;
       this.pausePressed = false;
+      this.nextDreamPressed = false;
       this.touchSprint = false;
       this.gamepadPauseHeld = false;
+      this.gamepadNextHeld = false;
       this.sprintButton.classList.remove('is-active');
       this.resetStick('move');
       this.resetStick('look');
@@ -161,8 +175,12 @@ export class InputManager {
         const gamepadPause = Boolean(pad.buttons[9]?.pressed);
         if (gamepadPause && !this.gamepadPauseHeld) this.pausePressed = true;
         this.gamepadPauseHeld = gamepadPause;
+        const gamepadNext = Boolean(pad.buttons[3]?.pressed);
+        if (gamepadNext && !this.gamepadNextHeld) this.nextDreamPressed = true;
+        this.gamepadNextHeld = gamepadNext;
       } else {
         this.gamepadPauseHeld = false;
+        this.gamepadNextHeld = false;
       }
 
       if (this.jumpBuffered) {
@@ -179,8 +197,10 @@ export class InputManager {
 
     const pausePressed = this.pausePressed;
     this.pausePressed = false;
+    const nextDreamPressed = this.nextDreamPressed;
+    this.nextDreamPressed = false;
 
-    return { moveX, moveZ, lookX, lookY, sprint, jump, pausePressed };
+    return { moveX, moveZ, lookX, lookY, sprint, jump, pausePressed, nextDreamPressed };
   }
 
   dispose(): void {
@@ -196,6 +216,7 @@ export class InputManager {
     this.sprintButton.removeEventListener('pointerup', this.onSprintUp);
     this.sprintButton.removeEventListener('pointercancel', this.onSprintUp);
     this.pauseButton.removeEventListener('pointerdown', this.onPauseDown);
+    this.nextButton.removeEventListener('pointerdown', this.onNextDown);
     for (const cleanup of this.stickCleanups) cleanup();
     this.stickCleanups = [];
   }
@@ -204,6 +225,11 @@ export class InputManager {
     if (!this.enabled) return;
     if (e.code === 'Escape') {
       this.pausePressed = true;
+      return;
+    }
+    if (isNextDreamKey(e)) {
+      e.preventDefault();
+      this.nextDreamPressed = true;
       return;
     }
     if (e.code === 'Space') {
@@ -233,8 +259,10 @@ export class InputManager {
     this.mouseDy = 0;
     this.jumpBuffered = false;
     this.pausePressed = false;
+    this.nextDreamPressed = false;
     this.touchSprint = false;
     this.gamepadPauseHeld = false;
+    this.gamepadNextHeld = false;
     this.sprintButton.classList.remove('is-active');
     this.resetStick('move');
     this.resetStick('look');
@@ -282,6 +310,12 @@ export class InputManager {
       return;
     }
     this.pausePressed = true;
+  };
+
+  private onNextDown = (event: PointerEvent): void => {
+    if (!this.enabled) return;
+    event.preventDefault();
+    this.nextDreamPressed = true;
   };
 
   private bindStick(zone: HTMLElement, which: 'move' | 'look'): void {

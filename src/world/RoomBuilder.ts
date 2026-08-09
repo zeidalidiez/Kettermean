@@ -810,9 +810,7 @@ export class RoomWorld {
     const isPortal = kind === 'door_fake' || Boolean(prop.linksOnTouch && /door|portal|exit/i.test(prop.label));
     if (isPortal) {
       this.addPortalBeacon(prop);
-      // Slightly generous door trigger so players can walk through painted exits.
-      const doorBox = expandBox(box, 0.25, 0.1, 0.35);
-      this.addLinkTrigger(doorBox, `door:${prop.id || prop.label}`);
+      // Doors remain readable landmarks, but dream transitions are explicit (R/Y/touch).
       if (prop.solid !== false) this.addCollider({ ...box, linksOnTouch: false, label: prop.label });
     } else if (prop.solid !== false) {
       this.addCollider({ ...box, linksOnTouch: false, label: prop.label });
@@ -841,7 +839,7 @@ export class RoomWorld {
     // become invisible blockers as soon as the model moved away.
   }
 
-  /** Exit readability is an invariant: these markers ignore fog and room lighting. */
+  /** Door readability is an invariant: these markers ignore fog and room lighting. */
   private addPortalBeacon(prop: RoomProp): void {
     const color = this.spec?.palette.light ?? '#f4fbff';
     const frame = new THREE.Group();
@@ -932,7 +930,7 @@ export class RoomWorld {
     context.font = '900 46px monospace';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillText('EXIT', canvas.width / 2, canvas.height / 2 + 2);
+    context.fillText('DREAM', canvas.width / 2, canvas.height / 2 + 2);
     this.exitLabelTexture = new THREE.CanvasTexture(canvas);
     this.exitLabelTexture.colorSpace = THREE.SRGBColorSpace;
     this.exitLabelTexture.needsUpdate = true;
@@ -943,11 +941,6 @@ export class RoomWorld {
     this.colliders.push({ ...box, label: label ?? box.label });
   }
 
-  private addLinkTrigger(box: ColliderBox, label: string): void {
-    const trigger = { ...box, linksOnTouch: true, label };
-    this.linkTriggers.push(trigger);
-    this.colliders.push(trigger);
-  }
 }
 
 function feetBounds(
@@ -1246,18 +1239,6 @@ function wallCollider(
   if (side === 'south') return { ...base, minZ: halfD - t / 2, maxZ: halfD + t / 2 };
   if (side === 'east') return { ...base, minX: halfW - t / 2, maxX: halfW + t / 2 };
   return { ...base, minX: -halfW - t / 2, maxX: -halfW + t / 2 };
-}
-
-function expandBox(box: ColliderBox, x: number, y: number, z: number): ColliderBox {
-  return {
-    ...box,
-    minX: box.minX - x,
-    maxX: box.maxX + x,
-    minY: box.minY,
-    maxY: box.maxY + y,
-    minZ: box.minZ - z,
-    maxZ: box.maxZ + z,
-  };
 }
 
 function clampInt(value: number, min: number, max: number): number {

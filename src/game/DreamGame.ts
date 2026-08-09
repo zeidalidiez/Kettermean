@@ -138,6 +138,7 @@ export class DreamGame {
     this.moodBias = 'static';
     this.nextRoomPlan = null;
     this.linking = false;
+    this.lastLinkAt = -Infinity;
     this.fade.classList.remove('active');
 
     this.menu.classList.add('hidden');
@@ -333,7 +334,7 @@ export class DreamGame {
     return this.nextRoomPlan;
   }
 
-  private async performLink(): Promise<void> {
+  private async advanceDream(): Promise<void> {
     if (this.linking || this.state !== 'playing') return;
     const now = performance.now();
     if (now - this.lastLinkAt < LINK.cooldownMs) return;
@@ -354,7 +355,7 @@ export class DreamGame {
       this.rootSeed = plan.rootSeed;
       this.currentSeed = plan.seed;
 
-      // Linking must never wait on a network request or model download. Use a
+      // Advancing must never wait on a network request or model download. Use a
       // completed prefetch when available and deterministic offline output otherwise.
       const spec = this.generator.getOrOffline(plan.context);
       await sleep(LINK.fadeMs);
@@ -365,11 +366,11 @@ export class DreamGame {
       this.startLoop();
       this.schedulePrefetch();
     } catch (err) {
-      console.error('[Kettermean] room link failed', err);
+      console.error('[Kettermean] next dream failed', err);
       if (runEpoch === this.runEpoch) {
         this.state = 'playing';
         this.startLoop();
-        this.showToast('Could not link rooms · try another door');
+        this.showToast('Could not reach the next dream · press R to retry');
       }
     } finally {
       if (runEpoch === this.runEpoch) {
@@ -388,13 +389,12 @@ export class DreamGame {
       const frame = this.input.sample(dt);
       if (frame.pausePressed) {
         this.pause();
+      } else if (frame.nextDreamPressed) {
+        void this.advanceDream();
       } else {
         const colliders = this.roomWorld.getColliders();
-        const linkHit = this.player.update(dt, frame, colliders);
+        this.player.update(dt, frame, colliders);
         this.roomWorld.update(dt, this.player.position);
-        if (linkHit?.linksOnTouch) {
-          void this.performLink();
-        }
       }
     } else if (this.state === 'paused') {
       const frame = this.input.sample(dt);
@@ -461,7 +461,14 @@ export class DreamGame {
   };
 
   private onPausedKeyDown = (event: KeyboardEvent): void => {
-    if (this.state !== 'paused' || event.code !== 'Escape' || event.repeat) return;
+    if (this.state !== 'paused' || event.repeat) return;
+    if (event.code === 'KeyR') {
+      event.preventDefault();
+      this.resume();
+      void this.advanceDream();
+      return;
+    }
+    if (event.code !== 'Escape') return;
     // Browsers may report pointer-lock loss just before dispatching the Escape
     // keydown that caused it. Do not let that same physical press also resume.
     if (performance.now() - this.pausedAt < 150) return;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { requestPointerLockIfSupported } from '../src/input/InputManager';
+import { isNextDreamKey, requestPointerLockIfSupported } from '../src/input/InputManager';
 
 describe('pointer lock compatibility', () => {
   it('does nothing when a touch browser does not implement Pointer Lock', () => {
@@ -22,5 +22,13 @@ describe('pointer lock compatibility', () => {
 
     expect(syncFailure.requestPointerLock).toHaveBeenCalledOnce();
     expect(asyncFailure.requestPointerLock).toHaveBeenCalledOnce();
+  });
+});
+
+describe('next dream keyboard shortcut', () => {
+  it('accepts a fresh R press and rejects repeats or unrelated keys', () => {
+    expect(isNextDreamKey({ code: 'KeyR', repeat: false })).toBe(true);
+    expect(isNextDreamKey({ code: 'KeyR', repeat: true })).toBe(false);
+    expect(isNextDreamKey({ code: 'Space', repeat: false })).toBe(false);
   });
 });
