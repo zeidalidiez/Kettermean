@@ -210,6 +210,11 @@ export function getBrowserEngineStatus(): {
   };
 }
 
+/** Stop an obsolete completion while keeping the loaded model available. */
+export function interruptBrowserGeneration(): void {
+  engine?.interruptGenerate();
+}
+
 async function loadModelNow(
   id: string,
   onProgress?: ProgressCb,

@@ -8,6 +8,7 @@ vi.mock('../src/llm/browserEngine', () => ({
   browserChatCompletion: browser.completion,
   disposeBrowserEngine: vi.fn(async () => undefined),
   ensureBrowserEngine: vi.fn(async () => undefined),
+  interruptBrowserGeneration: vi.fn(),
 }));
 
 import { RoomGenerator } from '../src/llm/RoomGenerator';

@@ -207,4 +207,39 @@ describe('RoomGenerator cost controls', () => {
     expect(statuses[0]).toContain('OpenRouter · openrouter/free · requesting');
     expect(statuses.at(-1)).toContain('retry 1/3');
   });
+
+  it('supersedes a missed-room request instead of queueing the current room behind it', async () => {
+    let requestNumber = 0;
+    let firstSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      requestNumber += 1;
+      if (requestNumber === 1) {
+        firstSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          firstSignal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        });
+      }
+      return Promise.resolve(
+        response(
+          '{"themeId":"fluorescent_lobby","title":"Current Cloud Room","blurb":"This direction belongs to the room ahead.","mood":"dynamic"}',
+        ),
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const generator = new RoomGenerator(settings);
+    generator.beginSession();
+    generator.prefetch(context('already-missed-room'));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    const currentContext = context('current-next-room');
+    generator.prefetch(currentContext);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(generator.hasLlmRoom(currentContext)).toBe(true));
+    expect(firstSignal?.aborted).toBe(true);
+    expect(generator.hasLlmRoom(context('already-missed-room'))).toBe(false);
+  });
 });

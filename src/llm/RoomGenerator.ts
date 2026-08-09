@@ -19,6 +19,7 @@ import {
   browserChatCompletion,
   disposeBrowserEngine,
   ensureBrowserEngine,
+  interruptBrowserGeneration,
 } from './browserEngine';
 import { extractJsonObject, normalizeRoomSpec } from './schema';
 import {
@@ -41,6 +42,7 @@ export class RoomGenerator {
   private inflight = new Map<string, Promise<RoomSpec>>();
   private failedKeys = new Set<string>();
   private generationTail: Promise<void> = Promise.resolve();
+  private activePrefetchKey: string | null = null;
   private sessionEpoch = 0;
   private activeCloudController: AbortController | null = null;
   private sessionFailures = 0;
@@ -145,6 +147,13 @@ export class RoomGenerator {
     }
     const effectiveCtx = withSettingsConstraints(ctx, this.settings);
     const key = cacheKey(effectiveCtx, this.settings);
+    if (this.activePrefetchKey && this.activePrefetchKey !== key) {
+      // The player already left the room this request was meant to follow.
+      // Prioritize the current next dream instead of letting slow free models
+      // keep every subsequent request one room behind.
+      if (this.settings.provider === 'browser') interruptBrowserGeneration();
+      this.invalidateInFlight();
+    }
     const existing = this.memory.get(key);
     if (existing && !existing.offline) {
       this.onStatus?.(`Next AI room ready · ${providerLabel(this.settings)}`);
@@ -161,6 +170,7 @@ export class RoomGenerator {
       return;
     }
     const epoch = this.sessionEpoch;
+    this.activePrefetchKey = key;
     this.onStatus?.(
       `${providerLabel(this.settings)} · ${providerModel(this.settings)} · requesting next room…`,
     );
@@ -177,6 +187,11 @@ export class RoomGenerator {
         if (epoch === this.sessionEpoch) {
           console.warn('[Kettermean] room prefetch failed.', err);
           this.onStatus?.('AI prefetch failed · procedural direction ready');
+        }
+      })
+      .finally(() => {
+        if (epoch === this.sessionEpoch && this.activePrefetchKey === key) {
+          this.activePrefetchKey = null;
         }
       });
   }
@@ -460,6 +475,7 @@ export class RoomGenerator {
   private invalidateInFlight(): void {
     this.sessionEpoch += 1;
     this.inflight.clear();
+    this.activePrefetchKey = null;
     this.activeCloudController?.abort();
     this.activeCloudController = null;
     // A provider/session change must not sit behind an obsolete WebLLM job.
