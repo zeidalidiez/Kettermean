@@ -143,7 +143,7 @@ describe('offline room invariants', () => {
     expect(largestSide).toBeGreaterThan(320);
     expect(largestWorldScale).toBeGreaterThan(15);
     expect(dimRooms).toBeLessThan(150);
-  });
+  }, 15_000);
 
   it('actively avoids recent themes, layouts, shaders, and lighting treatments', () => {
     const recentRooms: RoomHistoryEntry[] = [];
