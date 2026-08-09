@@ -24,6 +24,15 @@ interface LiveEntity {
   data: RoomEntity;
   origin: THREE.Vector3;
   phase: number;
+  rig?: EntityRig;
+}
+
+interface EntityRig {
+  leftArm?: THREE.Object3D;
+  rightArm?: THREE.Object3D;
+  leftLeg?: THREE.Object3D;
+  rightLeg?: THREE.Object3D;
+  head?: THREE.Object3D;
 }
 
 interface PulsingLight {
@@ -300,6 +309,8 @@ export class RoomWorld {
         }
       }
 
+      animateRig(ent.rig, ent.phase, ent.data.behavior);
+
       // Entities never act as room links.
     }
   }
@@ -462,7 +473,12 @@ export class RoomWorld {
 
   private addProp(prop: RoomProp): void {
     const kind = resolveKind(prop.kind, prop.label);
-    const mesh = buildModel(kind, prop.color || '#6a7a8a', prop.color || '#c4b59a');
+    const mesh = buildModel(
+      kind,
+      prop.color || '#6a7a8a',
+      prop.color || '#c4b59a',
+      prop.assetId,
+    );
     scaleModelToBounds(mesh, kind, prop.scale);
     // Models are feet-origin; keep y at floor unless explicitly elevated.
     mesh.position.set(prop.position.x, Math.max(0, prop.position.y), prop.position.z);
@@ -484,7 +500,12 @@ export class RoomWorld {
 
   private addEntity(ent: RoomEntity): void {
     const kind = resolveKind(ent.kind, ent.label);
-    const mesh = buildModel(kind, ent.color || '#6a7a8a', ent.color || '#c4b59a');
+    const mesh = buildModel(
+      kind,
+      ent.color || '#6a7a8a',
+      ent.color || '#c4b59a',
+      ent.assetId,
+    );
     scaleModelToBounds(mesh, kind, ent.scale);
     mesh.position.set(ent.position.x, Math.max(0, ent.position.y), ent.position.z);
     this.group.add(mesh);
@@ -493,6 +514,7 @@ export class RoomWorld {
       data: ent,
       origin: mesh.position.clone(),
       phase: stablePhase(ent.id),
+      rig: collectRig(mesh),
     });
     // NPCs/creatures are moving atmosphere. Static AABBs at their origins would
     // become invisible blockers as soon as the model moved away.
@@ -632,6 +654,38 @@ function stablePhase(id: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return ((hash >>> 0) / 4294967296) * Math.PI * 2;
+}
+
+function collectRig(root: THREE.Object3D): EntityRig | undefined {
+  const rig: EntityRig = {
+    leftArm: root.getObjectByName('rig-arm-left'),
+    rightArm: root.getObjectByName('rig-arm-right'),
+    leftLeg: root.getObjectByName('rig-leg-left'),
+    rightLeg: root.getObjectByName('rig-leg-right'),
+    head: root.getObjectByName('rig-head'),
+  };
+  return Object.values(rig).some(Boolean) ? rig : undefined;
+}
+
+function animateRig(
+  rig: EntityRig | undefined,
+  phase: number,
+  behavior: RoomEntity['behavior'],
+): void {
+  if (!rig) return;
+  const moving = behavior === 'wander' || behavior === 'orbit';
+  const stride = Math.sin(phase * (moving ? 3.2 : 0.75)) * (moving ? 0.34 : 0.035);
+  setRigAxis(rig.leftArm, 'x', stride);
+  setRigAxis(rig.rightArm, 'x', -stride);
+  setRigAxis(rig.leftLeg, 'x', -stride * 0.72);
+  setRigAxis(rig.rightLeg, 'x', stride * 0.72);
+  setRigAxis(rig.head, 'y', Math.sin(phase * 0.42) * 0.08);
+}
+
+function setRigAxis(object: THREE.Object3D | undefined, axis: 'x' | 'y', offset: number): void {
+  if (!object) return;
+  const base = object.userData.baseRotation as { x?: number; y?: number } | undefined;
+  object.rotation[axis] = (base?.[axis] ?? 0) + offset;
 }
 
 function defaultVisuals(): RoomVisuals {

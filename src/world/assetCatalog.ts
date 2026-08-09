@@ -5,6 +5,7 @@ import type {
   RoomLayoutStyle,
   RoomVisuals,
 } from '../types';
+import { EXPANDED_ASSETS } from './expandedAssets';
 
 /**
  * Curated kit library. LLMs (cloud or tiny browser models) should SELECT and
@@ -150,6 +151,7 @@ export const ASSETS: AssetDef[] = [
   a('door_service', 'door_fake', 'service door', 'portal', ['service', 'corridor', 'parking'], ['static', 'downer', 'dynamic'], { x: 1.1, y: 2.2, z: 0.18 }, 0.9, 1.3, { linksByDefault: true }),
   a('door_glass', 'door_fake', 'glass lobby door', 'portal', ['lobby', 'mall', 'clinic'], ['static', 'upper'], { x: 1.3, y: 2.4, z: 0.16 }, 0.9, 1.35, { linksByDefault: true }),
   a('arch_portal', 'door_fake', 'wrong archway', 'portal', ['courtyard', 'chapel', 'dream'], ['dynamic', 'upper', 'downer'], { x: 2.0, y: 3.0, z: 0.25 }, 0.9, 1.6, { linksByDefault: true }),
+  ...EXPANDED_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [
@@ -436,12 +438,24 @@ export function listThemeIds(): string[] {
 
 /** Compact catalog summary for LLM prompts (keeps tokens low). */
 export function catalogPromptSummary(): string {
-  const lines = ASSETS.map(
+  const baseLines = ASSETS.filter((asset) => !asset.family).map(
     (a) =>
       `${a.id}|${a.category}|${a.label}|tags:${a.tags.join(',')}|moods:${a.moods.join(',')}|scale:${a.scaleRange.min}-${a.scaleRange.max}`,
   );
+  const families = new Map<string, AssetDef[]>();
+  for (const asset of ASSETS) {
+    if (!asset.family) continue;
+    const values = families.get(asset.family) ?? [];
+    values.push(asset);
+    families.set(asset.family, values);
+  }
+  const familyLines = [...families.entries()].map(([family, variants]) => {
+    const first = variants[0]!;
+    const last = variants.at(-1)!;
+    return `${family}|${first.category}|ids:${first.id}..${last.id}|variants:${variants.length}|tags:${first.tags.join(',')}|moods:${first.moods.join(',')}`;
+  });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
-  return `ASSETS:\n${lines.join('\n')}\nTHEMES:\n${themes.join('\n')}`;
+  return `ASSETS:\n${[...baseLines, ...familyLines].join('\n')}\nTHEMES:\n${themes.join('\n')}`;
 }
 
 function a(

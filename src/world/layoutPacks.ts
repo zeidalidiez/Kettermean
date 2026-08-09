@@ -795,15 +795,20 @@ function resolvePick(rng: SeededRng, pick: string, ctx: PackStampContext): strin
   }
   const direct = getAsset(pick);
   if (!direct) return null;
-  if (!avoided.has(pick)) return pick;
   const alternatives = ASSETS.filter(
     (asset) =>
       asset.id !== pick &&
       !avoided.has(asset.id) &&
+      Boolean(asset.family) &&
       asset.category === direct.category &&
-      asset.tags.some((tag) => direct.tags.includes(tag)),
+      asset.tags.some((tag) => direct.tags.includes(tag)) &&
+      Math.max(asset.defaultScale.x, asset.defaultScale.z) <=
+        Math.max(direct.defaultScale.x, direct.defaultScale.z) * 2.2,
   );
-  return alternatives.length && rng.chance(0.88) ? rng.pick(alternatives).id : pick;
+  if (avoided.has(pick)) {
+    return alternatives.length && rng.chance(0.92) ? rng.pick(alternatives).id : pick;
+  }
+  return alternatives.length && rng.chance(0.64) ? rng.pick(alternatives).id : pick;
 }
 
 function tagsForAssets(ids: string[]): string[] {

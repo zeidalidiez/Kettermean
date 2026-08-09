@@ -6,9 +6,11 @@ Walk rooms that feel slightly wrong. Pass through a marked door to link into ano
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated prop kit
+- Three.js first-person rooms assembled from a curated prop kit, including 240 additional composed prop and NPC variants
 - Seeded continuum and randomized dream modes
-- Door-only room links with mood-tinted fades
+- History-aware novelty across themes, layouts, lighting, shaders, moods, and room contents
+- Indoor chambers, vast open halls, and outdoor dreamscapes with procedural skies and horizons
+- Door-only room links with mood-tinted fades and fog-independent exit beacons
 - Per-room gravity, movement, friction, bounce, and sway
 - Seeded lighting, tint, retro, dream, noir, CRT, and wireframe treatments
 - Keyboard/mouse, gamepad, and complete touch controls
@@ -43,7 +45,9 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 3. At a door, Kettermean uses the completed prefetched room when available or the deterministic offline room otherwise.
 4. A late provider result is cached for its seed; it never replaces a room underneath the player.
 
-Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets.
+Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, doors, lighting, visual effects, safety validation, and performance budgets. Recent-room fingerprints actively steer the director away from repeated themes, layouts, treatments, moods, and assets.
+
+The procedural catalog includes furniture, public-space fixtures, outdoor objects, and ten richer humanoid families. NPCs use composed heads, faces, torsos, limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders.
 
 ## Cost and lifecycle controls
 
