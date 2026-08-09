@@ -117,5 +117,6 @@ export const ROOM = {
   propRenderCostMax: 80,
   entityCountMin: 0,
   entityCountMax: 12,
-  entityRenderCostMax: 32,
+  // One round-four creature can occupy up to 43 five-mesh units by itself.
+  entityRenderCostMax: 44,
 } as const;

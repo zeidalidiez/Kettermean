@@ -59,8 +59,9 @@ describe('high-detail artisan expansion', () => {
 
       const minimum = asset.category === 'npc' ? 34 : asset.category === 'creature' ? 26 : 18;
       expect(meshes.length, asset.id).toBeGreaterThanOrEqual(minimum);
+      expect(asset.renderCost, asset.id).toBeGreaterThanOrEqual(Math.ceil(meshes.length / 5));
       expect(model.userData.detailTier, asset.id).toBe('high');
-      expect(boundsForKind(kind).h, asset.id).toBeGreaterThan(0);
+      expectModelFitsDeclaredBounds(model, boundsForKind(kind), asset.id);
 
       const signature = meshes.map((mesh) => [
         mesh.name,
@@ -141,7 +142,7 @@ describe('high-detail artisan expansion', () => {
     const used = new Set<string>();
     const usedFamilies = new Set<string>();
 
-    for (let index = 0; index < 3_000; index += 1) {
+    for (let index = 0; index < 4_500; index += 1) {
       const room = generateOfflineRoom({
         seed: `artisan-coverage-${index}`,
         previousTitles: [],
@@ -158,5 +159,21 @@ describe('high-detail artisan expansion', () => {
 
     expect(usedFamilies.size, `families reached: ${usedFamilies.size}`).toBe(57);
     expect(used.size, `variants reached: ${used.size}`).toBeGreaterThanOrEqual(420);
-  }, 30_000);
+  }, 45_000);
 });
+
+function expectModelFitsDeclaredBounds(
+  model: THREE.Group,
+  declared: { w: number; h: number; d: number },
+  assetId: string,
+): void {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  expect(size.x, `${assetId}:width`).toBeCloseTo(declared.w, 5);
+  expect(size.y, `${assetId}:height`).toBeCloseTo(declared.h, 5);
+  expect(size.z, `${assetId}:depth`).toBeCloseTo(declared.d, 5);
+  expect(box.min.y, `${assetId}:feet`).toBeCloseTo(0, 5);
+  expect(center.x, `${assetId}:center-x`).toBeCloseTo(0, 5);
+  expect(center.z, `${assetId}:center-z`).toBeCloseTo(0, 5);
+}

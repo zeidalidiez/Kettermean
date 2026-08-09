@@ -258,6 +258,20 @@ const VARIANT_LABELS = [
 export const ATELIER_VARIANTS_PER_FAMILY = 6;
 const ALL_MOODS: MoodAxis[] = ['upper', 'downer', 'static', 'dynamic'];
 
+// Conservative five-mesh-unit costs. Each slot is the measured maximum for
+// that variant across its category, including an optional generated face kit.
+// Keeping the costs variant-aware lets detailed objects remain reachable while
+// preventing a room from filling every placement with hundred-mesh models.
+export const ATELIER_PROP_RENDER_COST_BY_VARIANT = [22, 23, 36, 24, 24, 24] as const;
+export const ATELIER_NPC_RENDER_COST_BY_VARIANT = [34, 33, 36, 36, 38, 36] as const;
+export const ATELIER_CREATURE_RENDER_COST_BY_VARIANT = [40, 41, 43, 38, 39, 39] as const;
+
+function atelierRenderCost(category: AssetCategory, variant: number): number {
+  if (category === 'npc') return ATELIER_NPC_RENDER_COST_BY_VARIANT[variant]!;
+  if (category === 'creature') return ATELIER_CREATURE_RENDER_COST_BY_VARIANT[variant]!;
+  return ATELIER_PROP_RENDER_COST_BY_VARIANT[variant]!;
+}
+
 export const ATELIER_ASSETS: AssetDef[] = ATELIER_FAMILY_DEFINITIONS.flatMap(
   (family) => Array.from({ length: ATELIER_VARIANTS_PER_FAMILY }, (_, variant) => ({
     id: `${family.id}_${String(variant + 1).padStart(2, '0')}`,
@@ -276,7 +290,7 @@ export const ATELIER_ASSETS: AssetDef[] = ATELIER_FAMILY_DEFINITIONS.flatMap(
     linksByDefault: false,
     solidDefault: family.category !== 'npc' && family.category !== 'creature',
     weight: family.category === 'npc' ? 1.02 : family.category === 'creature' ? 0.94 : 1.22,
-    renderCost: family.category === 'npc' ? 12 : family.category === 'creature' ? 11 : 9,
+    renderCost: atelierRenderCost(family.category, variant),
     family: family.id,
     variant,
   })),

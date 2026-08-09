@@ -369,6 +369,31 @@ const TAG_LINES: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
+export const NPC_DIALOGUE_TAG_LINES = TAG_LINES;
+
+// Catalog and room tags use practical scene vocabulary, while dialogue can
+// reach for a related literary register. Expand only close relationships so
+// the newer pools are genuinely reachable without making every room sound the
+// same (for example, `wet` can evoke maritime lines, but `hotel` cannot).
+const TAG_RELATIONSHIPS: Readonly<Record<string, readonly string[]>> = {
+  weather: ['observatory'],
+  storm: ['observatory'],
+  night: ['celestial'],
+  eclipse: ['celestial'],
+  tech: ['broadcast'],
+  communication: ['broadcast'],
+  cinema: ['broadcast'],
+  home: ['domestic'],
+  laundry: ['domestic'],
+  station: ['subterranean'],
+  transit: ['subterranean'],
+  service: ['subterranean'],
+  garden: ['botanical'],
+  greenhouse: ['botanical'],
+  aquarium: ['maritime'],
+  wet: ['maritime'],
+};
+
 export const NPC_DIALOGUE_VOCABULARY = new Set(
   [
     ...ADDRESSES,
@@ -397,7 +422,11 @@ export function generateNpcDialogue(context: NpcDialogueContext): string {
   const contradiction = rng.pick(CONTRADICTIONS);
   const observation = rng.pick(OBSERVATIONS);
   const question = rng.pick(QUESTIONS);
-  const tagLines = context.tags.flatMap((tag) => TAG_LINES[tag.toLowerCase()] ?? []);
+  const dialogueTags = new Set(context.tags.map((tag) => tag.toLowerCase()));
+  for (const tag of [...dialogueTags]) {
+    for (const related of TAG_RELATIONSHIPS[tag] ?? []) dialogueTags.add(related);
+  }
+  const tagLines = [...dialogueTags].flatMap((tag) => TAG_LINES[tag] ?? []);
   const conditionClause = context.condition === 'normal'
     ? ''
     : ` The ${context.condition} condition is considered routine.`;

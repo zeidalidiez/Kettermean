@@ -216,6 +216,16 @@ const VARIANT_LABELS = [
 const VARIANTS_PER_FAMILY = 8;
 const ALL_MOODS: MoodAxis[] = ['upper', 'downer', 'static', 'dynamic'];
 
+export const MASTERWORK_PROP_RENDER_COST_BY_VARIANT = [18, 14, 25, 14, 14, 15, 29, 15] as const;
+export const MASTERWORK_NPC_RENDER_COST_BY_VARIANT = [24, 21, 26, 23, 23, 24, 22, 22] as const;
+export const MASTERWORK_CREATURE_RENDER_COST_BY_VARIANT = [19, 22, 22, 22, 21, 22, 22, 24] as const;
+
+function masterworkRenderCost(category: AssetCategory, variant: number): number {
+  if (category === 'npc') return MASTERWORK_NPC_RENDER_COST_BY_VARIANT[variant]!;
+  if (category === 'creature') return MASTERWORK_CREATURE_RENDER_COST_BY_VARIANT[variant]!;
+  return MASTERWORK_PROP_RENDER_COST_BY_VARIANT[variant]!;
+}
+
 export const MASTERWORK_ASSETS: AssetDef[] = MASTERWORK_FAMILY_DEFINITIONS.flatMap(
   (family) => Array.from({ length: VARIANTS_PER_FAMILY }, (_, variant) => ({
     id: `${family.id}_${String(variant + 1).padStart(2, '0')}`,
@@ -234,7 +244,7 @@ export const MASTERWORK_ASSETS: AssetDef[] = MASTERWORK_FAMILY_DEFINITIONS.flatM
     linksByDefault: false,
     solidDefault: family.category !== 'npc' && family.category !== 'creature',
     weight: family.category === 'npc' ? 0.92 : family.category === 'creature' ? 0.82 : 1.08,
-    renderCost: family.category === 'npc' ? 8 : family.category === 'creature' ? 7 : 5,
+    renderCost: masterworkRenderCost(family.category, variant),
     family: family.id,
     variant,
   })),

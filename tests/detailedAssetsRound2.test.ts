@@ -74,8 +74,9 @@ describe('second high-detail masterwork expansion', () => {
 
       const minimum = asset.category === 'npc' ? 38 : asset.category === 'creature' ? 30 : 22;
       expect(meshes.length, asset.id).toBeGreaterThanOrEqual(minimum);
+      expect(asset.renderCost, asset.id).toBeGreaterThanOrEqual(Math.ceil(meshes.length / 5));
       expect(model.userData.detailTier, asset.id).toBe('masterwork');
-      expect(boundsForKind(kind).h, asset.id).toBeGreaterThan(0);
+      expectModelFitsDeclaredBounds(model, boundsForKind(kind), asset.id);
 
       const signature = signatureParts.join('|');
       const signatures = signaturesByFamily.get(asset.family!) ?? new Set<string>();
@@ -156,3 +157,19 @@ describe('second high-detail masterwork expansion', () => {
     expect(used.size, `variants reached: ${used.size}`).toBeGreaterThanOrEqual(420);
   }, 30_000);
 });
+
+function expectModelFitsDeclaredBounds(
+  model: THREE.Group,
+  declared: { w: number; h: number; d: number },
+  assetId: string,
+): void {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  expect(size.x, `${assetId}:width`).toBeCloseTo(declared.w, 5);
+  expect(size.y, `${assetId}:height`).toBeCloseTo(declared.h, 5);
+  expect(size.z, `${assetId}:depth`).toBeCloseTo(declared.d, 5);
+  expect(box.min.y, `${assetId}:feet`).toBeCloseTo(0, 5);
+  expect(center.x, `${assetId}:center-x`).toBeCloseTo(0, 5);
+  expect(center.z, `${assetId}:center-z`).toBeCloseTo(0, 5);
+}

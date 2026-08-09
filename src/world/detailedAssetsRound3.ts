@@ -256,6 +256,16 @@ const VARIANT_LABELS = [
 export const EXHIBITION_VARIANTS_PER_FAMILY = 6;
 const ALL_MOODS: MoodAxis[] = ['upper', 'downer', 'static', 'dynamic'];
 
+export const EXHIBITION_PROP_RENDER_COST_BY_VARIANT = [21, 18, 28, 24, 17, 24] as const;
+export const EXHIBITION_NPC_RENDER_COST_BY_VARIANT = [23, 24, 25, 25, 24, 26] as const;
+export const EXHIBITION_CREATURE_RENDER_COST_BY_VARIANT = [21, 21, 25, 24, 26, 27] as const;
+
+function exhibitionRenderCost(category: AssetCategory, variant: number): number {
+  if (category === 'npc') return EXHIBITION_NPC_RENDER_COST_BY_VARIANT[variant]!;
+  if (category === 'creature') return EXHIBITION_CREATURE_RENDER_COST_BY_VARIANT[variant]!;
+  return EXHIBITION_PROP_RENDER_COST_BY_VARIANT[variant]!;
+}
+
 export const EXHIBITION_ASSETS: AssetDef[] = EXHIBITION_FAMILY_DEFINITIONS.flatMap(
   (family) => Array.from({ length: EXHIBITION_VARIANTS_PER_FAMILY }, (_, variant) => ({
     id: `${family.id}_${String(variant + 1).padStart(2, '0')}`,
@@ -274,7 +284,7 @@ export const EXHIBITION_ASSETS: AssetDef[] = EXHIBITION_FAMILY_DEFINITIONS.flatM
     linksByDefault: false,
     solidDefault: family.category !== 'npc' && family.category !== 'creature',
     weight: family.category === 'npc' ? 0.98 : family.category === 'creature' ? 0.9 : 1.18,
-    renderCost: family.category === 'npc' ? 9 : family.category === 'creature' ? 8 : 6,
+    renderCost: exhibitionRenderCost(family.category, variant),
     family: family.id,
     variant,
   })),

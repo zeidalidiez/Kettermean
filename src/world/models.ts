@@ -4,18 +4,30 @@ import {
   DETAILED_BOUNDS,
   buildDetailedModel,
 } from './detailedModels';
-import type { DetailedModelKind } from './detailedAssets';
-import type { MasterworkModelKind } from './detailedAssetsRound2';
+import {
+  isDetailedModelKind,
+  type DetailedModelKind,
+} from './detailedAssets';
+import {
+  isMasterworkModelKind,
+  type MasterworkModelKind,
+} from './detailedAssetsRound2';
 import {
   MASTERWORK_BOUNDS,
   buildMasterworkModel,
 } from './detailedModelsRound2';
-import type { ExhibitionModelKind } from './detailedAssetsRound3';
+import {
+  isExhibitionModelKind,
+  type ExhibitionModelKind,
+} from './detailedAssetsRound3';
 import {
   EXHIBITION_BOUNDS,
   buildExhibitionModel,
 } from './detailedModelsRound3';
-import type { AtelierModelKind } from './detailedAssetsRound4';
+import {
+  isAtelierModelKind,
+  type AtelierModelKind,
+} from './detailedAssetsRound4';
 import {
   ATELIER_BOUNDS,
   buildAtelierModel,
@@ -2237,8 +2249,50 @@ export function buildModel(
       accent,
     });
   }
+  if (
+    isDetailedModelKind(kind) ||
+    isMasterworkModelKind(kind) ||
+    isExhibitionModelKind(kind) ||
+    isAtelierModelKind(kind)
+  ) {
+    normalizeComposedModelToBounds(model, boundsForKind(kind));
+  }
   modelCache.set(key, model);
   return model.clone(true);
+}
+
+/**
+ * High-detail builders deliberately layer details beyond their chassis. Wrap
+ * the completed model (including any face kit) so its real geometry matches
+ * the catalog dimensions, remains centered, and starts exactly at floor level.
+ * Room placement and collision both use those same declared dimensions.
+ */
+function normalizeComposedModelToBounds(
+  model: THREE.Group,
+  target: { w: number; h: number; d: number },
+): void {
+  const bounds = new THREE.Box3().setFromObject(model);
+  if (bounds.isEmpty()) return;
+  const size = bounds.getSize(new THREE.Vector3());
+  if (size.x <= 0 || size.y <= 0 || size.z <= 0) return;
+
+  const content = new THREE.Group();
+  content.name = 'high-detail-normalized-geometry';
+  const children = [...model.children];
+  for (const child of children) content.add(child);
+
+  const scaleX = target.w / size.x;
+  const scaleY = target.h / size.y;
+  const scaleZ = target.d / size.z;
+  const center = bounds.getCenter(new THREE.Vector3());
+  content.scale.set(scaleX, scaleY, scaleZ);
+  content.position.set(
+    -center.x * scaleX,
+    -bounds.min.y * scaleY,
+    -center.z * scaleZ,
+  );
+  model.add(content);
+  model.userData.normalizedToDeclaredBounds = true;
 }
 
 function createModel(

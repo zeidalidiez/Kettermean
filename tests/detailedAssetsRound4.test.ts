@@ -61,7 +61,7 @@ describe('fourth high-detail atelier expansion', () => {
       expect(variants.every((asset) => asset.tags.includes('high-detail'))).toBe(true);
       expect(variants.every((asset) => asset.tags.includes('atelier'))).toBe(true);
       expect(variants.every((asset) => asset.setIds.length > 0)).toBe(true);
-      expect(variants.every((asset) => asset.renderCost! >= 9)).toBe(true);
+      expect(variants.every((asset) => asset.renderCost! >= 22)).toBe(true);
     }
   });
 
@@ -107,8 +107,10 @@ describe('fourth high-detail atelier expansion', () => {
       expect(materialColors.size, asset.id).toBeGreaterThanOrEqual(6);
       expect(sprites, asset.id).toBe(0);
       expect(texturedMeshes, asset.id).toBe(0);
+      expect(asset.renderCost, asset.id).toBeGreaterThanOrEqual(Math.ceil(meshes.length / 5));
       expect(model.userData.detailTier, asset.id).toBe('atelier');
       expect(model.userData.geometryOnly, asset.id).toBe(true);
+      expect(model.userData.normalizedToDeclaredBounds, asset.id).toBe(true);
       expect(model.userData.faceKitDecision.host, asset.id).toBe(
         asset.category === 'npc'
           ? 'humanoid'
@@ -116,7 +118,22 @@ describe('fourth high-detail atelier expansion', () => {
             ? 'animal'
             : 'object',
       );
-      expect(boundsForKind(kind).h, asset.id).toBeGreaterThan(0);
+      const declaredBounds = boundsForKind(kind);
+      const actualBounds = new THREE.Box3().setFromObject(model);
+      const actualSize = actualBounds.getSize(new THREE.Vector3());
+      const actualCenter = actualBounds.getCenter(new THREE.Vector3());
+      expect(actualSize.x, `${asset.id}:width`).toBeCloseTo(declaredBounds.w, 5);
+      expect(actualSize.y, `${asset.id}:height`).toBeCloseTo(declaredBounds.h, 5);
+      expect(actualSize.z, `${asset.id}:depth`).toBeCloseTo(declaredBounds.d, 5);
+      expect(actualBounds.min.y, `${asset.id}:feet`).toBeCloseTo(0, 5);
+      expect(actualCenter.x, `${asset.id}:center-x`).toBeCloseTo(0, 5);
+      expect(actualCenter.z, `${asset.id}:center-z`).toBeCloseTo(0, 5);
+      if (kind === 'atelier_prop_polar_expedition_sledge') {
+        const runner = model.getObjectByName('expedition-sledge-runner') as THREE.Mesh;
+        expect(runner.scale.y, `${asset.id}:runner-length-axis`).toBeGreaterThan(
+          runner.scale.z * 10,
+        );
+      }
 
       const signature = signatureParts.join('|');
       const signatures = signaturesByFamily.get(asset.family!) ?? new Set<string>();

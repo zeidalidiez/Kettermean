@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { NPC_DIALOGUE_VOCABULARY, generateNpcDialogue } from '../src/world/npcDialogue';
+import { ATELIER_ASSETS } from '../src/world/detailedAssetsRound4';
+import {
+  NPC_DIALOGUE_TAG_LINES,
+  NPC_DIALOGUE_VOCABULARY,
+  generateNpcDialogue,
+} from '../src/world/npcDialogue';
 import { generateOfflineRoom } from '../src/world/offlineGenerator';
 import { wordCount } from '../src/world/textQuality';
 
@@ -32,6 +37,35 @@ describe('procedural NPC dialogue', () => {
       mood: 'static',
       condition: 'normal',
     }));
+  });
+
+  it('reaches the newer semantic dialogue pools through real catalog tags', () => {
+    const examples = [
+      ['observatory', 'atelier_npc_weather_observer_01'],
+      ['celestial', 'atelier_npc_eclipse_usher_01'],
+      ['broadcast', 'atelier_teletype_01'],
+      ['domestic', 'atelier_tea_robot_01'],
+      ['subterranean', 'atelier_npc_rail_inspector_01'],
+      ['botanical', 'atelier_npc_anatomist_01'],
+      ['maritime', 'atelier_npc_tide_keeper_01'],
+    ] as const;
+
+    for (const [semanticTag, assetId] of examples) {
+      const asset = ATELIER_ASSETS.find((candidate) => candidate.id === assetId)!;
+      const lines = Array.from({ length: 180 }, (_, index) => generateNpcDialogue({
+        seed: `reachable-${semanticTag}-${index}`,
+        label: asset.label,
+        tags: asset.tags,
+        mood: 'static',
+        condition: 'normal',
+      }));
+      expect(
+        lines.some((line) => NPC_DIALOGUE_TAG_LINES[semanticTag]!.some(
+          (phrase) => line.includes(phrase),
+        )),
+        `${semanticTag} through ${asset.tags.join(',')}`,
+      ).toBe(true);
+    }
   });
 
   it('gives every procedurally placed inhabitant something to say', () => {

@@ -262,7 +262,7 @@ function addPropIdentity(
         add([b.w * 0.035, b.h * 0.45, b.w * 0.035], [Math.cos(angle) * b.w * 0.27, b.h * 0.67, Math.sin(angle) * b.d * 0.27], spoke % 2 ? p.glow : p.trim, { shape: 'capsule', rotation: [Math.sin(angle), 0, -angle], name: 'navigation-compass-spoke' });
       }
       else {
-        for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.15, b.d * 0.92], [side * b.w * 0.34, b.h * 0.2, 0], p.trim, { shape: 'capsule', rotation: [Math.PI / 2, 0, 0], name: 'expedition-sledge-runner' });
+        for (const side of [-1, 1]) add([b.w * 0.06, b.d * 0.92, b.w * 0.06], [side * b.w * 0.34, b.h * 0.2, 0], p.trim, { shape: 'capsule', rotation: [Math.PI / 2, 0, 0], name: 'expedition-sledge-runner' });
         for (let lash = -6; lash <= 6; lash += 1) add([b.w * 0.025, b.h * 0.28, b.w * 0.025], [lash * b.w * 0.055, b.h * 0.48, 0], lash % 2 ? p.glow : p.light, { shape: 'capsule', rotation: [0, 0, lash * 0.025], name: 'expedition-cargo-lashing' });
       }
       break;
