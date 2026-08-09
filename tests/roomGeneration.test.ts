@@ -39,6 +39,7 @@ describe('offline room invariants', () => {
         ),
       ).toBeLessThanOrEqual(ROOM.entityRenderCostMax);
       expect(room.props.some((prop) => prop.linksOnTouch)).toBe(true);
+      expect(`${room.title} ${room.blurb}`).not.toMatch(/\bagain\b|you have been here/i);
       environments.add(room.environment ?? 'interior');
       largestSide = Math.max(largestSide, room.width, room.depth);
       expect(room.visuals).toBeDefined();

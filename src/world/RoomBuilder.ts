@@ -242,6 +242,7 @@ export class RoomWorld {
       lighting.ambient,
       lighting.ambientIntensity * (outdoor ? 1.15 : 1),
     );
+    const readabilityAmbient = new THREE.AmbientLight('#ffffff', outdoor ? 0.3 : 0.38);
     const hemi = new THREE.HemisphereLight(
       lighting.primary,
       lighting.ground,
@@ -264,7 +265,7 @@ export class RoomWorld {
       1.25,
     );
     this.navigationLight.position.set(0, PLAYER.eyeHeight + 0.35, 0);
-    this.lights.push(ambient, hemi, key, fill, this.navigationLight);
+    this.lights.push(ambient, readabilityAmbient, hemi, key, fill, this.navigationLight);
     for (const l of this.lights) scene.add(l);
 
     this.fog = new THREE.Fog(spec.palette.fog, Math.max(8, spec.fogNear), Math.max(spec.fogFar, spec.fogNear + 18));

@@ -446,7 +446,7 @@ function varyTitle(rng: SeededRng, base: string, mood: MoodAxis): string {
     dynamic: ['Shifting', 'Unsteady', 'Moving', 'Flicker'],
   } as const;
   if (rng.chance(0.55)) return `${rng.pick(prefixes[mood])} ${base}`;
-  if (rng.chance(0.35)) return `${base} ${rng.pick(['Again', 'Annex', 'B', 'North', 'After'])}`;
+  if (rng.chance(0.35)) return `${base} ${rng.pick(['Annex', 'B', 'North', 'After', 'Mezzanine'])}`;
   return base;
 }
 
@@ -455,7 +455,7 @@ function varyBlurb(rng: SeededRng, base: string, mood: MoodAxis): string {
     'Something left recently.',
     'The lights remember a different hour.',
     'Footsteps do not echo the way they should.',
-    'You have been here, or somewhere like it.',
+    'A distant intercom clears its throat.',
     'The air tastes like dust and old coffee.',
     'A chair faces nothing on purpose.',
   ];
