@@ -89,7 +89,9 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     depth,
     themeTags: theme.tags,
     mood,
-    preferAssets: [...new Set([...theme.preferredAssets, ...(steer?.preferAssets ?? [])])],
+    preferAssets: [...new Set([...theme.preferredAssets, ...(steer?.preferAssets ?? [])])].filter(
+      (assetId) => getAsset(assetId)?.category !== 'portal',
+    ),
     giant: steer?.giant,
     targetPacks,
     layoutStyle,
@@ -101,23 +103,6 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
       .flatMap((room) => [room.primarySet, room.contrastSet])
       .filter((setId): setId is string => Boolean(setId)),
   });
-
-  // Always retain at least one atmospheric threshold landmark.
-  for (const p of placements) {
-    const a = getAsset(p.assetId);
-    p.linksOnTouch = a?.category === 'portal';
-  }
-  if (!placements.some((p) => p.linksOnTouch)) {
-    placements.push({
-      assetId: 'door_fake',
-      x: -width / 2 + 0.45,
-      z: 0,
-      rotY: Math.PI / 2,
-      scaleMul: 1,
-      linksOnTouch: true,
-      solid: true,
-    });
-  }
 
   const title = sanitizeDisplayText(
     cleanSteerText(steer?.title) || varyTitle(rng, theme.title, mood),
@@ -171,19 +156,13 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
 export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   const props: RoomProp[] = [];
   const entities: RoomEntity[] = [];
-  const portalReserve = Math.min(
-    ROOM.propCountMax,
-    dir.placements.filter((placement) => getAsset(placement.assetId)?.category === 'portal').length,
-  );
-  const nonPortalBudget = ROOM.propCountMax - portalReserve;
-  let nonPortalProps = 0;
   let propRenderCost = 0;
   let entityRenderCost = 0;
   const worldScale = clamp(dir.worldScale ?? 1, 0.6, 24);
 
   dir.placements.forEach((p, i) => {
     const asset = getAsset(p.assetId);
-    if (!asset) return;
+    if (!asset || asset.category === 'portal') return;
     const mul = clamp(p.scaleMul ?? 1, asset.scaleRange.min, asset.scaleRange.max);
     const localScale = p.scale ?? {
       x: asset.defaultScale.x * mul,
@@ -197,7 +176,6 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     };
     const isActor =
       asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly';
-    const isPortal = asset.category === 'portal';
     const label = sanitizeDisplayText(p.labelOverride || asset.label, asset.label, 64);
 
     if (isActor) {
@@ -222,10 +200,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     } else {
       const renderCost = asset.renderCost ?? 1;
       if (
-        isPortal
-          ? props.length >= ROOM.propCountMax
-          : nonPortalProps >= nonPortalBudget ||
-            propRenderCost + renderCost > ROOM.propRenderCostMax
+        props.length >= ROOM.propCountMax ||
+        propRenderCost + renderCost > ROOM.propRenderCostMax
       ) return;
       props.push({
         id: `p${i}`,
@@ -235,15 +211,12 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         rotationY: p.rotY ?? 0,
         scale,
         color: dir.palette?.accent || '#888888',
-        linksOnTouch: isPortal,
+        linksOnTouch: false,
         solid: p.solid ?? asset.solidDefault ?? true,
         kind: asset.kind,
         assetId: asset.id,
       });
-      if (!isPortal) {
-        nonPortalProps += 1;
-        propRenderCost += renderCost;
-      }
+      propRenderCost += renderCost;
     }
   });
 
@@ -682,11 +655,11 @@ const SCALE_PROFILE_WEIGHTS: ReadonlyArray<{
   profile: RoomScaleProfile;
   weight: number;
 }> = [
-  { profile: 'closet', weight: 0.12 },
-  { profile: 'human', weight: 0.52 },
-  { profile: 'grand', weight: 0.2 },
-  { profile: 'monumental', weight: 0.12 },
-  { profile: 'colossal', weight: 0.04 },
+  { profile: 'closet', weight: 0.025 },
+  { profile: 'human', weight: 0.62 },
+  { profile: 'grand', weight: 0.29 },
+  { profile: 'monumental', weight: 0.055 },
+  { profile: 'colossal', weight: 0.01 },
 ];
 
 function selectScaleProfile(
@@ -694,9 +667,13 @@ function selectScaleProfile(
   recentRooms: RoomHistoryEntry[],
 ): RoomScaleProfile {
   const previous = recentRooms.at(-1)?.scaleProfile;
-  const choices = previous
-    ? SCALE_PROFILE_WEIGHTS.filter(({ profile }) => profile !== previous)
-    : SCALE_PROFILE_WEIGHTS;
+  // Repeats are allowed: excluding the previous profile inflated rare extremes
+  // whenever a normal human room was removed from the next draw. A soft repeat
+  // penalty keeps variety without turning closets and colossal scenes common.
+  const choices = SCALE_PROFILE_WEIGHTS.map((choice) => ({
+    ...choice,
+    weight: choice.profile === previous ? choice.weight * 0.55 : choice.weight,
+  }));
   const total = choices.reduce((sum, choice) => sum + choice.weight, 0);
   let roll = rng.float(0, total);
   for (const choice of choices) {
@@ -755,8 +732,8 @@ function dimensionsForScale(
   }
   if (profile === 'human') {
     return {
-      width: clamp(proposedWidth * rng.float(0.72, 1.4), 8, 128),
-      depth: clamp(proposedDepth * rng.float(0.72, 1.4), 8, 128),
+      width: clamp(proposedWidth * rng.float(0.72, 1.4), 12, 128),
+      depth: clamp(proposedDepth * rng.float(0.72, 1.4), 12, 128),
       height: clamp(proposedHeight * rng.float(0.82, 1.45), 2.5, 22),
     };
   }

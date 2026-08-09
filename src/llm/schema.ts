@@ -280,7 +280,6 @@ function heuristicDirectorFromText(text: string): unknown | null {
     'desk_security',
     'vending_blue',
     'crib_empty',
-    'door_fake',
     'plant_fern',
     'lamp_floor',
     'anomaly_giant_baby',
@@ -304,11 +303,10 @@ function heuristicDirectorFromText(text: string): unknown | null {
   const moodMatch = lower.match(/\b(upper|downer|static|dynamic)\b/);
   if (foundAssets.length < 2 && !foundTheme) return null;
 
-  const picks = (foundAssets.length ? foundAssets : ['door_fake', 'chair_office', 'lamp_floor']).slice(
+  const picks = (foundAssets.length ? foundAssets : ['plant_fern', 'chair_office', 'lamp_floor']).slice(
     0,
     8,
   );
-  if (!picks.includes('door_fake')) picks.push('door_fake');
 
   return {
     themeId: foundTheme || 'fluorescent_lobby',
@@ -325,7 +323,7 @@ function heuristicDirectorFromText(text: string): unknown | null {
       z: (Math.floor(i / 4) - 0.5) * 3,
       rotY: 0,
       scaleMul: assetId === 'anomaly_giant_baby' ? 3 : 1,
-      linksOnTouch: assetId === 'door_fake' || assetId.startsWith('npc_') || assetId === 'anomaly_giant_baby',
+      linksOnTouch: false,
     })),
   };
 }

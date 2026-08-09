@@ -42,7 +42,10 @@ describe('offline room invariants', () => {
           0,
         ),
       ).toBeLessThanOrEqual(ROOM.entityRenderCostMax);
-      expect(room.props.some((prop) => prop.linksOnTouch)).toBe(true);
+      expect(room.props.some((prop) => prop.linksOnTouch)).toBe(false);
+      expect(
+        room.props.some((prop) => prop.assetId && getAsset(prop.assetId)?.category === 'portal'),
+      ).toBe(false);
       expect(`${room.title} ${room.blurb}`).not.toMatch(/\bagain\b|you have been here/i);
       environments.add(room.environment ?? 'interior');
       architectures.add(room.architecture ?? 'chamber');
@@ -107,7 +110,7 @@ describe('offline room invariants', () => {
     );
     expect(smallestSide).toBeLessThan(6);
     expect(largestSide).toBeGreaterThan(320);
-    expect(largestWorldScale).toBeGreaterThan(20);
+    expect(largestWorldScale).toBeGreaterThan(15);
     expect(dimRooms).toBeLessThan(150);
   });
 
@@ -133,13 +136,34 @@ describe('offline room invariants', () => {
       expect(lastTwo.some((entry) => entry.shader === room.visuals?.shader)).toBe(false);
       expect(lastTwo.some((entry) => entry.lighting === room.visuals?.lighting)).toBe(false);
       expect(lastTwo.some((entry) => entry.mood === room.mood)).toBe(false);
-      expect(lastTwo.at(-1)?.scaleProfile).not.toBe(room.scaleProfile);
-
       recentRooms.push(roomHistoryEntryFor(room));
       if (recentRooms.length > 12) recentRooms.shift();
       seed = childSeed(seed, `room-${index}`);
     }
   });
+
+  it('makes ordinary room scales common and both extremes genuinely rare', () => {
+    const counts = new Map<string, number>();
+    const sampleSize = 5_000;
+
+    for (let index = 0; index < sampleSize; index += 1) {
+      const room = generateOfflineRoom({
+        seed: `scale-rate-${index}`,
+        previousTitles: [],
+        moodBias: 'static',
+        allowGore: false,
+        linkIndex: index,
+      });
+      const profile = room.scaleProfile ?? 'human';
+      counts.set(profile, (counts.get(profile) ?? 0) + 1);
+    }
+
+    expect((counts.get('closet') ?? 0) / sampleSize).toBeLessThan(0.04);
+    expect((counts.get('colossal') ?? 0) / sampleSize).toBeLessThan(0.02);
+    expect(((counts.get('human') ?? 0) + (counts.get('grand') ?? 0)) / sampleSize).toBeGreaterThan(0.86);
+    expect(counts.get('closet')).toBeGreaterThan(0);
+    expect(counts.get('colossal')).toBeGreaterThan(0);
+  }, 15_000);
 
   it('keeps every theme preference attached to a real catalog asset', () => {
     for (const theme of THEME_PRESETS) {

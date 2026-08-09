@@ -27,7 +27,6 @@ export type PackRole =
   | 'nursery'
   | 'anomaly'
   | 'npc_beat'
-  | 'portal_frame'
   | 'pillar_row'
   | 'media'
   | 'plant_cluster'
@@ -90,8 +89,6 @@ export interface PackStampResult {
   composition: PlannedSceneComposition;
 }
 
-const PORTALS = new Set(['door_fake', 'door_service', 'door_glass', 'arch_portal']);
-
 /** Build a large combinatorial pack library once. */
 let CACHED: LayoutPack[] | null = null;
 
@@ -132,9 +129,6 @@ export function stampRoomPacks(
 
   const placements: DirectedPlacement[] = [];
   const occupied: Array<{ x: number; z: number; r: number }> = [];
-
-  // Always place doors first as portal packs along walls.
-  placeDoors(rng, placements, occupied, ctx);
 
   // Score packs: theme match + mood + occasional clash.
   const scored = packs
@@ -227,13 +221,12 @@ export function stampRoomPacks(
     Math.min(14, Math.max(4, 54 - placements.length)),
   );
 
-  // Preserve portal semantics for rendering and beacon styling.
-  for (const p of placements) {
-    const a = getAsset(p.assetId);
-    p.linksOnTouch = Boolean(a && (a.category === 'portal' || PORTALS.has(p.assetId)));
-  }
-
-  return { placements, composition };
+  // Dream changes are explicit player actions. Legacy portal assets are kept
+  // in the catalog for save compatibility, but never enter a generated scene.
+  return {
+    placements: placements.filter((placement) => getAsset(placement.assetId)?.category !== 'portal'),
+    composition,
+  };
 }
 
 function buildPackLibrary(): LayoutPack[] {
@@ -957,69 +950,6 @@ function findAnchor(
   return null;
 }
 
-function placeDoors(
-  rng: SeededRng,
-  placements: DirectedPlacement[],
-  occupied: Array<{ x: number; z: number; r: number }>,
-  ctx: PackStampContext,
-): void {
-  const area = ctx.width * ctx.depth;
-  const count = area > 55_000 ? 5 : area > 18_000 ? 4 : area > 240 ? 3 : area > 130 ? 2 : 1;
-  const sides: Array<'n' | 's' | 'e' | 'w'> = ['n', 's', 'e', 'w'];
-  for (let i = sides.length - 1; i > 0; i -= 1) {
-    const j = rng.int(0, i);
-    const t = sides[i]!;
-    sides[i] = sides[j]!;
-    sides[j] = t;
-  }
-  const doorIds =
-    ctx.environment === 'outdoor'
-      ? ['arch_portal', 'door_glass', 'arch_portal', 'door_fake']
-      : ['door_fake', 'door_service', 'door_glass', 'arch_portal'];
-  for (let i = 0; i < count; i += 1) {
-    const side = sides[i % sides.length]!;
-    const doorId = doorIds[i % doorIds.length]!;
-    const doorScale = doorId === 'arch_portal' ? rng.float(1.0, 1.4) : 1;
-    const worldScale = ctx.worldScale ?? 1;
-    const door = getAsset(doorId) ?? getAsset('door_fake');
-    const edgeInset = Math.max(
-      0.4,
-      (door?.defaultScale.z ?? 0.2) * doorScale * worldScale * 0.52,
-    );
-    const along = rng.float(-0.4, 0.4);
-    let x = 0;
-    let z = 0;
-    let rotY = 0;
-    if (side === 'w') {
-      x = -ctx.width / 2 + edgeInset;
-      z = ctx.depth * along * 0.5;
-      rotY = Math.PI / 2;
-    } else if (side === 'e') {
-      x = ctx.width / 2 - edgeInset;
-      z = ctx.depth * along * 0.5;
-      rotY = -Math.PI / 2;
-    } else if (side === 'n') {
-      z = -ctx.depth / 2 + edgeInset;
-      x = ctx.width * along * 0.5;
-      rotY = 0;
-    } else {
-      z = ctx.depth / 2 - edgeInset;
-      x = ctx.width * along * 0.5;
-      rotY = Math.PI;
-    }
-    placements.push({
-      assetId: getAsset(doorId) ? doorId : 'door_fake',
-      x,
-      z,
-      rotY,
-      scaleMul: doorScale,
-      linksOnTouch: true,
-      solid: true,
-    });
-    occupied.push({ x, z, r: 1.2 * doorScale * worldScale });
-  }
-}
-
 function scatterFill(
   rng: SeededRng,
   placements: DirectedPlacement[],
@@ -1164,7 +1094,7 @@ function resolvePick(
     return rng.pick(fresh.length ? fresh : matching).id;
   }
   const direct = getAsset(pick);
-  if (!direct) return null;
+  if (!direct || direct.category === 'portal') return null;
   let baseAlternatives = DIRECT_ALTERNATIVES.get(pick);
   if (!baseAlternatives) {
     baseAlternatives = (ASSETS_BY_CATEGORY.get(direct.category) ?? []).filter(

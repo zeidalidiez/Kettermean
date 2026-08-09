@@ -471,7 +471,9 @@ export function listThemeIds(): string[] {
 
 /** Compact catalog summary for LLM prompts (keeps tokens low). */
 export function catalogPromptSummary(): string {
-  const baseLines = ASSETS.filter((asset) => !asset.family).map(
+  const baseLines = ASSETS.filter(
+    (asset) => !asset.family && asset.category !== 'portal',
+  ).map(
     (a) =>
       `${a.id}|${a.category}|${a.label}|tags:${a.tags.join(',')}|moods:${a.moods.join(',')}|scale:${a.scaleRange.min}-${a.scaleRange.max}`,
   );

@@ -68,7 +68,6 @@ export class RoomWorld {
   private lights: THREE.Light[] = [];
   private pulsingLights: PulsingLight[] = [];
   private navigationLight: THREE.PointLight | null = null;
-  private exitLabelTexture: THREE.CanvasTexture | null = null;
   private spec: RoomSpec | null = null;
 
   build(spec: RoomSpec, scene: THREE.Scene): BuiltRoom {
@@ -362,7 +361,6 @@ export class RoomWorld {
   }
 
   getColliders(): ColliderBox[] {
-    // colliders includes solids + door link triggers
     return this.colliders;
   }
 
@@ -392,8 +390,6 @@ export class RoomWorld {
       }
     });
     for (const material of materials) material.dispose();
-    this.exitLabelTexture?.dispose();
-    this.exitLabelTexture = null;
     this.group.clear();
     clearMaterialCaches();
     clearModelMaterialCache();
@@ -812,6 +808,9 @@ export class RoomWorld {
 
   private addProp(prop: RoomProp): void {
     const kind = resolveKind(prop.kind, prop.label);
+    // Legacy room payloads can still contain the old fake exit. Dream changes
+    // now happen through R/touch/gamepad input, so never render portal models.
+    if (kind === 'door_fake') return;
     const mesh = buildModel(
       kind,
       prop.color || '#6a7a8a',
@@ -825,12 +824,7 @@ export class RoomWorld {
     this.group.add(mesh);
 
     const box = feetBounds(mesh.position, prop.scale, prop.rotationY ?? 0);
-    const isPortal = kind === 'door_fake' || Boolean(prop.linksOnTouch && /door|portal|exit/i.test(prop.label));
-    if (isPortal) {
-      this.addPortalBeacon(prop);
-      // Doors remain readable landmarks, but dream transitions are explicit (R/Y/touch).
-      if (prop.solid !== false) this.addCollider({ ...box, linksOnTouch: false, label: prop.label });
-    } else if (prop.solid !== false) {
+    if (prop.solid !== false) {
       this.addCollider({ ...box, linksOnTouch: false, label: prop.label });
     }
   }
@@ -855,104 +849,6 @@ export class RoomWorld {
     });
     // NPCs/creatures are moving atmosphere. Static AABBs at their origins would
     // become invisible blockers as soon as the model moved away.
-  }
-
-  /** Door readability is an invariant: these markers ignore fog and room lighting. */
-  private addPortalBeacon(prop: RoomProp): void {
-    const color = this.spec?.palette.light ?? '#f4fbff';
-    const frame = new THREE.Group();
-    frame.name = `portal-beacon-${prop.id}`;
-    frame.position.set(prop.position.x, Math.max(0, prop.position.y), prop.position.z);
-    frame.rotation.y = prop.rotationY ?? 0;
-
-    const width = Math.max(1, prop.scale.x);
-    const height = Math.max(2, prop.scale.y);
-    const depth = Math.max(0.12, prop.scale.z + 0.08);
-    const thickness = Math.max(0.07, Math.min(0.13, width * 0.08));
-    const material = new THREE.MeshBasicMaterial({
-      color,
-      toneMapped: false,
-      fog: false,
-    });
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color,
-      toneMapped: false,
-      fog: false,
-      transparent: true,
-      opacity: 0.72,
-      side: THREE.DoubleSide,
-    });
-    const bar = (w: number, h: number, d: number, x: number, y: number): THREE.Mesh => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
-      mesh.position.set(x, y, 0);
-      mesh.userData.keepSolid = true;
-      return mesh;
-    };
-    frame.add(
-      bar(thickness, height + thickness, depth, -width * 0.5 - thickness * 0.5, height * 0.5),
-      bar(thickness, height + thickness, depth, width * 0.5 + thickness * 0.5, height * 0.5),
-      bar(width + thickness * 2, thickness, depth, 0, height + thickness * 0.5),
-    );
-
-    const header = bar(Math.max(0.65, width * 0.58), 0.13, depth + 0.04, 0, height + 0.3);
-    frame.add(header);
-    const beacon = new THREE.Mesh(
-      new THREE.OctahedronGeometry(Math.max(0.18, Math.min(0.34, width * 0.14))),
-      glowMaterial,
-    );
-    beacon.position.set(0, height + 0.72, 0);
-    beacon.userData.keepSolid = true;
-    frame.add(beacon);
-    const exitLabel = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: this.getExitLabelTexture(),
-        transparent: true,
-        depthTest: false,
-        depthWrite: false,
-        fog: false,
-        toneMapped: false,
-      }),
-    );
-    exitLabel.position.set(0, height + 0.72, 0);
-    exitLabel.scale.set(Math.max(3.4, Math.min(4.8, width * 1.55)), 1.02, 1);
-    exitLabel.renderOrder = 10_000;
-    exitLabel.userData.keepSolid = true;
-    frame.add(exitLabel);
-    for (const z of [-0.72, 0.72]) {
-      const marker = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.48, 24), glowMaterial);
-      marker.rotation.x = -Math.PI / 2;
-      marker.position.set(0, 0.025, z);
-      marker.userData.keepSolid = true;
-      frame.add(marker);
-    }
-
-    const light = new THREE.PointLight(color, 3.2, Math.max(9, height * 2.4), 1.4);
-    light.position.set(0, Math.min(height - 0.2, 1.8), 0.65);
-    frame.add(light);
-    this.group.add(frame);
-  }
-
-  private getExitLabelTexture(): THREE.CanvasTexture {
-    if (this.exitLabelTexture) return this.exitLabelTexture;
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 72;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('2D canvas unavailable for exit marker');
-    context.fillStyle = 'rgba(5, 9, 13, 0.9)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.strokeStyle = '#f8fff2';
-    context.lineWidth = 6;
-    context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
-    context.fillStyle = '#f8fff2';
-    context.font = '900 46px monospace';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('DREAM', canvas.width / 2, canvas.height / 2 + 2);
-    this.exitLabelTexture = new THREE.CanvasTexture(canvas);
-    this.exitLabelTexture.colorSpace = THREE.SRGBColorSpace;
-    this.exitLabelTexture.needsUpdate = true;
-    return this.exitLabelTexture;
   }
 
   private addCollider(box: ColliderBox, label?: string): void {
