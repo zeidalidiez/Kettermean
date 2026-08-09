@@ -1,7 +1,7 @@
 import {
   DEFAULT_ANTHROPIC_BASE,
   DEFAULT_ANTHROPIC_MODEL,
-  BROWSER_MODEL_OPTIONS,
+  BROWSER_MODEL_DEPTH_GROUPS,
   DEFAULT_BROWSER_MODEL,
   DEFAULT_OPENAI_BASE,
   DEFAULT_OPENAI_MODEL,
@@ -190,21 +190,20 @@ function setBrowserModelValue(modelId: string): void {
 }
 
 function populateBrowserModelOptions(): void {
-  const groups = [
-    { label: 'Tiny / fast', models: BROWSER_MODEL_OPTIONS.slice(0, 5) },
-    { label: '~1B class', models: BROWSER_MODEL_OPTIONS.slice(5, 12) },
-    { label: 'Stronger small (more VRAM)', models: BROWSER_MODEL_OPTIONS.slice(12) },
-  ];
   browserModelSelect.replaceChildren();
-  for (const group of groups) {
+  for (const group of BROWSER_MODEL_DEPTH_GROUPS) {
     const element = document.createElement('optgroup');
-    element.label = group.label;
+    element.label = `${group.depth} · ${group.demand}`;
     for (const modelId of group.models) {
       const option = document.createElement('option');
       option.value = modelId;
       const label = modelId.replace(/-q4f16(?:_1)?-MLC$/i, '');
-      option.textContent =
-        modelId === DEFAULT_BROWSER_MODEL ? `${label} · recommended` : label;
+      const recommendation = modelId === group.suggestedModel
+        ? modelId === DEFAULT_BROWSER_MODEL
+          ? ' · suggested · default'
+          : ` · suggested for ${group.depth.split(' · ')[0]}`
+        : '';
+      option.textContent = `${label}${recommendation}`;
       element.append(option);
     }
     browserModelSelect.append(element);
@@ -229,13 +228,16 @@ function syncAiStatus(provider: LlmProvider): void {
 }
 
 function friendlyModelName(modelId: string): string {
-  if (modelId === DEFAULT_BROWSER_MODEL) return 'SmolLM2 360M · recommended';
-  return modelId
+  const friendly = modelId
     .replace(/-q4f16(?:_1)?-MLC$/i, '')
     .replace(/-Instruct|-Chat|-it(?=$|\s)/gi, '')
     .replace(/-/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  const group = BROWSER_MODEL_DEPTH_GROUPS.find(({ suggestedModel }) => suggestedModel === modelId);
+  if (!group) return friendly;
+  const level = group.depth.split(' · ')[0];
+  return `${friendly} · suggested ${level}${modelId === DEFAULT_BROWSER_MODEL ? ' · default' : ''}`;
 }
 
 clearKeyBtn.addEventListener('click', () => {

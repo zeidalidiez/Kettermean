@@ -283,6 +283,12 @@ button {
   font-size: 0.82rem;
 }
 
+.field > .browser-depth-note {
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
 .field input,
 .field select {
   width: 100%;

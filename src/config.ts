@@ -16,28 +16,50 @@ export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-5';
  * Default minimizes download/VRAM cost; malformed steering is filled procedurally.
  */
 export const DEFAULT_BROWSER_MODEL = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
-export const BROWSER_MODEL_OPTIONS = [
-  // Tiny / fast
-  'SmolLM2-360M-Instruct-q4f16_1-MLC',
-  'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
-  'Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC',
-  'Qwen3-0.6B-q4f16_1-MLC',
-  'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
-  // ~1B class
-  'gemma3-1b-it-q4f16_1-MLC',
-  'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-  'OLMo-2-0425-1B-Instruct-q4f16_1-MLC',
-  'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
-  'Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC',
-  'Qwen3-1.7B-q4f16_1-MLC',
-  'SmolLM2-1.7B-Instruct-q4f16_1-MLC',
-  // Stronger small (more VRAM)
-  'gemma-2-2b-it-q4f16_1-MLC',
-  'Llama-3.2-3B-Instruct-q4f16_1-MLC',
-  'Hermes-3-Llama-3.2-3B-q4f16_1-MLC',
-  'Phi-3.5-mini-instruct-q4f16_1-MLC',
-  'Phi-3-mini-4k-instruct-q4f16_1-MLC',
+export const BROWSER_MODEL_DEPTH_GROUPS = [
+  {
+    depth: 'Level 1 · Quick direction',
+    demand: 'lowest download + memory',
+    suggestedModel: DEFAULT_BROWSER_MODEL,
+    models: [
+      'SmolLM2-360M-Instruct-q4f16_1-MLC',
+      'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+      'Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC',
+      'Qwen3-0.6B-q4f16_1-MLC',
+      'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',
+    ],
+  },
+  {
+    depth: 'Level 2 · Richer direction',
+    demand: 'balanced download + memory',
+    suggestedModel: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+    models: [
+      'gemma3-1b-it-q4f16_1-MLC',
+      'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+      'OLMo-2-0425-1B-Instruct-q4f16_1-MLC',
+      'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
+      'Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC',
+      'Qwen3-1.7B-q4f16_1-MLC',
+      'SmolLM2-1.7B-Instruct-q4f16_1-MLC',
+    ],
+  },
+  {
+    depth: 'Level 3 · Deeper direction',
+    demand: 'higher download + memory',
+    suggestedModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+    models: [
+      'gemma-2-2b-it-q4f16_1-MLC',
+      'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+      'Hermes-3-Llama-3.2-3B-q4f16_1-MLC',
+      'Phi-3.5-mini-instruct-q4f16_1-MLC',
+      'Phi-3-mini-4k-instruct-q4f16_1-MLC',
+    ],
+  },
 ] as const;
+
+export const BROWSER_MODEL_OPTIONS = BROWSER_MODEL_DEPTH_GROUPS.flatMap(
+  (group) => group.models,
+);
 
 export const PLAYER = {
   eyeHeight: 1.65,

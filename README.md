@@ -75,7 +75,7 @@ Use a disposable or spend-limited key. A browser-delivered application cannot pr
 ### Providers
 
 - **Offline procedural only** — fully local and available without a model download.
-- **Browser model (WebLLM / WebGPU)** — the fresh-install default, with local inference and no API key. The lightweight `SmolLM2-360M-Instruct-q4f16_1-MLC` is recommended; stronger options remain in AI settings for machines that can comfortably run them. Browsers without WebGPU automatically continue with procedural generation for that run.
+- **Browser model (WebLLM / WebGPU)** — the fresh-install default, with local inference and no API key. AI settings group models into quick, richer, and deeper direction tiers, with a suggested model at each tier. Direction depth never restricts room scale, scene complexity, effects, or catalog access. Browsers without WebGPU automatically continue with procedural generation for that run.
 - **OpenAI-compatible / OpenRouter** — configurable base URL and model; defaults in the UI target OpenRouter and `openrouter/free`.
 - **Anthropic Claude** — direct browser calls may require a CORS-capable proxy.
 
