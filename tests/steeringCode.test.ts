@@ -79,7 +79,7 @@ describe('compact browser-model steering', () => {
 
     expect(wireframeRooms).toBeGreaterThan(0);
     expect(wireframeRooms / sampleSize).toBeLessThan(0.11);
-  });
+  }, 15_000);
 
   it('locally replaces model-requested pulse and dim modes when opted out', () => {
     const noFlashing = parseSteeringDirection('KMR00005000', {

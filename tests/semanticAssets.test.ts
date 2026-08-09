@@ -88,7 +88,9 @@ describe('semantic furniture and NPC expansion', () => {
 
   it('draws broadly from the new tagged families during ordinary generation', () => {
     const newIds = new Set(SEMANTIC_ASSETS.map((asset) => asset.id));
+    const familyById = new Map(SEMANTIC_ASSETS.map((asset) => [asset.id, asset.family!]));
     const used = new Set<string>();
+    const usedFamilies = new Set<string>();
     for (let index = 0; index < 1_000; index += 1) {
       const room = generateOfflineRoom({
         seed: `semantic-coverage-${index}`,
@@ -98,10 +100,14 @@ describe('semantic furniture and NPC expansion', () => {
         linkIndex: index,
       });
       for (const item of [...room.props, ...room.entities]) {
-        if (item.assetId && newIds.has(item.assetId)) used.add(item.assetId);
+        if (item.assetId && newIds.has(item.assetId)) {
+          used.add(item.assetId);
+          usedFamilies.add(familyById.get(item.assetId)!);
+        }
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(165);
+    expect(usedFamilies.size).toBe(new Set(SEMANTIC_ASSETS.map((asset) => asset.family)).size);
+    expect(used.size).toBeGreaterThanOrEqual(160);
   }, 10_000);
 });

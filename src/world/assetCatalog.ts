@@ -519,14 +519,26 @@ export function catalogPromptSummary(): string {
     values.push(asset);
     families.set(asset.family, values);
   }
-  const familyLines = [...families.entries()].map(([family, variants]) => {
+  const familyGroups = new Map<number, string[]>();
+  for (const [family, variants] of families) {
     const first = variants[0]!;
     const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
     const category = first.category === 'npc' ? 'npc' : first.category.slice(0, 3);
-    return `${family}|${category}|${first.tags[0]}${moods === 'any' ? '' : `|${moods}`}`;
-  });
-  const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
-  return `ASSETS:\n${baseLines.join('\n')}\nFAMILIES (append a zero-padded variant suffix):\n${familyLines.join('\n')}\nTHEMES:\n${themes.join('\n')}`;
+    const lines = familyGroups.get(variants.length) ?? [];
+    lines.push(`${family}|${category}|${first.tags[0]}${moods === 'any' ? '' : `|${moods}`}`);
+    familyGroups.set(variants.length, lines);
+  }
+  const familySections = [...familyGroups.entries()]
+    .sort(([left], [right]) => right - left)
+    .map(
+      ([variantCount, lines]) =>
+        `FAMILIES (IDs end 01-${String(variantCount).padStart(2, '0')}):\n${lines.join('\n')}`,
+    );
+  // Theme ids already carry their strongest semantic cues. Keeping only mood here
+  // leaves enough context for selection while preventing catalog growth from
+  // consuming the model's response budget.
+  const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}`);
+  return `ASSETS:\n${baseLines.join('\n')}\n${familySections.join('\n')}\nTHEMES:\n${themes.join('\n')}`;
 }
 
 function a(
