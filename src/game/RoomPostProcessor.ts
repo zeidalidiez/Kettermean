@@ -22,6 +22,10 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   duotone: 17,
   dither: 18,
   solarize: 19,
+  heatwave: 20,
+  negative: 21,
+  halftone: 22,
+  smear: 23,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -171,6 +175,17 @@ export class RoomPostProcessor {
           float jitter = hash21(vec2(line, floor(time * 12.0))) - 0.5;
           uv.x += jitter * 0.018 * uDistortion;
           uv.y += sin(time * 2.2) * 0.0015 * uDistortion;
+        } else if (uMode == 20.0) {
+          float shimmer = sin(uv.y * 31.0 + time * 2.4)
+            + sin(uv.y * 73.0 - time * 1.6) * 0.42;
+          uv.x += shimmer * 0.0065 * uDistortion;
+          uv.y += sin(uv.x * 19.0 + time * 1.1) * 0.0025 * uDistortion;
+        } else if (uMode == 23.0) {
+          float column = floor(uv.x * 68.0);
+          float columnNoise = hash21(vec2(column, floor(time * 2.5)));
+          float dripWave = pow(max(0.0, sin(uv.y * 9.0 - time * 1.35 + columnNoise * 6.28)), 3.0);
+          uv.y += (columnNoise - 0.28) * dripWave * 0.026 * uDistortion;
+          uv.x += sin(uv.y * 26.0 + time) * 0.004 * uDistortion;
         }
 
         bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0;
@@ -184,7 +199,7 @@ export class RoomPostProcessor {
         vec3 color;
         if (
           uMode == 3.0 || uMode == 5.0 || uMode == 8.0 ||
-          uMode == 11.0 || uMode == 12.0 || uMode == 15.0
+          uMode == 11.0 || uMode == 12.0 || uMode == 15.0 || uMode == 23.0
         ) {
           color = vec3(
             texture2D(tDiffuse, safeUv(uv + offset)).r,
@@ -273,6 +288,29 @@ export class RoomPostProcessor {
           vec3 solar = mix(color, inverted, smoothstep(0.38, 0.72, value));
           solar = hueShift(solar, uAngleOffset * 0.2 + time * uColorCycle * 0.12);
           color = mix(color, solar * mix(vec3(1.0), uTint, 0.18), 0.46 + uStrength * 0.4);
+        } else if (uMode == 20.0) {
+          float shimmer = 0.5 + 0.5 * sin((uv.x + uv.y) * 42.0 + time * 2.3);
+          vec3 heated = color * vec3(1.12, 0.94, 0.76);
+          heated += vec3(0.045, 0.018, 0.0) * shimmer * uDistortion;
+          color = mix(color, heated * mix(vec3(1.0), uTint, 0.12), 0.38 + uStrength * 0.32);
+        } else if (uMode == 21.0) {
+          vec3 inverted = vec3(1.0) - color;
+          inverted = mix(inverted, inverted * uTint * 1.18, 0.18 + uStrength * 0.12);
+          color = mix(color, inverted, 0.56 + uStrength * 0.3);
+        } else if (uMode == 22.0) {
+          float value = luma(color);
+          float grid = max(3.0, uPixelSize * 1.35);
+          vec2 dotUv = fract(gl_FragCoord.xy / grid) - 0.5;
+          float radius = mix(0.46, 0.1, value);
+          float dotMask = 1.0 - smoothstep(radius - 0.055, radius + 0.055, length(dotUv));
+          vec3 paper = mix(vec3(0.94), uTint, 0.11);
+          vec3 ink = mix(vec3(0.035), uTint * 0.18, 0.3);
+          vec3 printed = mix(paper, ink, dotMask);
+          color = mix(color, printed, 0.44 + uStrength * 0.28);
+        } else if (uMode == 23.0) {
+          vec3 melted = hueShift(color, sin(uv.y * 7.0 + time) * uColorCycle * 0.34);
+          melted *= mix(vec3(1.0), uTint * 1.18, 0.18);
+          color = mix(color, melted, 0.34 + uStrength * 0.34);
         }
 
         if (

@@ -135,7 +135,11 @@ export type RoomShaderStyle =
   | 'posterize'
   | 'duotone'
   | 'dither'
-  | 'solarize';
+  | 'solarize'
+  | 'heatwave'
+  | 'negative'
+  | 'halftone'
+  | 'smear';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'

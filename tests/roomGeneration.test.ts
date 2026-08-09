@@ -99,6 +99,10 @@ describe('offline room invariants', () => {
         'duotone',
         'dither',
         'solarize',
+        'heatwave',
+        'negative',
+        'halftone',
+        'smear',
       ]),
     );
     expect(lightingStyles).toEqual(

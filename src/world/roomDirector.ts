@@ -156,7 +156,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     linkColor: moodLinkColor(mood),
     palette: conditionPalette(tintPalette(rng, theme.palette, mood), condition),
     physics: physicsForMood(rng, mood),
-    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms, ctx),
+    visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms, ctx, condition),
     placements,
     offline: !steer,
   };
@@ -282,7 +282,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
       sway: dir.physics?.sway ?? 0.3,
     },
     linkColor: dir.linkColor ?? moodLinkColor(dir.mood),
-    visuals: dir.visuals ?? resolveRoomVisuals(dir.seed, dir.mood),
+    visuals: dir.visuals ?? resolveRoomVisuals(dir.seed, dir.mood, undefined, [], {}, dir.condition),
     props,
     entities,
     offline: Boolean(dir.offline),
@@ -312,6 +312,10 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
   'duotone',
   'dither',
   'solarize',
+  'heatwave',
+  'negative',
+  'halftone',
+  'smear',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
@@ -334,6 +338,24 @@ const EFFECT_TINTS = [
   '#ffc36f',
   '#75f0df',
 ];
+const CONDITION_SHADER_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['shader'][]>> = {
+  bloodied: ['solarize', 'tint', 'noir'],
+  slimed: ['smear', 'acid', 'underwater'],
+  scorched: ['heatwave', 'dither', 'noir'],
+  burning: ['heatwave', 'thermal', 'smear'],
+  ruined: ['halftone', 'dither', 'noir', 'negative'],
+  overgrown: ['dream', 'tint', 'duotone'],
+  frozen: ['negative', 'duotone', 'prism'],
+};
+const CONDITION_LIGHTING_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['lighting'][]>> = {
+  bloodied: ['emergency', 'warm'],
+  slimed: ['fluorescent', 'pulse'],
+  scorched: ['warm', 'emergency'],
+  burning: ['warm', 'emergency'],
+  ruined: ['cold', 'emergency'],
+  overgrown: ['warm', 'fluorescent'],
+  frozen: ['cold', 'fluorescent'],
+};
 
 /** Stable visual treatment for every room, whether or not a model contributes. */
 export function resolveRoomVisuals(
@@ -342,6 +364,7 @@ export function resolveRoomVisuals(
   override?: Partial<RoomVisuals>,
   recentRooms: RoomHistoryEntry[] = [],
   preferences: Pick<GenerationContext, 'noFlashingLights' | 'noLowLight'> = {},
+  condition: RoomCondition = 'normal',
 ): RoomVisuals {
   const rng = new SeededRng(`${seed}:visuals`);
   const recentShaders = recentRooms.slice(-2).map((room) => room.shader);
@@ -351,7 +374,17 @@ export function resolveRoomVisuals(
   const availableShaders = SHADER_STYLES.filter(
     (style) => !flashingDisabled || style !== 'strobe',
   );
-  const proposedShader = pickNovelVisual(rng, availableShaders, recentShaders, override?.shader);
+  const conditionShaders = CONDITION_SHADER_STYLES[condition];
+  const conditionShader =
+    !override?.shader && conditionShaders?.length && rng.chance(0.58)
+      ? rng.pick(conditionShaders)
+      : undefined;
+  const proposedShader = pickNovelVisual(
+    rng,
+    availableShaders,
+    recentShaders,
+    override?.shader ?? conditionShader,
+  );
   // Kaleidoscope destroys reliable spatial landmarks. Keep it as a rare dream event,
   // including when an LLM explicitly steers toward it; R remains an instant escape.
   const kaleidoscopeAcceptance = override?.shader === 'kaleidoscope' ? 0.04 : 0.16;
@@ -376,7 +409,14 @@ export function resolveRoomVisuals(
         : mood === 'dynamic'
           ? 'pulse'
           : 'fluorescent';
-  const proposedLighting = rng.chance(0.32) ? moodLighting : undefined;
+  const conditionLightingChoices = CONDITION_LIGHTING_STYLES[condition]?.filter((style) =>
+    availableLighting.includes(style),
+  );
+  const conditionLighting =
+    !override?.lighting && conditionLightingChoices?.length && rng.chance(0.58)
+      ? rng.pick(conditionLightingChoices)
+      : undefined;
+  const proposedLighting = conditionLighting ?? (rng.chance(0.32) ? moodLighting : undefined);
   const lighting = pickNovelVisual(
     rng,
     availableLighting,
