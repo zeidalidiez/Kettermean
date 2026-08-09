@@ -11,6 +11,7 @@ import type {
   RoomVisuals,
   Vec3,
 } from '../types';
+import { combineBillboardSigns, type BillboardText } from './billboardContent';
 import { clearMaterialCaches, plainMaterial, styleForMood, surfaceMaterial } from './materials';
 import {
   boundsForKind,
@@ -378,7 +379,6 @@ export class RoomWorld {
       }
 
       animateRig(ent.rig, ent.phase, ent.data.behavior);
-      animateBillboard(m, ent.phase, ent.data.behavior);
 
       // Entities never act as room links.
     }
@@ -876,12 +876,7 @@ export class RoomWorld {
       caption: sign.caption,
       tags: sign.tags?.length ? sign.tags : spec.themeTags,
     }));
-    const targetCount = Math.max(proceduralSigns.length, authoredSigns.length);
-    const signs = [...authoredSigns, ...proceduralSigns]
-      .filter((sign, index, all) =>
-        all.findIndex((candidate) => candidate.headline === sign.headline) === index,
-      )
-      .slice(0, targetCount);
+    const signs = combineBillboardSigns(authoredSigns, proceduralSigns);
     const rng = new SeededRng(`${spec.seed}:sign-placement`);
     const detailScale = clampNumber(spec.worldScale ?? 1, 0.72, 3.2);
     const halfW = spec.width * 0.5;
@@ -899,6 +894,7 @@ export class RoomWorld {
       signGroup.name = `procedural-sign-${index}`;
       signGroup.userData.signText = sign.headline;
       signGroup.userData.signCaption = sign.caption;
+      signGroup.userData.signSource = sign.source;
 
       if (freestanding) {
         const angle = (index / Math.max(1, signs.length)) * Math.PI * 2 + rng.float(-0.45, 0.45);
@@ -956,7 +952,7 @@ export class RoomWorld {
   }
 
   private createProceduralSign(
-    sign: ProceduralSignText,
+    sign: BillboardText,
     spec: RoomSpec,
     index: number,
     width: number,
@@ -2073,32 +2069,6 @@ function animateRig(
   setRigAxis(rig.head, 'y', Math.sin(phase * 0.42) * 0.08);
 }
 
-function animateBillboard(
-  root: THREE.Object3D,
-  phase: number,
-  behavior: RoomEntity['behavior'],
-): void {
-  const sprite = root.getObjectByName('sprite-actor');
-  if (!(sprite instanceof THREE.Sprite)) return;
-  const baseScale = sprite.userData.baseScale as THREE.Vector3 | undefined;
-  const basePosition = sprite.userData.basePosition as THREE.Vector3 | undefined;
-  if (!baseScale || !basePosition) return;
-  const moving = behavior === 'wander' || behavior === 'orbit';
-  const cadence = moving ? 3.4 : 0.72;
-  const step = Math.sin(phase * cadence);
-  const lift = moving ? Math.abs(step) * 0.035 : Math.sin(phase * cadence) * 0.012;
-  sprite.position.set(
-    basePosition.x + (moving ? step * 0.018 : 0),
-    basePosition.y + lift,
-    basePosition.z,
-  );
-  sprite.scale.set(
-    baseScale.x * (1 - Math.abs(step) * (moving ? 0.018 : 0.004)),
-    baseScale.y * (1 + Math.abs(step) * (moving ? 0.016 : 0.005)),
-    baseScale.z,
-  );
-}
-
 function setRigAxis(object: THREE.Object3D | undefined, axis: 'x' | 'y', offset: number): void {
   if (!object) return;
   const base = object.userData.baseRotation as { x?: number; y?: number } | undefined;
@@ -2106,7 +2076,7 @@ function setRigAxis(object: THREE.Object3D | undefined, axis: 'x' | 'y', offset:
 }
 
 function makeSignTexture(
-  sign: ProceduralSignText,
+  sign: BillboardText,
   spec: RoomSpec,
   index: number,
 ): THREE.CanvasTexture {
@@ -2122,7 +2092,7 @@ function makeSignTexture(
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = colors.band;
   context.fillRect(0, 0, canvas.width, 54);
-  context.fillRect(0, canvas.height - 76, canvas.width, 76);
+  context.fillRect(0, canvas.height - 126, canvas.width, 126);
   context.strokeStyle = colors.border;
   context.lineWidth = 18;
   context.strokeRect(14, 14, canvas.width - 28, canvas.height - 28);
@@ -2137,16 +2107,23 @@ function makeSignTexture(
   const fontSize = fitSignFont(context, lines, 890, maxFont, 50);
   context.font = `800 ${fontSize}px "Arial Narrow", "Helvetica Neue", sans-serif`;
   const lineHeight = fontSize * 0.94;
-  const centerY = 205;
+  const centerY = 178;
   lines.forEach((line, lineIndex) => {
     const y = centerY + (lineIndex - (lines.length - 1) * 0.5) * lineHeight;
     context.fillText(line, canvas.width * 0.5, y);
   });
 
+  const captionLines = balancedCaptionLines(sign.caption.toUpperCase());
+  const captionSize = fitSignFont(context, captionLines, 866, 34, 20);
   context.fillStyle = colors.caption;
-  context.font = '700 35px "Arial Narrow", "Helvetica Neue", sans-serif';
-  context.letterSpacing = '5px';
-  context.fillText(sign.caption.toUpperCase(), canvas.width * 0.5, canvas.height - 39);
+  context.font = `700 ${captionSize}px "Arial Narrow", "Helvetica Neue", sans-serif`;
+  context.letterSpacing = '3px';
+  const captionLineHeight = captionSize * 1.08;
+  const captionCenterY = canvas.height - 61;
+  captionLines.forEach((line, lineIndex) => {
+    const y = captionCenterY + (lineIndex - (captionLines.length - 1) * 0.5) * captionLineHeight;
+    context.fillText(line, canvas.width * 0.5, y);
+  });
 
   // Cheap deterministic wear makes identical words feel printed in different places.
   for (let mark = 0; mark < 48; mark += 1) {
@@ -2172,6 +2149,24 @@ function balancedSignLines(headline: string): string[] {
   if (headline.length <= 22) return [headline];
   const words = headline.split(' ');
   if (words.length < 2) return [headline];
+  let bestIndex = 1;
+  let bestDifference = Infinity;
+  for (let index = 1; index < words.length; index += 1) {
+    const first = words.slice(0, index).join(' ');
+    const second = words.slice(index).join(' ');
+    const difference = Math.abs(first.length - second.length);
+    if (difference < bestDifference) {
+      bestDifference = difference;
+      bestIndex = index;
+    }
+  }
+  return [words.slice(0, bestIndex).join(' '), words.slice(bestIndex).join(' ')];
+}
+
+function balancedCaptionLines(caption: string): string[] {
+  if (caption.length <= 44) return [caption];
+  const words = caption.split(' ');
+  if (words.length < 2) return [caption];
   let bestIndex = 1;
   let bestDifference = Infinity;
   for (let index = 1; index < words.length; index += 1) {

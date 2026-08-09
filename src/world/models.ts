@@ -1,6 +1,20 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
 import {
+  DETAILED_BOUNDS,
+  buildDetailedModel,
+} from './detailedModels';
+import type { DetailedModelKind } from './detailedAssets';
+import type { MasterworkModelKind } from './detailedAssetsRound2';
+import {
+  MASTERWORK_BOUNDS,
+  buildMasterworkModel,
+} from './detailedModelsRound2';
+import {
+  decorateModelWithFaceKit,
+  type FaceHostContext,
+} from './faceKits';
+import {
   buildMixedMediaModel,
   MIXED_MEDIA_BOUNDS,
 } from './mixedMediaModels';
@@ -169,7 +183,9 @@ export type PropKind =
   | 'figure_coach'
   | 'figure_musician'
   | MixedMediaModelKind
-  | SemanticModelKind;
+  | SemanticModelKind
+  | DetailedModelKind
+  | MasterworkModelKind;
 
 interface PartSpec {
   w: number;
@@ -198,8 +214,8 @@ export function clearModelMaterialCache(): void {
   const disposedTextures = new Set<THREE.Texture>();
   for (const model of modelCache.values()) {
     model.traverse((object) => {
-      if (object instanceof THREE.Mesh) object.geometry.dispose();
-      if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Sprite)) return;
+      if (!(object instanceof THREE.Mesh)) return;
+      object.geometry.dispose();
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       for (const material of materials) {
         if (disposedMaterials.has(material)) continue;
@@ -2200,6 +2216,15 @@ export function buildModel(
   const cached = modelCache.get(key);
   if (cached) return cached.clone(true);
   const model = createModel(kind, accent, body, assetId);
+  if (kind !== 'door_fake' && shouldDecorateWithFaceKit(kind)) {
+    decorateModelWithFaceKit(model, {
+      kind,
+      variant: assetVariant(assetId),
+      host: faceHostForKind(kind),
+      bounds: boundsForKind(kind),
+      accent,
+    });
+  }
   modelCache.set(key, model);
   return model.clone(true);
 }
@@ -2210,6 +2235,10 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const masterwork = buildMasterworkModel(kind, assetVariant(assetId), accent, body);
+  if (masterwork) return masterwork;
+  const detailed = buildDetailedModel(kind, assetVariant(assetId), accent, body);
+  if (detailed) return detailed;
   const mixedMedia = buildMixedMediaModel(kind, assetVariant(assetId), accent, body);
   if (mixedMedia) return mixedMedia;
   const semantic = buildSemanticModel(kind, assetVariant(assetId), accent, body);
@@ -2639,6 +2668,10 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const masterwork = MASTERWORK_BOUNDS[kind as MasterworkModelKind];
+  if (masterwork) return masterwork;
+  const detailed = DETAILED_BOUNDS[kind as DetailedModelKind];
+  if (detailed) return detailed;
   const mixedMedia = MIXED_MEDIA_BOUNDS[kind as MixedMediaModelKind];
   if (mixedMedia) return mixedMedia;
   const semantic = SEMANTIC_BOUNDS[kind as SemanticModelKind];
@@ -2707,6 +2740,36 @@ export function boundsForKind(kind: PropKind): { w: number; h: number; d: number
   }
 }
 
+function faceHostForKind(kind: PropKind): FaceHostContext {
+  const value = String(kind);
+  if (
+    value.startsWith('figure_') ||
+    value.startsWith('detail_figure_') ||
+    value === 'lowpoly_person' ||
+    value === 'voxel_watcher'
+  ) return 'humanoid';
+  if (
+    value.startsWith('animal_') ||
+    value.startsWith('detail_animal_') ||
+    value.includes('dog') ||
+    value.includes('cat') ||
+    value.includes('bird') ||
+    value.includes('whale') ||
+    value.includes('crawler') ||
+    value === 'figure_deer' ||
+    value === 'figure_balloon'
+  ) return 'animal';
+  return 'object';
+}
+
+function shouldDecorateWithFaceKit(kind: PropKind): boolean {
+  const value = String(kind);
+  // Preserve the deliberately cheap and voxel lanes as coherent media styles.
+  // Cross-mounted faces live on the composed high-detail 3D catalog instead.
+  return !value.startsWith('lowpoly_') &&
+    !value.startsWith('voxel_');
+}
+
 export function kindFromLabel(label: string): PropKind {
   const l = label.toLowerCase();
   if (l.includes('ornate settee')) return 'ornate_settee';
@@ -2737,10 +2800,6 @@ export function kindFromLabel(label: string): PropKind {
   if (l.includes('voxel cat')) return 'voxel_cat';
   if (l.includes('voxel horizon watcher')) return 'voxel_watcher';
   if (l.includes('voxel train')) return 'voxel_train';
-  if (l.includes('paper elevator attendant')) return 'sprite_attendant';
-  if (l.includes('paper office worker')) return 'sprite_office_worker';
-  if (l.includes('paper masked swimmer')) return 'sprite_swimmer';
-  if (l.includes('paper motel guest')) return 'sprite_motel_guest';
   if (l.includes('conference table')) return 'conference_table';
   if (l.includes('dentist chair')) return 'dentist_chair';
   if (l.includes('barber chair')) return 'barber_chair';

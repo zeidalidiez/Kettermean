@@ -1,12 +1,7 @@
 import * as THREE from 'three';
-import attendantSpriteUrl from '../assets/sprite-attendant.png';
-import motelGuestSpriteUrl from '../assets/sprite-motel-guest.png';
-import officeWorkerSpriteUrl from '../assets/sprite-office-worker.png';
-import swimmerSpriteUrl from '../assets/sprite-swimmer.png';
 import {
   DETAILED_MODEL_KINDS,
   LOW_POLY_MODEL_KINDS,
-  SPRITE_MODEL_KINDS,
   VOXEL_MODEL_KINDS,
   type MixedMediaModelKind,
 } from './mixedMediaAssets';
@@ -40,10 +35,6 @@ export const MIXED_MEDIA_BOUNDS: Record<MixedMediaModelKind, { w: number; h: num
   voxel_cat: { w: 6, h: 7, d: 10 },
   voxel_watcher: { w: 5, h: 16, d: 5 },
   voxel_train: { w: 8, h: 6, d: 24 },
-  sprite_attendant: { w: 1.05, h: 2.5, d: 0.12 },
-  sprite_office_worker: { w: 1, h: 2.5, d: 0.12 },
-  sprite_swimmer: { w: 1.05, h: 2.45, d: 0.12 },
-  sprite_motel_guest: { w: 1.1, h: 2.5, d: 0.12 },
 };
 
 type Shape = 'box' | 'cylinder' | 'sphere' | 'cone' | 'torus';
@@ -64,8 +55,6 @@ type VoxelPoint = [number, number, number, number];
 const DETAILED = new Set<string>(DETAILED_MODEL_KINDS);
 const LOW_POLY = new Set<string>(LOW_POLY_MODEL_KINDS);
 const VOXEL = new Set<string>(VOXEL_MODEL_KINDS);
-const SPRITE = new Set<string>(SPRITE_MODEL_KINDS);
-const actorTextures = new Map<MixedMediaModelKind, THREE.Texture>();
 
 export function buildMixedMediaModel(
   kind: string,
@@ -75,7 +64,6 @@ export function buildMixedMediaModel(
 ): THREE.Group | null {
   if (!(kind in MIXED_MEDIA_BOUNDS)) return null;
   const typedKind = kind as MixedMediaModelKind;
-  if (SPRITE.has(typedKind)) return buildSpriteActor(typedKind, variant);
   if (VOXEL.has(typedKind)) return buildVoxelModel(typedKind, variant, accent, body);
   if (LOW_POLY.has(typedKind)) return buildLowPolyModel(typedKind, variant, accent, body);
   if (DETAILED.has(typedKind)) return buildDetailedModel(typedKind, variant, accent, body);
@@ -628,85 +616,6 @@ function voxelPoints(kind: MixedMediaModelKind, variant: number): VoxelPoint[] {
       add(0, 0, 0, 0);
   }
   return points;
-}
-
-function buildSpriteActor(kind: MixedMediaModelKind, variant: number): THREE.Group {
-  const root = new THREE.Group();
-  root.name = kind;
-  root.userData.mediaStyle = 'sprite';
-  root.userData.variant = variant;
-  const bounds = MIXED_MEDIA_BOUNDS[kind];
-  const map = spriteActorTexture(kind);
-  const tint = new THREE.Color('#ffffff').offsetHSL((variant - 3.5) * 0.012, (variant % 3 - 1) * 0.035, (variant - 3.5) * 0.018);
-  const material = new THREE.SpriteMaterial({
-    ...(map ? { map } : {}),
-    color: tint,
-    transparent: true,
-    alphaTest: map ? 0.08 : 0,
-    depthWrite: false,
-    sizeAttenuation: true,
-  });
-  const sprite = new THREE.Sprite(material);
-  sprite.name = 'sprite-actor';
-  sprite.center.set(0.5, 0.045);
-  sprite.scale.set(bounds.w * (variant % 2 ? -1 : 1), bounds.h * (0.96 + variant * 0.011), 1);
-  sprite.position.set((variant % 3 - 1) * 0.025, 0.01, 0);
-  sprite.userData.baseScale = sprite.scale.clone();
-  sprite.userData.basePosition = sprite.position.clone();
-  sprite.renderOrder = 3;
-  root.add(sprite);
-
-  if (variant >= 5 && map) {
-    const echoMaterial = material.clone();
-    echoMaterial.color = new THREE.Color(variant % 2 ? '#57dbea' : '#d84f90');
-    echoMaterial.opacity = 0.22;
-    echoMaterial.alphaTest = 0.04;
-    const echo = new THREE.Sprite(echoMaterial);
-    echo.name = 'sprite-afterimage';
-    echo.center.copy(sprite.center);
-    echo.scale.copy(sprite.scale).multiplyScalar(1.015);
-    echo.position.set(variant % 2 ? -0.055 : 0.055, 0.015, -0.04);
-    root.add(echo);
-  }
-
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(bounds.w * 0.34, 16),
-    new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.24, depthWrite: false }),
-  );
-  shadow.name = 'sprite-shadow';
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.scale.y = 0.36;
-  shadow.position.y = 0.012;
-  root.add(shadow);
-  return root;
-}
-
-function spriteActorTexture(kind: MixedMediaModelKind): THREE.Texture | null {
-  if (typeof document === 'undefined') return null;
-  const cached = actorTextures.get(kind);
-  if (cached) return cached;
-  const urls: Partial<Record<MixedMediaModelKind, string>> = {
-    sprite_attendant: attendantSpriteUrl,
-    sprite_office_worker: officeWorkerSpriteUrl,
-    sprite_swimmer: swimmerSpriteUrl,
-    sprite_motel_guest: motelGuestSpriteUrl,
-  };
-  const url = urls[kind];
-  if (!url) return null;
-  const texture = new THREE.TextureLoader().load(
-    url,
-    undefined,
-    undefined,
-    (error) => console.warn(`[Kettermean] 2D actor texture failed to load: ${kind}.`, error),
-  );
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.userData.persistentModelTexture = true;
-  actorTextures.set(kind, texture);
-  return texture;
 }
 
 function partAdder(parent: THREE.Object3D, flat = false) {

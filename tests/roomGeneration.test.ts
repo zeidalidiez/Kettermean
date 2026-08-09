@@ -107,6 +107,14 @@ describe('offline room invariants', () => {
         'spectral',
         'mosaic',
         'edgeglow',
+        'oilfilm',
+        'datamosh',
+        'cellophane',
+        'afterimage',
+        'moire',
+        'bloom',
+        'fracture',
+        'nightvision',
       ]),
     );
     expect(lightingStyles).toEqual(

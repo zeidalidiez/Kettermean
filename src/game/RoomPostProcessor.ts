@@ -30,6 +30,14 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   spectral: 25,
   mosaic: 26,
   edgeglow: 27,
+  oilfilm: 28,
+  datamosh: 29,
+  cellophane: 30,
+  afterimage: 31,
+  moire: 32,
+  bloom: 33,
+  fracture: 34,
+  nightvision: 35,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -205,9 +213,30 @@ export class RoomPostProcessor {
           vec2 local = uv - center;
           if (tileNoise > 0.66) local = local.yx * vec2(tileNoise > 0.82 ? -1.0 : 1.0, 1.0);
           uv = mix(uv, center + local, 0.5 + uStrength * 0.34);
+        } else if (uMode == 29.0) {
+          vec2 macroCells = vec2(18.0, 12.0);
+          vec2 block = floor(uv * macroCells);
+          float blockNoise = hash21(block + floor(time * 2.2));
+          float activeBlock = step(0.7 - uDistortion * 0.2, blockNoise);
+          uv.x += (hash21(block.yx + floor(time * 0.75)) - 0.5)
+            * 0.055 * uDistortion * activeBlock;
+          uv.y = mix(uv.y, (floor(uv.y * 120.0) + 0.5) / 120.0, activeBlock * 0.4);
+        } else if (uMode == 30.0) {
+          float fold = sin((uv.x * 1.7 + uv.y) * 38.0 + time * 0.7)
+            * cos((uv.y * 1.4 - uv.x) * 29.0 - time * 0.45);
+          uv += vec2(fold, -fold * 0.72) * 0.009 * uDistortion;
+        } else if (uMode == 34.0) {
+          vec2 shardGrid = vec2(7.0, 5.0);
+          vec2 shard = floor(uv * shardGrid);
+          vec2 shardCenter = (shard + 0.5) / shardGrid;
+          float shardNoise = hash21(shard + vec2(4.7, 1.3));
+          vec2 local = uv - shardCenter;
+          local = rotate2d((shardNoise - 0.5) * 0.24 * uDistortion) * local;
+          local += vec2(shardNoise - 0.5, hash21(shard.yx) - 0.5) * 0.012 * uDistortion;
+          uv = shardCenter + local;
         }
 
-        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0;
+        bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0 || uMode == 29.0;
         if (pixelated) {
           vec2 cells = max(uResolution / max(2.0, uPixelSize), vec2(1.0));
           uv = (floor(uv * cells) + 0.5) / cells;
@@ -219,7 +248,8 @@ export class RoomPostProcessor {
         if (
           uMode == 3.0 || uMode == 5.0 || uMode == 8.0 ||
           uMode == 11.0 || uMode == 12.0 || uMode == 15.0 || uMode == 23.0 ||
-          uMode == 25.0
+          uMode == 25.0 || uMode == 28.0 || uMode == 29.0 || uMode == 30.0 ||
+          uMode == 31.0 || uMode == 34.0
         ) {
           color = vec3(
             texture2D(tDiffuse, safeUv(uv + offset)).r,
@@ -364,11 +394,84 @@ export class RoomPostProcessor {
           float edge = smoothstep(0.03, 0.22, horizontal + vertical);
           vec3 outlined = color * 0.68 + uTint * edge * (0.75 + uStrength * 0.7);
           color = mix(color, outlined, 0.34 + uStrength * 0.3);
+        } else if (uMode == 28.0) {
+          float radius = length(vUv - 0.5);
+          float interference = sin(radius * 82.0 - time * 0.8)
+            + sin((vUv.x - vUv.y) * 47.0 + time * 0.52) * 0.55;
+          vec3 oil = hueShift(color, interference * (0.55 + uColorCycle * 1.4));
+          oil *= mix(vec3(1.0), uTint * 1.28, 0.18 + 0.1 * interference);
+          float sheen = pow(max(0.0, interference * 0.5 + 0.5), 5.0);
+          oil += vec3(0.08, 0.045, 0.11) * sheen * uDistortion;
+          color = mix(color, oil, 0.36 + uStrength * 0.42);
+        } else if (uMode == 29.0) {
+          vec2 block = floor(vUv * vec2(18.0, 12.0));
+          float hold = step(0.62, hash21(block + floor(time * 1.8)));
+          float band = step(0.72, hash21(vec2(floor(vUv.y * 34.0), floor(time * 3.0))));
+          vec3 displaced = vec3(color.r, color.b, color.g);
+          color = mix(color, displaced * mix(vec3(1.0), uTint, 0.16), hold * (0.28 + uStrength * 0.35));
+          color += (hash21(block) - 0.5) * band * 0.11 * uDistortion;
+        } else if (uMode == 30.0) {
+          float foldA = sin((vUv.x + vUv.y) * 36.0 + time * 0.55);
+          float foldB = cos((vUv.x - vUv.y) * 54.0 - time * 0.42);
+          vec3 refracted = hueShift(color, (foldA + foldB) * 0.48 * uColorCycle);
+          vec3 filmTint = mix(uTint, vec3(0.72, 0.93, 1.0), 0.45 + foldA * 0.14);
+          refracted *= mix(vec3(1.0), filmTint * 1.24, 0.24);
+          refracted += max(0.0, foldA * foldB) * 0.045 * uDistortion;
+          color = mix(color, refracted, 0.3 + uStrength * 0.38);
+        } else if (uMode == 31.0) {
+          vec2 drift = vec2(
+            sin(time * 0.63 + uAngleOffset),
+            cos(time * 0.49 - uAngleOffset)
+          ) * (0.006 + uDistortion * 0.018);
+          vec3 echoA = texture2D(tDiffuse, safeUv(uv - drift)).rgb;
+          vec3 echoB = texture2D(tDiffuse, safeUv(uv - drift * 2.1)).rgb;
+          vec3 echoC = texture2D(tDiffuse, safeUv(uv + drift * 0.7)).rgb;
+          vec3 trails = max(echoA * vec3(0.72, 0.35, 0.52), echoB * vec3(0.28, 0.58, 0.78));
+          trails = max(trails, echoC * uTint * 0.48);
+          color = mix(color, max(color, trails), 0.28 + uStrength * 0.4);
+        } else if (uMode == 32.0) {
+          vec2 centered = vUv - 0.5;
+          float radial = sin(length(centered) * (240.0 + uPixelSize * 8.0) - time * 0.5);
+          float diagonal = sin((centered.x * 1.3 + centered.y) * 310.0 + time * 0.32);
+          float interference = radial * diagonal;
+          vec3 ink = mix(vec3(0.04), uTint * 0.28, 0.42);
+          vec3 paper = mix(vec3(0.92), uTint, 0.12);
+          vec3 pattern = mix(ink, paper, smoothstep(-0.18, 0.22, interference));
+          color = mix(color, pattern * (0.58 + luma(color) * 0.62), 0.3 + uStrength * 0.36);
+        } else if (uMode == 33.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 radius = texel * (2.0 + uDistortion * 5.0);
+          vec3 blur = texture2D(tDiffuse, safeUv(uv + vec2(radius.x, 0.0))).rgb;
+          blur += texture2D(tDiffuse, safeUv(uv - vec2(radius.x, 0.0))).rgb;
+          blur += texture2D(tDiffuse, safeUv(uv + vec2(0.0, radius.y))).rgb;
+          blur += texture2D(tDiffuse, safeUv(uv - vec2(0.0, radius.y))).rgb;
+          blur *= 0.25;
+          float bright = smoothstep(0.48, 0.92, luma(blur));
+          vec3 halo = blur * mix(vec3(1.0), uTint * 1.35, 0.3) * bright;
+          color += halo * (0.32 + uStrength * 0.76);
+          color = mix(color, pow(max(color, vec3(0.0)), vec3(0.92)), 0.18);
+        } else if (uMode == 34.0) {
+          vec2 grid = fract(vUv * vec2(7.0, 5.0));
+          float seam = smoothstep(0.035, 0.0, min(min(grid.x, 1.0 - grid.x), min(grid.y, 1.0 - grid.y)));
+          float shardHue = hash21(floor(vUv * vec2(7.0, 5.0))) - 0.5;
+          vec3 fractured = hueShift(color, shardHue * 1.25 * uColorCycle);
+          fractured += uTint * seam * (0.18 + uStrength * 0.3);
+          color = mix(color, fractured, 0.38 + uStrength * 0.3);
+        } else if (uMode == 35.0) {
+          float value = pow(luma(color), 0.72);
+          float grain = hash21(gl_FragCoord.xy + floor(time * 15.0)) - 0.5;
+          float scan = 0.94 + 0.06 * sin(gl_FragCoord.y * 1.45);
+          vec3 phosphor = vec3(0.06, 0.92, 0.28) * value * scan;
+          phosphor += vec3(0.02, 0.16, 0.045) + grain * 0.045 * uDistortion;
+          vec2 centered = vUv * 2.0 - 1.0;
+          float scope = 1.0 - smoothstep(0.72, 1.32, dot(centered, centered));
+          phosphor *= mix(0.62, 1.0, scope);
+          color = mix(color, phosphor * mix(vec3(1.0), uTint, 0.12), 0.58 + uStrength * 0.34);
         }
 
         if (
           uMode == 4.0 || uMode == 5.0 || uMode == 9.0 ||
-          uMode == 12.0 || uMode == 15.0
+          uMode == 12.0 || uMode == 15.0 || uMode == 35.0
         ) {
           vec2 centered = vUv * 2.0 - 1.0;
           float vignette = 1.0 - smoothstep(0.35, 1.35, dot(centered, centered));
@@ -378,7 +481,8 @@ export class RoomPostProcessor {
 
         // Preserve mood without allowing a treatment to erase navigation detail.
         float targetShadow = (
-          uMode == 4.0 || uMode == 5.0 || uMode == 12.0 || uMode == 15.0
+          uMode == 4.0 || uMode == 5.0 || uMode == 12.0 || uMode == 15.0 ||
+          uMode == 35.0
         ) ? 0.17 : 0.13;
         targetShadow = mix(targetShadow, 0.27, uHighVisibility);
         float shadowLift = max(0.0, targetShadow - luma(color));

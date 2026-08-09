@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import { sanitizeDisplayText } from '../core/contentSafety';
 import { boundsForKind, kindFromLabel } from '../world/models';
+import { ROOM_BLURB_MAX_LENGTH } from '../world/textQuality';
 
 const SHAPES = new Set<PropShape>(['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane']);
 const BEHAVIORS = new Set<EntityBehavior>(['idle', 'wander', 'orbit', 'stare']);
@@ -146,7 +147,11 @@ export function normalizeRoomSpec(raw: unknown, seed: string): RoomSpec | null {
     id: str(o.id, `room-${seed}`),
     seed,
     title: sanitizeDisplayText(str(o.title, 'Unnamed Room'), 'Unnamed Room', 80),
-    blurb: sanitizeDisplayText(str(o.blurb, 'The room waits.'), 'The room waits.'),
+    blurb: sanitizeDisplayText(
+      str(o.blurb, 'The room waits.'),
+      'The room waits.',
+      ROOM_BLURB_MAX_LENGTH,
+    ),
     themeTags: Array.isArray(o.themeTags)
       ? o.themeTags
           .filter((t): t is string => typeof t === 'string')

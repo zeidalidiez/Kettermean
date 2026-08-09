@@ -160,6 +160,7 @@ describe('RoomGenerator cost controls', () => {
     const local = memoryStorage({
       'kettermean.roomCache.v8': '{}',
       'kettermean.roomCache.v10': '{}',
+      'kettermean.roomCache.v25': '{}',
       [STORAGE_KEYS.roomCache]: '{}',
       'another-app': 'keep-me',
     });
@@ -169,6 +170,7 @@ describe('RoomGenerator cost controls', () => {
 
     expect(local.getItem('kettermean.roomCache.v8')).toBeNull();
     expect(local.getItem('kettermean.roomCache.v10')).toBeNull();
+    expect(local.getItem('kettermean.roomCache.v25')).toBeNull();
     expect(local.getItem(STORAGE_KEYS.roomCache)).toBe('{}');
     expect(local.getItem('another-app')).toBe('keep-me');
   });
@@ -256,7 +258,10 @@ describe('RoomGenerator cost controls', () => {
       offline: false,
       title: 'Archive of Rain',
       roomRule: 'Speak only when the lights are blue.',
-      signs: [{ headline: 'WATER RECORDS', caption: 'DRY FORMS ONLY' }],
+      signs: [{
+        headline: 'WATER RECORDS',
+        caption: expect.stringMatching(/^DRY FORMS ONLY · /),
+      }],
     });
     expect(room.entities.every((entity) => entity.behavior === 'stare')).toBe(true);
     expect(room.entities.some((entity) => entity.dialogue === 'Your umbrella is overdue.')).toBe(true);

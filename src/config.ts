@@ -1,7 +1,7 @@
 export const STORAGE_KEYS = {
   settings: 'kettermean.settings.v1',
   sessionApiKey: 'kettermean.apiKey.session.v1',
-  roomCache: 'kettermean.roomCache.v23',
+  roomCache: 'kettermean.roomCache.v26',
 } as const;
 
 export const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
@@ -93,7 +93,7 @@ export const LLM_BUDGET = {
   lightMaxTokens: 480,
   deepNarrativeMaxTokens: 760,
   browserMaxTokens: 40,
-  browserTextMaxTokens: 150,
+  browserTextMaxTokens: 240,
   browserCastMaxTokens: 120,
   temperature: 0.8,
   cacheLimit: 48,

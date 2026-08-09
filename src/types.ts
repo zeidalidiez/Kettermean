@@ -162,7 +162,15 @@ export type RoomShaderStyle =
   | 'rain'
   | 'spectral'
   | 'mosaic'
-  | 'edgeglow';
+  | 'edgeglow'
+  | 'oilfilm'
+  | 'datamosh'
+  | 'cellophane'
+  | 'afterimage'
+  | 'moire'
+  | 'bloom'
+  | 'fracture'
+  | 'nightvision';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'
@@ -230,7 +238,7 @@ export interface RoomSpec {
   visuals?: RoomVisuals;
   /** A short model-authored law, ritual, or contradiction governing this room. */
   roomRule?: string;
-  /** Validated model-authored signage; procedural signs fill any remaining slots. */
+  /** Validated model-authored signage; rendered alongside procedural signs. */
   signs?: RoomSignText[];
   props: RoomProp[];
   entities: RoomEntity[];

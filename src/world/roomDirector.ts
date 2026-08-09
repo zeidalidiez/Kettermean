@@ -26,6 +26,7 @@ import {
   getTheme,
 } from './assetCatalog';
 import { stampRoomPacks } from './layoutPacks';
+import { ensureRoomBlurb, ROOM_BLURB_MAX_LENGTH } from './textQuality';
 
 /** Optional high-level steer from an LLM. Layout/placement always done here. */
 export interface DirectorSteer {
@@ -145,10 +146,18 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     theme.title,
     80,
   );
-  const blurb = sanitizeDisplayText(
-    cleanSteerText(steer?.blurb, 320) || varyBlurb(rng, theme.blurb, mood),
+  const blurb = ensureRoomBlurb(
+    cleanSteerText(steer?.blurb, ROOM_BLURB_MAX_LENGTH) || varyBlurb(rng, theme.blurb, mood),
+    {
+      seed: ctx.seed,
+      title,
+      mood,
+      tags: [...theme.tags, ...(steer?.tags ?? [])],
+      condition,
+      environment,
+      architecture,
+    },
     theme.blurb,
-    320,
   );
   const basePalette = conditionPalette(tintPalette(rng, theme.palette, mood), condition);
   const basePhysics = physicsForMood(rng, mood);
@@ -298,7 +307,19 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     id: `room-${dir.seed}`,
     seed: dir.seed,
     title: sanitizeDisplayText(dir.title, theme?.title || 'Unnamed Room', 80),
-    blurb: sanitizeDisplayText(dir.blurb, theme?.blurb || 'The room waits.', 320),
+    blurb: ensureRoomBlurb(
+      dir.blurb,
+      {
+        seed: dir.seed,
+        title: dir.title,
+        mood: dir.mood,
+        tags: dir.tags,
+        condition: dir.condition,
+        environment: dir.environment,
+        architecture: dir.architecture,
+      },
+      theme?.blurb || 'The room waits.',
+    ),
     themeId: dir.themeId,
     themeTags: dir.tags.map((tag) => sanitizeDisplayText(tag, 'liminal', 32)),
     mood: dir.mood,
@@ -329,7 +350,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
       : undefined,
     signs: dir.signs?.slice(0, 6).map((sign) => ({
       headline: sanitizeDisplayText(sign.headline, '', 64),
-      caption: sanitizeDisplayText(sign.caption, '', 48),
+      caption: sanitizeDisplayText(sign.caption, '', 128),
       tags: sign.tags?.map((tag) => sanitizeDisplayText(tag, '', 32)).filter(Boolean),
     })).filter((sign) => Boolean(sign.headline && sign.caption)),
     props,
@@ -369,6 +390,14 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
   'spectral',
   'mosaic',
   'edgeglow',
+  'oilfilm',
+  'datamosh',
+  'cellophane',
+  'afterimage',
+  'moire',
+  'bloom',
+  'fracture',
+  'nightvision',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
@@ -393,20 +422,20 @@ const EFFECT_TINTS = [
 ];
 const CONDITION_SHADER_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['shader'][]>> = {
   bloodied: ['solarize', 'tint', 'noir'],
-  slimed: ['smear', 'acid', 'underwater'],
+  slimed: ['smear', 'acid', 'underwater', 'oilfilm'],
   scorched: ['heatwave', 'dither', 'noir'],
-  burning: ['heatwave', 'thermal', 'smear'],
-  ruined: ['halftone', 'dither', 'noir', 'negative'],
+  burning: ['heatwave', 'thermal', 'smear', 'bloom'],
+  ruined: ['halftone', 'dither', 'noir', 'negative', 'fracture'],
   overgrown: ['dream', 'tint', 'duotone'],
-  frozen: ['negative', 'duotone', 'prism'],
-  flooded: ['rain', 'underwater', 'smear'],
+  frozen: ['negative', 'duotone', 'prism', 'cellophane'],
+  flooded: ['rain', 'underwater', 'smear', 'cellophane'],
   dusty: ['halftone', 'dither', 'tint'],
   moldy: ['smear', 'duotone', 'acid'],
-  electrified: ['edgeglow', 'prism', 'vhs'],
-  haunted: ['spectral', 'negative', 'dream'],
-  gilded: ['mosaic', 'posterize', 'duotone'],
-  bioluminescent: ['edgeglow', 'dream', 'prism'],
-  stormbound: ['rain', 'noir', 'vhs'],
+  electrified: ['edgeglow', 'prism', 'vhs', 'datamosh'],
+  haunted: ['spectral', 'negative', 'dream', 'afterimage'],
+  gilded: ['mosaic', 'posterize', 'duotone', 'oilfilm'],
+  bioluminescent: ['edgeglow', 'dream', 'prism', 'bloom'],
+  stormbound: ['rain', 'noir', 'vhs', 'nightvision'],
 };
 const CONDITION_LIGHTING_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['lighting'][]>> = {
   bloodied: ['emergency', 'warm'],
@@ -552,7 +581,7 @@ export function parseRoomDirection(
   const themeId = typeof o.themeId === 'string' ? o.themeId : typeof o.theme === 'string' ? o.theme : undefined;
   const theme = themeId ? getTheme(themeId) : undefined;
   const title = directorText(o.title, 80);
-  const blurb = directorText(o.blurb ?? o.description, 320);
+  const blurb = directorText(o.blurb ?? o.description, ROOM_BLURB_MAX_LENGTH);
   const mood = enumValue(o.mood, MOOD_VALUES);
 
   const preferAssets: string[] = [];
@@ -926,7 +955,8 @@ const SHADER_VALUES = [
   'none', 'retro', 'tint', 'dream', 'noir', 'crt', 'underwater', 'kaleidoscope', 'acid',
   'fisheye', 'thermal', 'prism', 'vhs', 'strobe', 'mirror', 'tunnel', 'posterize', 'duotone',
   'dither', 'solarize', 'heatwave', 'negative', 'halftone', 'smear', 'rain', 'spectral',
-  'mosaic', 'edgeglow',
+  'mosaic', 'edgeglow', 'oilfilm', 'datamosh', 'cellophane', 'afterimage', 'moire',
+  'bloom', 'fracture', 'nightvision',
 ] as const;
 const LIGHTING_VALUES = ['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse'] as const;
 const BEHAVIOR_VALUES = ['idle', 'wander', 'orbit', 'stare'] as const;
@@ -1047,7 +1077,7 @@ function parseAuthoredSigns(value: unknown, fallbackTags: readonly string[]): Ro
       const [headline, caption = 'PLEASE PROCEED'] = item.split('|', 2);
       const sign = {
         headline: directorText(headline, 64) ?? '',
-        caption: directorText(caption, 48) ?? '',
+        caption: directorText(caption, 128) ?? '',
         tags: [...fallbackTags],
       };
       if (sign.headline && sign.caption) signs.push(sign);
@@ -1057,7 +1087,7 @@ function parseAuthoredSigns(value: unknown, fallbackTags: readonly string[]): Ro
     const raw = item as Record<string, unknown>;
     const sign: RoomSignText = {
       headline: directorText(raw.headline ?? raw.text, 64) ?? '',
-      caption: directorText(raw.caption ?? raw.subtext, 48) ?? '',
+      caption: directorText(raw.caption ?? raw.subtext, 128) ?? '',
       tags: stringList(raw.tags, 8, 32),
     };
     if (sign.headline && sign.caption) signs.push(sign);

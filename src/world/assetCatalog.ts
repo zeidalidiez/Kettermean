@@ -10,6 +10,8 @@ import type {
   RoomSignText,
   RoomVisuals,
 } from '../types';
+import { DETAILED_ASSETS } from './detailedAssets';
+import { MASTERWORK_ASSETS } from './detailedAssetsRound2';
 import { EXPANDED_ASSETS } from './expandedAssets';
 import { MIXED_MEDIA_ASSETS } from './mixedMediaAssets';
 import { SEMANTIC_ASSETS } from './semanticAssets';
@@ -177,6 +179,8 @@ export const ASSETS: AssetDef[] = [
   ...SURREAL_ASSETS,
   ...SEMANTIC_ASSETS,
   ...MIXED_MEDIA_ASSETS,
+  ...DETAILED_ASSETS,
+  ...MASTERWORK_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [
@@ -517,7 +521,7 @@ export function catalogPromptSummary(): string {
     const first = variants[0]!;
     const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
     const category = first.category === 'npc' ? 'npc' : first.category.slice(0, 3);
-    return `${family}|${category}|${first.tags.join(',')}${moods === 'any' ? '' : `|${moods}`}`;
+    return `${family}|${category}|${first.tags[0]}${moods === 'any' ? '' : `|${moods}`}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
   return `ASSETS:\n${baseLines.join('\n')}\nFAMILIES (IDs end 01-08):\n${familyLines.join('\n')}\nTHEMES:\n${themes.join('\n')}`;

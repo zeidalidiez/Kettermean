@@ -316,6 +316,17 @@ const TAG_RELATIONS: Record<string, readonly string[]> = {
   interior: ['environment', 'place'],
 };
 
+const CAPTION_TAILS = [
+  'Keep this notice until your name changes',
+  'Present the receipt you have not received',
+  'All returning visitors must wait to be remembered',
+  'Service continues after the building has closed',
+  'Your place in line is moving without you',
+  'Please remain visible while the room is listening',
+  'No announcement will repeat in the same order',
+  'Report every missing minute to the nearest desk',
+] as const;
+
 export function generateRoomSigns(context: SignageContext): ProceduralSignText[] {
   const rng = new SeededRng(`${context.seed}:tagged-signage`);
   const contextTags = expandTags([
@@ -365,11 +376,15 @@ export function generateRoomSigns(context: SignageContext): ProceduralSignText[]
         }
       })().replace(/\s+/g, ' ').trim();
       if (usedHeadlines.has(headline)) continue;
-      const captionWord = weightedWord(rng, rng.chance(0.55) ? 'time' : 'service', contextTags, selected);
-      selected.push(captionWord);
+      const captionInstruction = weightedWord(rng, 'instruction', contextTags, selected);
+      selected.push(captionInstruction);
+      const captionService = weightedWord(rng, 'service', contextTags, selected);
+      selected.push(captionService);
+      const captionTime = weightedWord(rng, 'time', contextTags, selected);
+      selected.push(captionTime);
       sign = {
         headline,
-        caption: captionWord.text,
+        caption: `${captionInstruction.text} ${captionService.text} · ${captionTime.text} · ${rng.pick(CAPTION_TAILS)}`,
         tags: [...new Set(selected.flatMap((word) => word.tags))],
       };
     }

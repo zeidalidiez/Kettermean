@@ -724,7 +724,7 @@ function withSettingsConstraints(
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v24|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
+  return `v26|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
 function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; user: string } {
@@ -774,7 +774,7 @@ function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; 
     'scaleProfile: closet|human|grand|monumental|colossal. condition: normal|bloodied|slimed|scorched|burning|ruined|overgrown|frozen|flooded|dusty|moldy|electrified|haunted|gilded|bioluminescent|stormbound.',
     'mood: upper|downer|static|dynamic. npcBehavior: idle|wander|orbit|stare.',
     'visuals: shader, lighting, tint, effectStrength, distortion, colorCycle, wireframe.',
-    'Write a two-or-three-sentence blurb, a strange roomRule, 2-4 signs with headline/caption, and 1-4 short npcLines.',
+    'Write a complete 40-65 word blurb in three unnumbered atmospheric sentences, a strange roomRule, 2-4 signs with a 3-7 word headline and an 8-18 word informational caption, and 1-4 short npcLines.',
     'Choose 4-10 preferredAssets. Do not select doors or portals; the player changes dreams with R.',
     goreLine,
     flashingLine,

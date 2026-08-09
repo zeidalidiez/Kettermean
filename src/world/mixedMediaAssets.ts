@@ -39,20 +39,12 @@ export const VOXEL_MODEL_KINDS = [
   'voxel_train',
 ] as const;
 
-export const SPRITE_MODEL_KINDS = [
-  'sprite_attendant',
-  'sprite_office_worker',
-  'sprite_swimmer',
-  'sprite_motel_guest',
-] as const;
-
 export type MixedMediaModelKind =
   | (typeof DETAILED_MODEL_KINDS)[number]
   | (typeof LOW_POLY_MODEL_KINDS)[number]
-  | (typeof VOXEL_MODEL_KINDS)[number]
-  | (typeof SPRITE_MODEL_KINDS)[number];
+  | (typeof VOXEL_MODEL_KINDS)[number];
 
-export type MixedMediaStyle = 'detailed' | 'lowpoly' | 'voxel' | 'sprite';
+export type MixedMediaStyle = 'detailed' | 'lowpoly' | 'voxel';
 
 interface MixedMediaFamily {
   id: string;
@@ -109,10 +101,6 @@ const FAMILIES: MixedMediaFamily[] = [
   actor('anomaly_voxel_watcher', 'voxel_watcher', 'voxel horizon watcher', ['field', 'tech', 'dream', 'liminal'], 'voxel', 5, 'stare', { x: 5, y: 16, z: 5 }, 'anomaly'),
   detailed('voxel_train', 'giant voxel train', 'fixture', ['transit', 'outdoor', 'field', 'industrial'], { x: 8, y: 6, z: 24 }, 7, 'voxel'),
 
-  actor('npc_sprite_attendant', 'sprite_attendant', 'paper elevator attendant', ['hotel', 'lobby', 'transit', 'liminal'], 'sprite', 1, 'stare', { x: 1.05, y: 2.5, z: 0.12 }),
-  actor('npc_sprite_office_worker', 'sprite_office_worker', 'paper office worker', ['office', 'archive', 'civic', 'liminal'], 'sprite', 1, 'wander', { x: 1.0, y: 2.5, z: 0.12 }),
-  actor('npc_sprite_swimmer', 'sprite_swimmer', 'paper masked swimmer', ['pool', 'aquarium', 'motel', 'liminal'], 'sprite', 1, 'orbit', { x: 1.05, y: 2.45, z: 0.12 }),
-  actor('npc_sprite_motel_guest', 'sprite_motel_guest', 'paper motel guest', ['motel', 'hotel', 'home', 'liminal'], 'sprite', 1, 'wander', { x: 1.1, y: 2.5, z: 0.12 }),
 ];
 
 export const MIXED_MEDIA_ASSETS: AssetDef[] = FAMILIES.flatMap((assetFamily) =>
@@ -138,11 +126,9 @@ export const MIXED_MEDIA_ASSETS: AssetDef[] = FAMILIES.flatMap((assetFamily) =>
     weight:
       assetFamily.style === 'voxel'
         ? 0.32
-        : assetFamily.style === 'sprite'
-          ? 0.46
-          : assetFamily.style === 'lowpoly'
-            ? 0.58
-            : 0.72,
+        : assetFamily.style === 'lowpoly'
+          ? 0.58
+          : 0.72,
     renderCost: assetFamily.renderCost,
     family: assetFamily.id,
     variant,

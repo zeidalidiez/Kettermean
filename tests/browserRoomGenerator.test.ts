@@ -13,6 +13,7 @@ vi.mock('../src/llm/browserEngine', () => ({
 
 import { RoomGenerator } from '../src/llm/RoomGenerator';
 import type { AppSettings, GenerationContext } from '../src/types';
+import { ROOM_BLURB_MIN_WORDS, SIGN_CAPTION_MIN_WORDS, wordCount } from '../src/world/textQuality';
 import { memoryStorage } from './storage';
 
 const settings: AppSettings = {
@@ -84,6 +85,13 @@ describe('RoomGenerator browser steering recovery', () => {
       'Vending Chapel',
       'Forgotten Format',
     ]);
+    expect(rooms.every((room) => wordCount(room.blurb) >= ROOM_BLURB_MIN_WORDS)).toBe(true);
+    expect(
+      rooms.flatMap((room) => room.signs ?? []).every(
+        (sign) => wordCount(sign.caption) >= SIGN_CAPTION_MIN_WORDS,
+      ),
+    ).toBe(true);
+    expect(browser.completion.mock.calls[1]?.[0]).toMatchObject({ maxTokens: 240 });
   });
 
   it('keeps light depth to one compact browser-model pass', async () => {
@@ -96,6 +104,21 @@ describe('RoomGenerator browser steering recovery', () => {
     expect(room.offline).toBe(false);
     expect(browser.completion).toHaveBeenCalledTimes(1);
     expect(generator.getApiCallCount()).toBe(1);
+  });
+
+  it('keeps a rich local blurb when the Standard writing pass returns only a title', async () => {
+    browser.completion
+      .mockResolvedValueOnce('KMR01234560')
+      .mockResolvedValueOnce('TITLE=Bright Pool With No Water');
+    const generator = new RoomGenerator(settings);
+    generator.beginSession();
+
+    const room = await generator.get(context(21));
+
+    expect(browser.completion).toHaveBeenCalledTimes(2);
+    expect(room.title).toBe('Bright Pool With No Water');
+    expect(wordCount(room.blurb)).toBeGreaterThanOrEqual(ROOM_BLURB_MIN_WORDS);
+    expect(room.blurb).toMatch(/[.!?…]$/);
   });
 
   it('starts a newly selected cloud provider without waiting for obsolete WebLLM work', async () => {

@@ -13,6 +13,7 @@ import { RoomGenerator } from '../llm/RoomGenerator';
 import { PlayerController } from '../player/PlayerController';
 import { RoomWorld } from '../world/RoomBuilder';
 import { resolveRoomVisuals, roomHistoryEntryFor } from '../world/roomDirector';
+import { enforceRoomTextQuality } from '../world/textQuality';
 import { RoomPostProcessor } from './RoomPostProcessor';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'linking';
@@ -276,6 +277,7 @@ export class DreamGame {
   }
 
   private applyRoom(spec: RoomSpec): void {
+    enforceRoomTextQuality(spec);
     // Comfort preferences are a client-side invariant. Re-resolve even model and
     // cached rooms so a stale or hostile visual steer cannot bypass them.
     spec.visuals = resolveRoomVisuals(

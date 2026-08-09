@@ -30,12 +30,12 @@ export interface SteeringResult {
 
 const MOODS: MoodAxis[] = ['static', 'upper', 'downer', 'dynamic'];
 const SHADER_FAMILIES: readonly (readonly RoomShaderStyle[])[] = [
-  ['none', 'fisheye', 'mirror', 'posterize', 'halftone', 'mosaic'],
-  ['retro', 'vhs', 'dither', 'negative'],
-  ['tint', 'thermal', 'prism', 'duotone', 'negative', 'spectral'],
-  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain'],
-  ['noir', 'mirror', 'tunnel', 'spectral', 'rain'],
-  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow'],
+  ['none', 'fisheye', 'mirror', 'posterize', 'halftone', 'mosaic', 'moire'],
+  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision'],
+  ['tint', 'thermal', 'prism', 'duotone', 'negative', 'spectral', 'oilfilm'],
+  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane'],
+  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture'],
+  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom'],
 ];
 const LIGHTING: RoomLightingStyle[] = [
   'fluorescent',
@@ -66,7 +66,7 @@ export function browserSteeringPrompt(
     ...themes.map((theme, index) => `${index} = ${theme}`),
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
-    `Shader family digit: 0 clean/lens/mosaic, 1 retro/VHS/negative, 2 tint/thermal/spectral, 3 dream/acid/rain/smear, 4 noir/mirror/tunnel/rain, 5 ${ctx.noFlashingLights ? 'CRT/prism/edge-glow' : 'CRT/prism/strobe/edge-glow'}.`,
+    `Shader family digit: 0 clean/lens/mosaic/moire, 1 retro/VHS/datamosh/night-vision, 2 tint/thermal/spectral/oil-film, 3 dream/acid/rain/cellophane, 4 noir/mirror/afterimage/fracture, 5 ${ctx.noFlashingLights ? 'CRT/prism/edge-glow/bloom' : 'CRT/prism/strobe/edge-glow/bloom'}.`,
     `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',

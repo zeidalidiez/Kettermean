@@ -6,7 +6,6 @@ import {
   LOW_POLY_MODEL_KINDS,
   MIXED_MEDIA_ASSET_COUNT,
   MIXED_MEDIA_ASSETS,
-  SPRITE_MODEL_KINDS,
   VOXEL_MODEL_KINDS,
 } from '../src/world/mixedMediaAssets';
 import { generateOfflineRoom } from '../src/world/offlineGenerator';
@@ -20,12 +19,12 @@ import {
 afterAll(() => clearModelMaterialCache());
 
 describe('mixed-media model expansion', () => {
-  it('contains 256 variants across 32 tagged eight-member families', () => {
-    expect(MIXED_MEDIA_ASSET_COUNT).toBe(256);
-    expect(new Set(MIXED_MEDIA_ASSETS.map((asset) => asset.id)).size).toBe(256);
+  it('contains 224 all-3D variants across 28 tagged eight-member families', () => {
+    expect(MIXED_MEDIA_ASSET_COUNT).toBe(224);
+    expect(new Set(MIXED_MEDIA_ASSETS.map((asset) => asset.id)).size).toBe(224);
 
     const families = Map.groupBy(MIXED_MEDIA_ASSETS, (asset) => asset.family);
-    expect(families.size).toBe(32);
+    expect(families.size).toBe(28);
     for (const variants of families.values()) {
       expect(variants).toHaveLength(8);
       expect(new Set(variants.map((asset) => asset.variant))).toEqual(
@@ -40,25 +39,23 @@ describe('mixed-media model expansion', () => {
     expect(countKinds(DETAILED_MODEL_KINDS)).toBe(96);
     expect(countKinds(LOW_POLY_MODEL_KINDS)).toBe(64);
     expect(countKinds(VOXEL_MODEL_KINDS)).toBe(64);
-    expect(countKinds(SPRITE_MODEL_KINDS)).toBe(32);
+    expect(MIXED_MEDIA_ASSETS.some((asset) => asset.kind.startsWith('sprite_'))).toBe(false);
     expect(ASSETS).toEqual(expect.arrayContaining(MIXED_MEDIA_ASSETS));
   });
 
-  it('builds the intended detailed, cheap, voxel, and sprite render styles', () => {
+  it('builds the intended detailed, cheap, and voxel render styles without 2D sprites', () => {
     const familySignatures = new Map<string, Set<string>>();
 
     for (const asset of MIXED_MEDIA_ASSETS) {
       const kind = asset.kind as PropKind;
       const model = buildModel(kind, '#6a7a8a', '#c4b59a', asset.id);
       const meshes: THREE.Mesh[] = [];
-      const sprites: THREE.Sprite[] = [];
       const instances: THREE.InstancedMesh[] = [];
       const signatureParts: string[] = [];
       model.traverse((child) => {
-        if (child instanceof THREE.Sprite) sprites.push(child);
         if (child instanceof THREE.Mesh) meshes.push(child);
         if (child instanceof THREE.InstancedMesh) instances.push(child);
-        if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Sprite)) return;
+        if (!(child instanceof THREE.Mesh)) return;
         const material = Array.isArray(child.material) ? child.material[0] : child.material;
         const color = 'color' in material && material.color instanceof THREE.Color
           ? material.color.getHexString()
@@ -91,11 +88,7 @@ describe('mixed-media model expansion', () => {
         expect(instances.reduce((sum, mesh) => sum + mesh.count, 0), asset.id).toBeGreaterThan(25);
         expect(Math.max(boundsForKind(kind).w, boundsForKind(kind).h, boundsForKind(kind).d), asset.id).toBeGreaterThanOrEqual(7);
       }
-      if (SPRITE_MODEL_KINDS.includes(asset.kind as never)) {
-        expect(sprites.some((sprite) => sprite.name === 'sprite-actor'), asset.id).toBe(true);
-        expect(model.getObjectByName('sprite-shadow'), asset.id).toBeInstanceOf(THREE.Mesh);
-        expect(asset.renderCost, asset.id).toBe(1);
-      }
+      expect(model.getObjectByName('sprite-actor'), asset.id).toBeUndefined();
 
       const signatures = familySignatures.get(asset.family!) ?? new Set<string>();
       signatures.add(signatureParts.join('|'));
@@ -112,7 +105,7 @@ describe('mixed-media model expansion', () => {
     const families = new Set(MIXED_MEDIA_ASSETS.map((asset) => asset.family));
 
     for (const family of families) expect(prompt).toContain(`${family}|`);
-    expect(prompt).not.toContain('npc_sprite_attendant_02');
+    expect(prompt).not.toContain('npc_sprite_');
     expect(prompt).toContain('FAMILIES (IDs end 01-08):');
     expect(prompt.length).toBeLessThan(16_000);
   });
@@ -133,6 +126,6 @@ describe('mixed-media model expansion', () => {
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(220);
+    expect(used.size).toBeGreaterThanOrEqual(190);
   }, 20_000);
 });

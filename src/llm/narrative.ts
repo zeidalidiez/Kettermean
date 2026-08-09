@@ -6,6 +6,11 @@ import type {
   RoomSignText,
   RoomSpec,
 } from '../types';
+import {
+  ensureRoomBlurb,
+  ensureSignCaption,
+  ROOM_BLURB_MAX_LENGTH,
+} from '../world/textQuality';
 
 export type BrowserNarrativePass = 'language' | 'inhabitants';
 
@@ -43,8 +48,10 @@ export function browserNarrativePrompt(
         'Then write exactly four adjacent labeled lines: BLURB, TITLE, SIGN, SIGN.',
         'Do not put blank lines between fields.',
         'TITLE is two to five invented words.',
-        'BLURB is two short atmospheric sentences that combine the supplied ideas.',
-        'Each SIGN is HEADLINE | CAPTION using actual sign text.',
+        'BLURB is three complete atmospheric sentences, 40-65 words total, combining the supplied ideas.',
+        'Do not number the sentences, and finish every sentence.',
+        'Each SIGN is HEADLINE | SUPPORTING NOTICE using actual sign text.',
+        'HEADLINE is three to seven words; SUPPORTING NOTICE is a readable eight-to-eighteen-word instruction, warning, schedule, or explanation.',
         'Do not repeat instructions, placeholders, examples, markdown, or analysis.',
       ].join(' '),
       user: [
@@ -87,7 +94,7 @@ export function parseBrowserNarrative(
   const payload = payloadAfterMarker(text, marker);
   const fields = extractFields(payload);
   const title = cleanText(fields.get('TITLE')?.[0], 80);
-  const blurb = cleanText(fields.get('BLURB')?.[0], 320);
+  const blurb = cleanText(fields.get('BLURB')?.[0], ROOM_BLURB_MAX_LENGTH);
   const roomRule = cleanText(fields.get('RULE')?.[0], 180);
   const signs = (fields.get('SIGN') ?? [])
     .map(parseSign)
@@ -114,7 +121,7 @@ export function narrativePatchFromObject(raw: unknown): RoomNarrativePatch {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const value = raw as Record<string, unknown>;
   const title = cleanText(value.title, 80);
-  const blurb = cleanText(value.blurb ?? value.description, 320);
+  const blurb = cleanText(value.blurb ?? value.description, ROOM_BLURB_MAX_LENGTH);
   const roomRule = cleanText(value.roomRule ?? value.rule, 180);
   const rawSigns = Array.isArray(value.signs) ? value.signs : [];
   const signs = rawSigns.map((sign) => {
@@ -122,7 +129,7 @@ export function narrativePatchFromObject(raw: unknown): RoomNarrativePatch {
     if (!sign || typeof sign !== 'object') return null;
     const object = sign as Record<string, unknown>;
     const headline = cleanText(object.headline ?? object.text, 64);
-    const caption = cleanText(object.caption ?? object.subtext, 48);
+    const caption = cleanText(object.caption ?? object.subtext, 128);
     return headline && caption ? { headline, caption } : null;
   }).filter((sign): sign is RoomSignText => Boolean(sign)).slice(0, 6);
   const npcLines = (Array.isArray(value.npcLines) ? value.npcLines : [])
@@ -153,7 +160,7 @@ export function applyNarrativePatch(room: RoomSpec, patch: RoomNarrativePatch): 
     applied.push('title');
   }
   if (patch.blurb) {
-    room.blurb = patch.blurb;
+    room.blurb = ensureRoomBlurb(patch.blurb, room, room.blurb);
     applied.push('blurb');
   }
   if (patch.roomRule) {
@@ -161,7 +168,10 @@ export function applyNarrativePatch(room: RoomSpec, patch: RoomNarrativePatch): 
     applied.push('room rule');
   }
   if (patch.signs?.length) {
-    room.signs = patch.signs;
+    room.signs = patch.signs.map((sign, index) => ({
+      ...sign,
+      caption: ensureSignCaption(sign.caption, `${room.seed}:${index}:${sign.headline}`),
+    }));
     applied.push(`${patch.signs.length} signs`);
   }
   if (patch.npcBehavior) {
@@ -188,8 +198,8 @@ export function cloudNarrativePrompt(
       'Return one JSON object only, with no markdown or analysis.',
       `Set responseTag to exactly ${marker}.`,
       'Schema: responseTag, title, blurb, roomRule, signs, npcLines, npcBehavior.',
-      'blurb is two or three concise atmospheric sentences.',
-      'signs is 3-6 objects with headline and caption.',
+      'blurb is three complete atmospheric sentences totaling 40-65 words; never number or truncate them.',
+      'signs is 3-6 objects with a 3-7 word headline and an 8-18 word informational caption.',
       'npcLines is 2-6 short reactions. npcBehavior is idle|wander|orbit|stare.',
       'Invent actual content. Never return instructions or placeholders.',
       'Never sexual or obscene.',
@@ -240,7 +250,7 @@ function extractFields(text: string): Map<string, string[]> {
 function parseSign(value: string): RoomSignText | null {
   const [rawHeadline, rawCaption] = value.split('|', 2);
   const headline = cleanText(rawHeadline, 64);
-  const caption = cleanText(rawCaption, 48);
+  const caption = cleanText(rawCaption, 128);
   return headline && caption ? { headline, caption } : null;
 }
 
