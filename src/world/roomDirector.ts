@@ -20,7 +20,6 @@ import type {
 } from '../types';
 import {
   THEME_PRESETS,
-  type DirectedPlacement,
   type RoomDirection,
   type ThemePreset,
   getAsset,
@@ -216,8 +215,9 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   const worldScale = clamp(dir.worldScale ?? 1, 0.6, 24);
 
   let actorIndex = 0;
-  const placements = prioritizeContrastProp(dir);
-  placements.forEach((p, i) => {
+  const placementOrder = prioritizeContrastProp(dir);
+  placementOrder.forEach((i) => {
+    const p = dir.placements[i]!;
     const asset = getAsset(p.assetId);
     if (!asset || asset.category === 'portal') return;
     const mul = clamp(p.scaleMul ?? 1, asset.scaleRange.min, asset.scaleRange.max);
@@ -374,14 +374,15 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
  * are consumed by coherent packs. Actor order remains untouched, so authored
  * dialogue continues to align with its original NPC/entity sequence.
  */
-function prioritizeContrastProp(dir: RoomDirection): DirectedPlacement[] {
+function prioritizeContrastProp(dir: RoomDirection): number[] {
+  const placementOrder = dir.placements.map((_, index) => index);
   const contrastSet = dir.composition?.contrastSet;
-  if (!contrastSet) return dir.placements;
+  if (!contrastSet) return placementOrder;
   const coherentSets = new Set([
     dir.composition!.primarySet,
     ...(dir.composition!.supportingSet ? [dir.composition!.supportingSet] : []),
   ]);
-  const index = dir.placements.findIndex((placement) => {
+  const priorityIndex = dir.placements.findIndex((placement) => {
     const asset = getAsset(placement.assetId);
     if (!asset || asset.category === 'portal') return false;
     if (asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly') {
@@ -390,11 +391,11 @@ function prioritizeContrastProp(dir: RoomDirection): DirectedPlacement[] {
     return asset.setIds.some((setId) => setId === contrastSet) &&
       !asset.setIds.some((setId) => coherentSets.has(setId));
   });
-  if (index <= 0) return dir.placements;
+  if (priorityIndex <= 0) return placementOrder;
   return [
-    dir.placements[index]!,
-    ...dir.placements.slice(0, index),
-    ...dir.placements.slice(index + 1),
+    priorityIndex,
+    ...placementOrder.slice(0, priorityIndex),
+    ...placementOrder.slice(priorityIndex + 1),
   ];
 }
 

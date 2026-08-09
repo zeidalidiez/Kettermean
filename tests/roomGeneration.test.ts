@@ -3,10 +3,64 @@ import { PLAYER, ROOM } from '../src/config';
 import { childSeed, randomSeed } from '../src/core/rng';
 import type { RoomHistoryEntry, RoomProp } from '../src/types';
 import { generateOfflineDirection, generateOfflineRoom } from '../src/world/offlineGenerator';
-import { getAsset, THEME_PRESETS } from '../src/world/assetCatalog';
-import { resolveRoomVisuals, roomHistoryEntryFor } from '../src/world/roomDirector';
+import { ASSETS, getAsset, THEME_PRESETS } from '../src/world/assetCatalog';
+import { assembleRoomSpec, resolveRoomVisuals, roomHistoryEntryFor } from '../src/world/roomDirector';
 
 describe('offline room invariants', () => {
+  it('keeps individually selectable assets within their room budgets', () => {
+    for (const asset of ASSETS) {
+      if (asset.category === 'portal') continue;
+      const isActor =
+        asset.category === 'npc' || asset.category === 'creature' || asset.category === 'anomaly';
+      const budget = isActor ? ROOM.entityRenderCostMax : ROOM.propRenderCostMax;
+      const defaultCost = isActor ? 3 : 1;
+      expect(asset.renderCost ?? defaultCost, asset.id).toBeLessThanOrEqual(budget);
+    }
+  });
+
+  it('reserves an exclusive contrast prop without changing actor identity', () => {
+    const room = assembleRoomSpec({
+      seed: 'contrast-budget-identity',
+      title: 'Contrast Budget Identity',
+      blurb: 'A nurse watches two carousels orbit an instrument meant for another room.',
+      mood: 'static',
+      composition: {
+        primarySet: 'institutional',
+        contrastSet: 'leisure',
+        contrastBudget: 1,
+      },
+      tags: ['clinic'],
+      width: 20,
+      depth: 20,
+      height: 6,
+      npcLines: ['The original appointment number still applies.'],
+      placements: [
+        { assetId: 'npc_nurse_01', x: 2, z: 2 },
+        { assetId: 'atelier_surgical_carousel_03', x: -4, z: -4 },
+        { assetId: 'atelier_surgical_carousel_03', x: 4, z: -4 },
+        { assetId: 'atelier_resonance_array_03', x: 0, z: 6 },
+      ],
+      offline: true,
+    });
+
+    expect(room.props.map((prop) => prop.assetId)).toEqual([
+      'atelier_resonance_array_03',
+      'atelier_surgical_carousel_03',
+    ]);
+    expect(room.props.map((prop) => prop.id)).toEqual(['p3', 'p1']);
+    expect(room.entities).toMatchObject([{
+      id: 'e0',
+      speed: 0.45,
+      dialogue: 'The original appointment number still applies.',
+    }]);
+    expect(
+      room.props.reduce(
+        (total, prop) => total + (prop.assetId ? getAsset(prop.assetId)?.renderCost ?? 1 : 1),
+        0,
+      ),
+    ).toBeLessThanOrEqual(ROOM.propRenderCostMax);
+  });
+
   it('keeps the spawn island clear and respects logical object budgets', () => {
     const shaderStyles = new Set<string>();
     const lightingStyles = new Set<string>();
