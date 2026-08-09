@@ -26,6 +26,7 @@ import {
   getTheme,
 } from './assetCatalog';
 import { stampRoomPacks } from './layoutPacks';
+import { generateNpcDialogue } from './npcDialogue';
 import { ensureRoomBlurb, ROOM_BLURB_MAX_LENGTH } from './textQuality';
 
 /** Optional high-level steer from an LLM. Layout/placement always done here. */
@@ -238,7 +239,14 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         entities.length >= ROOM.entityCountMax ||
         entityRenderCost + renderCost > ROOM.entityRenderCostMax
       ) return;
-      const dialogue = dir.npcLines?.[actorIndex];
+      const authoredDialogue = dir.npcLines?.[actorIndex];
+      const dialogue = authoredDialogue || generateNpcDialogue({
+        seed: `${dir.seed}:${actorIndex}`,
+        label,
+        tags: [...dir.tags, ...asset.tags],
+        mood: dir.mood,
+        condition: dir.condition ?? 'normal',
+      });
       actorIndex += 1;
       entities.push({
         id: `e${i}`,

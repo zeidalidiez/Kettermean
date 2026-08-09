@@ -35,6 +35,18 @@ const GENERIC_DETAILS = [
   'The arrangement feels temporary and carefully maintained, like a waiting area built for an appointment without a date.',
   'Every object seems correctly placed until it is viewed beside the next one, where the scale and purpose stop agreeing.',
   'An ordinary institutional smell lingers in the air, made unfamiliar by the complete absence of its expected source.',
+  'Thin cables disappear into surfaces that have no visible machinery, each one trembling at a slightly different interval.',
+  'A sequence of scuff marks crosses the floor, pauses neatly at an empty space, and resumes several meters farther on.',
+  'The room contains too many clocks for a place with no posted hours, and none of them disagree in the same way.',
+  'Distant glass reflects a warmer version of the architecture, furnished for an event the present room does not acknowledge.',
+  'Labels have been applied to ordinary objects in careful handwriting, but every label describes something located elsewhere.',
+  'A draft moves loose paper toward the center of the room, where it settles around an invisible piece of furniture.',
+  'Muted colors gather around handles and switches, as if repeated use has worn away more than the surface finish.',
+  'The largest object is positioned like a temporary obstacle, though the dust around it suggests decades of careful avoidance.',
+  'A faint public melody reaches the room in fragments, each phrase arriving from a different wall before ending too early.',
+  'Several fixtures have small personal modifications—tape, string, penciled numbers—left by occupants who never appear.',
+  'The geometry becomes subtly more ornate toward the far end, where practical fittings acquire ceremonial details without explanation.',
+  'Every route offers a plausible destination, yet their signs use the language of a building that expects no one to leave.',
 ] as const;
 
 const ENVIRONMENT_DETAILS: Record<RoomEnvironment, readonly string[]> = {
@@ -103,6 +115,18 @@ const CAPTION_COMPLETIONS = [
   'Please follow the posted sequence even when the numbers repeat',
   'All questions will be answered during the previous operating hour',
   'Wait here until the next room confirms that you arrived',
+  'Keep your assigned shadow inside the clearly marked waiting area',
+  'The next announcement applies only to visitors from the previous hour',
+  'Unclaimed weather will be transferred to the basement after closing',
+  'Present all borrowed names before crossing the interior service corridor',
+  'Duplicate reflections must be surrendered at the nearest information counter',
+  'This route remains available until the building recognizes your arrival',
+  'Do not exchange seats with anyone facing the opposite direction',
+  'All misplaced hours are held for collection behind the reception desk',
+  'Visitors without memories may request a temporary sequence from intake',
+  'Management accepts no responsibility for suddenly familiar architecture',
+  'Continue through the lobby without acknowledging the second version',
+  'Your position will be preserved during any scheduled spatial changes',
 ] as const;
 
 /**

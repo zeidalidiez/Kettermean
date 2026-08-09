@@ -280,6 +280,31 @@ export const SIGN_WORDS: TaggedSignWord[] = [
   ...wordGroup('time', ['uncanny', 'liminal', 'dream'], [
     'After the Last Showing', 'Before Closing Yesterday', 'During Your Absence', 'At the Same Time', 'One Minute Remaining', 'Open Between Hours', 'Next Week Previously', 'Immediately Later',
   ]),
+
+  ...wordGroup('place', ['place', 'night', 'celestial', 'museum'], [
+    'Star Chamber', 'Moon Archive', 'Planet Hall', 'Night Observatory', 'Solar Gallery', 'Comet Annex', 'Orbit Room', 'Sky Laboratory', 'Constellation Wing', 'Eclipse Court', 'Astral Lobby', 'Meteor Office',
+  ]),
+  ...wordGroup('place', ['place', 'water', 'aquarium', 'maritime'], [
+    'Tide Office', 'Harbor Gallery', 'Submarine Hall', 'Lighthouse Room', 'Dry Dock', 'Ocean Registry', 'Pier Terminal', 'Current Station', 'Saltwater Lobby', 'Flood Museum', 'Mariner Court', 'Deep Archive',
+  ]),
+  ...wordGroup('modifier', ['office', 'archive', 'civic', 'liminal'], [
+    'Provisional', 'Duplicate', 'Unfiled', 'Supplementary', 'Interdepartmental', 'Misprinted', 'Counter-Signed', 'Pending', 'Unscheduled', 'Reassigned', 'Unclaimed', 'After-Hours',
+  ]),
+  ...wordGroup('modifier', ['material', 'museum', 'industrial'], [
+    'Brass', 'Velvet', 'Porcelain', 'Chrome', 'Marble', 'Glass', 'Carpeted', 'Lacquered', 'Riveted', 'Mirrored', 'Paper', 'Wax-Sealed',
+  ]),
+  ...wordGroup('institution', ['dream', 'uncanny', 'archive', 'public'], [
+    'Office of Lost Weather', 'Bureau of Interior Horizons', 'Committee for Previous Hours', 'Department of Empty Seating', 'Authority of Unfinished Routes', 'Registry of Borrowed Names', 'Commission for Quiet Buildings', 'Service for Duplicate Visitors', 'Institute of Delayed Arrivals', 'Board of Indoor Night', 'Archive of Unused Exits', 'Ministry of Familiar Rooms',
+  ]),
+  ...wordGroup('instruction', ['dream', 'uncanny', 'public', 'warning'], [
+    'Wait Until Remembered', 'Keep Your Assigned Shadow', 'Use the Unnumbered Counter', 'Do Not Answer Yourself', 'Leave One Light On', 'Return Before Arrival', 'Follow the Quietest Sign', 'Present Your Previous Name', 'Remain in the Correct Weather', 'Report Familiar Corridors', 'Ignore the Second Reflection', 'Proceed Without Waking',
+  ]),
+  ...wordGroup('service', ['dream', 'uncanny', 'hotel', 'archive'], [
+    'Shadow Check', 'Weather Storage', 'Memory Valuation', 'Name Repair', 'Dream Recording', 'Reflection Exchange', 'Lost Morning Claims', 'Temporary Face Rental', 'Corridor Reservations', 'Silence Processing', 'Previous Room Service', 'Indoor Horizon Desk',
+  ]),
+  ...wordGroup('time', ['night', 'dream', 'uncanny', 'service'], [
+    'At 00:00 Again', 'Until the Lights Decide', 'Before the Previous Shift', 'After Your Name Is Called', 'Every Other Yesterday', 'During Indoor Weather', 'Until Further Memory', 'Between the Same Minutes', 'One Hour Before Now', 'When the Corridor Returns', 'After the Empty Train', 'Until Reception Wakes',
+  ]),
 ];
 
 const TAG_RELATIONS: Record<string, readonly string[]> = {
@@ -325,6 +350,22 @@ const CAPTION_TAILS = [
   'Please remain visible while the room is listening',
   'No announcement will repeat in the same order',
   'Report every missing minute to the nearest desk',
+  'Keep your assigned shadow within the marked waiting area',
+  'The next announcement applies only to previous visitors',
+  'Unclaimed weather will be removed after the final shift',
+  'Present all borrowed names before entering the interior corridor',
+  'Service animals must remain visible to the building at all times',
+  'Duplicate reflections should be surrendered at the information counter',
+  'This route remains open until the room recognizes your arrival',
+  'Wait beneath the smallest sign until its instructions become accurate',
+  'Do not exchange seats with anyone facing the opposite direction',
+  'All misplaced hours are held for collection behind reception',
+  'Visitors without memories may request a temporary sequence at intake',
+  'The management accepts no responsibility for familiar architecture',
+  'Continue through the lobby without acknowledging the second version',
+  'Your position in line will be preserved during any spatial changes',
+  'Return this notice before the corridor completes its next rotation',
+  'Only one member of each reflection may use this service',
 ] as const;
 
 export function generateRoomSigns(context: SignageContext): ProceduralSignText[] {
