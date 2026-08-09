@@ -639,7 +639,7 @@ function buildSpriteActor(kind: MixedMediaModelKind, variant: number): THREE.Gro
   const map = spriteActorTexture(kind);
   const tint = new THREE.Color('#ffffff').offsetHSL((variant - 3.5) * 0.012, (variant % 3 - 1) * 0.035, (variant - 3.5) * 0.018);
   const material = new THREE.SpriteMaterial({
-    map: map ?? undefined,
+    ...(map ? { map } : {}),
     color: tint,
     transparent: true,
     alphaTest: map ? 0.08 : 0,
