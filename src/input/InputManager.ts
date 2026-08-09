@@ -8,6 +8,29 @@ interface StickState {
   pointerId: number | null;
 }
 
+interface PointerLockTarget {
+  requestPointerLock?: () => Promise<void> | void;
+}
+
+/**
+ * Pointer Lock is desktop-only in several touch browsers, notably iPhone Safari.
+ * A missing method must be treated as a supported input mode difference rather
+ * than an exception after the game menu has already been hidden.
+ */
+export function requestPointerLockIfSupported(target: PointerLockTarget): void {
+  const request = target.requestPointerLock;
+  if (typeof request !== 'function') return;
+  try {
+    const pending = request.call(target);
+    if (pending && typeof pending.catch === 'function') {
+      void pending.catch(() => undefined);
+    }
+  } catch {
+    // Older implementations can throw synchronously. Keyboard, gamepad, and
+    // touch controls remain usable without pointer lock.
+  }
+}
+
 /**
  * Merges keyboard, pointer-lock mouse, gamepad, and dual touch sticks
  * into one InputFrame consumed by the player controller.
@@ -90,12 +113,10 @@ export class InputManager {
 
   requestPointerLock(): void {
     if (!this.enabled) return;
+    const coarsePointer = window.matchMedia?.('(hover: none), (pointer: coarse)').matches;
+    if (coarsePointer) return;
     if (document.pointerLockElement !== this.canvas) {
-      const request = this.canvas.requestPointerLock();
-      void request?.catch(() => {
-        // Embedded previews and browser policy can deny pointer lock. Keyboard,
-        // gamepad, and touch input remain usable.
-      });
+      requestPointerLockIfSupported(this.canvas);
     }
   }
 

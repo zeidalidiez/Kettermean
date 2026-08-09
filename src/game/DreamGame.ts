@@ -49,6 +49,8 @@ export class DreamGame {
   private runEpoch = 0;
   private nextRoomPlan: NextRoomPlan | null = null;
   private toastTimer: number | null = null;
+  private contextLost = false;
+  private readonly touchFirst: boolean;
 
   private readonly canvas: HTMLCanvasElement;
   private readonly fade: HTMLElement;
@@ -75,16 +77,20 @@ export class DreamGame {
     this.pauseMood = must('pause-mood');
     this.pauseSeed = must('pause-seed');
     this.toast = must('status-toast');
+    this.touchFirst = window.matchMedia?.('(hover: none), (pointer: coarse)').matches ?? false;
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: true,
+      antialias: !this.touchFirst,
+      powerPreference: this.touchFirst ? 'default' : 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // A 3x phone display does not benefit from a 3x real-time 3D buffer. The
+    // lower mobile cap also leaves GPU memory available for optional WebLLM.
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.touchFirst ? 1.5 : 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.post = new RoomPostProcessor();
+    this.post = new RoomPostProcessor(this.touchFirst ? 1 : 1.5);
     this.post.setSize(
       window.innerWidth,
       window.innerHeight,
@@ -102,6 +108,8 @@ export class DreamGame {
     window.addEventListener('resize', this.onResize);
     window.addEventListener('keydown', this.onPausedKeyDown);
     this.canvas.addEventListener('click', this.onCanvasClick);
+    this.canvas.addEventListener('webglcontextlost', this.onContextLost);
+    this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
 
     this.loop = this.loop.bind(this);
@@ -226,6 +234,8 @@ export class DreamGame {
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('keydown', this.onPausedKeyDown);
     this.canvas.removeEventListener('click', this.onCanvasClick);
+    this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
+    this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     this.input.dispose();
     this.roomWorld.dispose(this.scene);
@@ -420,8 +430,28 @@ export class DreamGame {
   };
 
   private renderFrame(timeSeconds = performance.now() / 1000): void {
+    if (this.contextLost) return;
     this.post.render(this.renderer, this.scene, this.player.camera, timeSeconds);
   }
+
+  private onContextLost = (event: Event): void => {
+    event.preventDefault();
+    this.contextLost = true;
+    this.stopLoop();
+    if (this.state !== 'menu') {
+      this.showToast('Graphics paused · restoring the scene…', true);
+    }
+  };
+
+  private onContextRestored = (): void => {
+    this.contextLost = false;
+    this.onResize();
+    if (this.state === 'playing') {
+      this.showToast('Scene restored');
+      this.renderFrame();
+      this.startLoop();
+    }
+  };
 
   private onCanvasClick = (): void => {
     if (this.state === 'playing' || this.state === 'paused') {

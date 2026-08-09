@@ -272,8 +272,10 @@ export class RoomPostProcessor {
     `,
   });
   private active = false;
+  private readonly maxPixelRatio: number;
 
-  constructor() {
+  constructor(maxPixelRatio = 1.5) {
+    this.maxPixelRatio = maxPixelRatio;
     this.camera.position.z = 1;
     const quad = new THREE.Mesh(this.geometry, this.material);
     quad.frustumCulled = false;
@@ -301,7 +303,7 @@ export class RoomPostProcessor {
   setSize(width: number, height: number, pixelRatio: number): void {
     // The main scene may use 2x DPR; cap the optional effect buffer lower for
     // integrated GPUs and let the canvas upscale the final pass.
-    const ratio = Math.min(Math.max(pixelRatio, 0.5), 1.5);
+    const ratio = Math.min(Math.max(pixelRatio, 0.5), this.maxPixelRatio);
     const renderWidth = Math.max(1, Math.floor(width * ratio));
     const renderHeight = Math.max(1, Math.floor(height * ratio));
     this.target.setSize(renderWidth, renderHeight);
