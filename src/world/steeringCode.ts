@@ -30,12 +30,12 @@ export interface SteeringResult {
 
 const MOODS: MoodAxis[] = ['static', 'upper', 'downer', 'dynamic'];
 const SHADER_FAMILIES: readonly (readonly RoomShaderStyle[])[] = [
-  ['none', 'fisheye', 'mirror', 'posterize', 'halftone', 'mosaic', 'moire'],
-  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision'],
-  ['tint', 'thermal', 'prism', 'duotone', 'negative', 'spectral', 'oilfilm'],
-  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane'],
-  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture'],
-  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom'],
+  ['none', 'fisheye', 'posterize', 'halftone', 'mosaic', 'moire', 'softfocus', 'watercolor'],
+  ['retro', 'vhs', 'dither', 'negative', 'datamosh', 'nightvision', 'lightleak', 'crosshatch'],
+  ['tint', 'thermal', 'prism', 'duotone', 'spectral', 'oilfilm', 'aurora', 'xray'],
+  ['dream', 'acid', 'underwater', 'solarize', 'heatwave', 'smear', 'rain', 'cellophane', 'watercolor', 'frostedglass'],
+  ['noir', 'mirror', 'tunnel', 'spectral', 'rain', 'afterimage', 'fracture', 'emboss', 'xray'],
+  ['crt', 'prism', 'strobe', 'halftone', 'edgeglow', 'bloom', 'crosshatch', 'lightleak'],
 ];
 const LIGHTING: RoomLightingStyle[] = [
   'fluorescent',
@@ -66,11 +66,11 @@ export function browserSteeringPrompt(
     ...themes.map((theme, index) => `${index} = ${theme}`),
     'Mood digit: 0 static, 1 upper, 2 downer, 3 dynamic.',
     'Anomaly digit: 0 ordinary scale, 1 giant anomaly.',
-    `Shader family digit: 0 clean/lens/mosaic/moire, 1 retro/VHS/datamosh/night-vision, 2 tint/thermal/spectral/oil-film, 3 dream/acid/rain/cellophane, 4 noir/mirror/afterimage/fracture, 5 ${ctx.noFlashingLights ? 'CRT/prism/edge-glow/bloom' : 'CRT/prism/strobe/edge-glow/bloom'}.`,
+    `Shader family digit: 0 clean/soft-focus/watercolor, 1 retro/light-leak/crosshatch, 2 tint/aurora/x-ray, 3 dream/rain/frosted-glass, 4 noir/emboss/afterimage, 5 ${ctx.noFlashingLights ? 'CRT/prism/edge-glow/bloom' : 'CRT/prism/strobe/edge-glow/bloom'}.`,
     `Lighting digit: 0 fluorescent, 1 ${dimChoice}, 2 cold, 3 warm, 4 ${emergencyChoice}, 5 ${pulseChoice}.`,
     'Tint digit: 0 neutral, 1 blue, 2 red, 3 green, 4 violet, 5 amber.',
     'Density digit: 0 sparse, 1 open, 2 normal, 3 busy, 4 crowded.',
-    'Wireframe digit: 0 solid, 1 wireframe.',
+    'Wireframe rarity digit: use 0-8 for solid; use 9 only for exceptional rare wireframe.',
     'Return the KMR code now.',
   ].join('\n');
   return { system, user };
@@ -107,7 +107,7 @@ export function parseSteeringDirection(
       tint: TINTS[digits[5]! % TINTS.length],
       effectStrength: 0.48 + (digits[5]! % 5) * 0.08,
       pixelSize: 3 + (digits[6]! % 6),
-      wireframe: digits[7]! % 2 === 1,
+      wireframe: digits[7] === 9,
     },
   });
   // A browser inference did occur even when some or all steering positions fell back.
@@ -159,7 +159,7 @@ function fallbackDigit(index: number, rng: SeededRng): number {
     case 6:
       return rng.int(0, 4);
     default:
-      return rng.chance(0.1) ? 1 : 0;
+      return rng.chance(0.03) ? 9 : 0;
   }
 }
 

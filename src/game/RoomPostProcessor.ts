@@ -38,6 +38,14 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   bloom: 33,
   fracture: 34,
   nightvision: 35,
+  softfocus: 36,
+  watercolor: 37,
+  crosshatch: 38,
+  lightleak: 39,
+  emboss: 40,
+  aurora: 41,
+  xray: 42,
+  frostedglass: 43,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -234,6 +242,15 @@ export class RoomPostProcessor {
           local = rotate2d((shardNoise - 0.5) * 0.24 * uDistortion) * local;
           local += vec2(shardNoise - 0.5, hash21(shard.yx) - 0.5) * 0.012 * uDistortion;
           uv = shardCenter + local;
+        } else if (uMode == 43.0) {
+          vec2 paneGrid = vec2(24.0, 16.0);
+          vec2 pane = floor(uv * paneGrid);
+          vec2 refraction = vec2(
+            hash21(pane + vec2(2.3, 7.1)),
+            hash21(pane.yx + vec2(5.9, 1.7))
+          ) - 0.5;
+          float breathing = 0.72 + 0.28 * sin(time * 0.35 + hash21(pane) * 6.2831);
+          uv += refraction * (0.003 + uDistortion * 0.009) * breathing;
         }
 
         bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0 || uMode == 29.0;
@@ -467,6 +484,114 @@ export class RoomPostProcessor {
           float scope = 1.0 - smoothstep(0.72, 1.32, dot(centered, centered));
           phosphor *= mix(0.62, 1.0, scope);
           color = mix(color, phosphor * mix(vec3(1.0), uTint, 0.12), 0.58 + uStrength * 0.34);
+        } else if (uMode == 36.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 radius = texel * (2.0 + uDistortion * 5.0);
+          vec3 haze = texture2D(tDiffuse, safeUv(uv + vec2(radius.x, 0.0))).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv - vec2(radius.x, 0.0))).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv + vec2(0.0, radius.y))).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv - vec2(0.0, radius.y))).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv + radius)).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv - radius)).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv + vec2(radius.x, -radius.y))).rgb;
+          haze += texture2D(tDiffuse, safeUv(uv + vec2(-radius.x, radius.y))).rgb;
+          haze *= 0.125;
+          float glow = smoothstep(0.42, 0.92, luma(haze));
+          vec3 diffused = mix(color, haze, 0.34 + uStrength * 0.28);
+          diffused += haze * glow * (0.08 + uStrength * 0.16);
+          color = mix(color, diffused * mix(vec3(1.0), uTint * 1.12, 0.12), 0.54 + uStrength * 0.24);
+        } else if (uMode == 37.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 brush = texel * (1.5 + uPixelSize * 0.42);
+          vec3 wash = color * 2.0;
+          wash += texture2D(tDiffuse, safeUv(uv + brush)).rgb;
+          wash += texture2D(tDiffuse, safeUv(uv - brush)).rgb;
+          wash += texture2D(tDiffuse, safeUv(uv + vec2(brush.x, -brush.y))).rgb;
+          wash += texture2D(tDiffuse, safeUv(uv + vec2(-brush.x, brush.y))).rgb;
+          wash /= 6.0;
+          float pigmentEdge = smoothstep(0.025, 0.16, abs(luma(color) - luma(wash)));
+          float levels = mix(8.0, 4.0, uStrength);
+          vec3 painted = floor(wash * levels + 0.5) / levels;
+          float paperFiber = hash21(floor(gl_FragCoord.xy * 0.5)) - 0.5;
+          painted *= mix(vec3(1.0), uTint * 1.08, 0.12);
+          painted -= pigmentEdge * mix(vec3(0.045), uTint * 0.08, 0.25);
+          painted += paperFiber * 0.018;
+          color = mix(color, painted, 0.48 + uStrength * 0.32);
+        } else if (uMode == 38.0) {
+          float value = luma(color);
+          vec2 hatchUv = gl_FragCoord.xy * (0.34 + uPixelSize * 0.018);
+          float lineA = 1.0 - smoothstep(0.08, 0.22, abs(sin(hatchUv.x + hatchUv.y)));
+          float lineB = 1.0 - smoothstep(0.08, 0.22, abs(sin(hatchUv.x - hatchUv.y)));
+          float lineC = 1.0 - smoothstep(0.06, 0.18, abs(sin(hatchUv.x * 0.52 + hatchUv.y)));
+          float inkMask = lineA * step(value, 0.76);
+          inkMask += lineB * step(value, 0.5);
+          inkMask += lineC * step(value, 0.28);
+          vec3 paper = mix(vec3(0.92, 0.9, 0.84), uTint, 0.1);
+          vec3 ink = mix(vec3(0.035, 0.04, 0.05), uTint * 0.18, 0.28);
+          vec3 drawing = mix(paper * (0.64 + value * 0.48), ink, clamp(inkMask, 0.0, 1.0));
+          color = mix(color, drawing, 0.42 + uStrength * 0.36);
+        } else if (uMode == 39.0) {
+          vec2 leakCenter = vec2(
+            0.08 + 0.08 * sin(time * 0.27 + uAngleOffset),
+            0.48 + 0.24 * cos(time * 0.19 - uAngleOffset)
+          );
+          float edgeLeak = pow(1.0 - smoothstep(0.0, 0.68, vUv.x), 2.0);
+          float orbLeak = 1.0 - smoothstep(0.04, 0.58, distance(vUv, leakCenter));
+          float streak = pow(max(0.0, sin(vUv.y * 7.0 + vUv.x * 2.0 + time * 0.24)), 6.0);
+          vec3 warmLeak = mix(vec3(1.0, 0.18, 0.035), vec3(1.0, 0.72, 0.22), vUv.y);
+          vec3 coolLeak = mix(vec3(0.08, 0.22, 0.82), uTint, 0.5);
+          vec3 exposed = color + warmLeak * (edgeLeak + orbLeak * 0.42) * (0.15 + uStrength * 0.28);
+          exposed += coolLeak * streak * 0.055 * uDistortion;
+          color = mix(color, exposed, 0.62 + uStrength * 0.18);
+        } else if (uMode == 40.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 diagonal = texel * (1.5 + uDistortion * 2.5);
+          float raised = luma(texture2D(tDiffuse, safeUv(uv - diagonal)).rgb);
+          float recessed = luma(texture2D(tDiffuse, safeUv(uv + diagonal)).rgb);
+          float relief = clamp(0.5 + (raised - recessed) * (2.8 + uStrength * 2.2), 0.0, 1.0);
+          float sourceValue = luma(color);
+          vec3 shadowMetal = mix(vec3(0.055, 0.065, 0.075), uTint * 0.16, 0.34);
+          vec3 highlightMetal = mix(vec3(0.82, 0.84, 0.8), uTint, 0.22);
+          vec3 sculpted = mix(shadowMetal, highlightMetal, relief);
+          sculpted *= 0.68 + sourceValue * 0.5;
+          color = mix(color, sculpted, 0.46 + uStrength * 0.34);
+        } else if (uMode == 41.0) {
+          float ribbonA = sin(vUv.x * 11.0 + time * 0.62 + sin(vUv.y * 6.0));
+          float ribbonB = sin(vUv.x * 19.0 - time * 0.37 - vUv.y * 8.0);
+          float curtain = smoothstep(0.2, 0.92, ribbonA * 0.55 + ribbonB * 0.3 + 0.46);
+          curtain *= smoothstep(0.08, 0.82, vUv.y);
+          vec3 cyan = mix(vec3(0.05, 0.72, 0.62), uTint, 0.24);
+          vec3 violet = hueShift(cyan, 1.35 + uColorCycle * 1.2);
+          vec3 auroraColor = mix(cyan, violet, 0.5 + 0.5 * ribbonB);
+          vec3 shifted = hueShift(color, ribbonA * 0.16 * uColorCycle);
+          shifted += auroraColor * curtain * (0.08 + uStrength * 0.19);
+          color = mix(color, shifted, 0.5 + uStrength * 0.24);
+        } else if (uMode == 42.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          float left = luma(texture2D(tDiffuse, safeUv(uv - vec2(texel.x * 2.0, 0.0))).rgb);
+          float right = luma(texture2D(tDiffuse, safeUv(uv + vec2(texel.x * 2.0, 0.0))).rgb);
+          float down = luma(texture2D(tDiffuse, safeUv(uv - vec2(0.0, texel.y * 2.0))).rgb);
+          float up = luma(texture2D(tDiffuse, safeUv(uv + vec2(0.0, texel.y * 2.0))).rgb);
+          float edge = smoothstep(0.025, 0.24, abs(left - right) + abs(down - up));
+          float negativeValue = pow(1.0 - luma(color), 1.18);
+          vec3 plate = mix(vec3(0.012, 0.04, 0.075), vec3(0.38, 0.9, 1.0), negativeValue);
+          plate += mix(vec3(0.16, 0.72, 0.92), uTint, 0.32) * edge * (0.35 + uStrength * 0.52);
+          color = mix(color, plate, 0.52 + uStrength * 0.34);
+        } else if (uMode == 43.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          vec2 frostRadius = texel * (2.0 + uDistortion * 4.5);
+          vec3 frost = color * 2.0;
+          frost += texture2D(tDiffuse, safeUv(uv + frostRadius)).rgb;
+          frost += texture2D(tDiffuse, safeUv(uv - frostRadius)).rgb;
+          frost += texture2D(tDiffuse, safeUv(uv + vec2(frostRadius.x, -frostRadius.y))).rgb;
+          frost += texture2D(tDiffuse, safeUv(uv + vec2(-frostRadius.x, frostRadius.y))).rgb;
+          frost /= 6.0;
+          vec2 pane = floor(vUv * vec2(24.0, 16.0));
+          float crystal = hash21(pane) - 0.5;
+          float etching = 1.0 - smoothstep(0.02, 0.08, min(fract(vUv.x * 24.0), fract(vUv.y * 16.0)));
+          frost = mix(frost, frost * mix(vec3(0.82, 0.94, 1.0), uTint, 0.18), 0.28);
+          frost += crystal * 0.035 + etching * 0.035;
+          color = mix(color, frost, 0.48 + uStrength * 0.32);
         }
 
         if (

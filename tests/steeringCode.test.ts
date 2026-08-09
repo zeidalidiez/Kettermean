@@ -28,7 +28,7 @@ describe('compact browser-model steering', () => {
     expect(result.direction.visuals).toMatchObject({
       shader: 'noir',
       lighting: 'pulse',
-      wireframe: true,
+      wireframe: false,
     });
   });
 
@@ -61,7 +61,24 @@ describe('compact browser-model steering', () => {
     expect(full).not.toContain(context.seed);
     expect(full).not.toMatch(/TITLE|BLURB/);
     expect(prompt.user.match(/^\d\s=/gm)).toHaveLength(5);
+    expect(full).toContain('0-8 for solid');
     expect(full.length).toBeLessThan(1_200);
+  });
+
+  it('treats browser-model wireframe requests as rare suggestions', () => {
+    let wireframeRooms = 0;
+    const sampleSize = 1_000;
+
+    for (let index = 0; index < sampleSize; index += 1) {
+      const result = parseSteeringDirection('KMR00000009', {
+        ...context,
+        seed: `browser-wireframe-rate-${index}`,
+      });
+      if (result.direction.visuals?.wireframe) wireframeRooms += 1;
+    }
+
+    expect(wireframeRooms).toBeGreaterThan(0);
+    expect(wireframeRooms / sampleSize).toBeLessThan(0.11);
   });
 
   it('locally replaces model-requested pulse and dim modes when opted out', () => {

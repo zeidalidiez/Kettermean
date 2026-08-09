@@ -170,7 +170,15 @@ export type RoomShaderStyle =
   | 'moire'
   | 'bloom'
   | 'fracture'
-  | 'nightvision';
+  | 'nightvision'
+  | 'softfocus'
+  | 'watercolor'
+  | 'crosshatch'
+  | 'lightleak'
+  | 'emboss'
+  | 'aurora'
+  | 'xray'
+  | 'frostedglass';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'

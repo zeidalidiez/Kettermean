@@ -115,6 +115,14 @@ describe('offline room invariants', () => {
         'bloom',
         'fracture',
         'nightvision',
+        'softfocus',
+        'watercolor',
+        'crosshatch',
+        'lightleak',
+        'emboss',
+        'aurora',
+        'xray',
+        'frostedglass',
       ]),
     );
     expect(lightingStyles).toEqual(
@@ -291,6 +299,26 @@ describe('offline room invariants', () => {
 
     expect(kaleidoscopeRooms).toBeGreaterThan(0);
     expect(kaleidoscopeRooms / sampleSize).toBeLessThan(0.02);
+  });
+
+  it('keeps wireframe rare, including when a model repeatedly asks for it', () => {
+    let proceduralRooms = 0;
+    let requestedRooms = 0;
+    const sampleSize = 4_000;
+
+    for (let index = 0; index < sampleSize; index += 1) {
+      if (resolveRoomVisuals(`wireframe-rate-${index}`, 'dynamic').wireframe) {
+        proceduralRooms += 1;
+      }
+      if (resolveRoomVisuals(`wireframe-request-rate-${index}`, 'dynamic', { wireframe: true }).wireframe) {
+        requestedRooms += 1;
+      }
+    }
+
+    expect(proceduralRooms).toBeGreaterThan(0);
+    expect(proceduralRooms / sampleSize).toBeLessThan(0.05);
+    expect(requestedRooms).toBeGreaterThan(proceduralRooms);
+    expect(requestedRooms / sampleSize).toBeLessThan(0.11);
   });
 
   it('keeps atmospheric lighting by default but removes flashing when requested', () => {

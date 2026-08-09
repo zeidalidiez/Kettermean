@@ -398,6 +398,14 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
   'bloom',
   'fracture',
   'nightvision',
+  'softfocus',
+  'watercolor',
+  'crosshatch',
+  'lightleak',
+  'emboss',
+  'aurora',
+  'xray',
+  'frostedglass',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
@@ -422,20 +430,20 @@ const EFFECT_TINTS = [
 ];
 const CONDITION_SHADER_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['shader'][]>> = {
   bloodied: ['solarize', 'tint', 'noir'],
-  slimed: ['smear', 'acid', 'underwater', 'oilfilm'],
+  slimed: ['smear', 'acid', 'underwater', 'oilfilm', 'frostedglass'],
   scorched: ['heatwave', 'dither', 'noir'],
-  burning: ['heatwave', 'thermal', 'smear', 'bloom'],
-  ruined: ['halftone', 'dither', 'noir', 'negative', 'fracture'],
-  overgrown: ['dream', 'tint', 'duotone'],
-  frozen: ['negative', 'duotone', 'prism', 'cellophane'],
-  flooded: ['rain', 'underwater', 'smear', 'cellophane'],
-  dusty: ['halftone', 'dither', 'tint'],
-  moldy: ['smear', 'duotone', 'acid'],
-  electrified: ['edgeglow', 'prism', 'vhs', 'datamosh'],
-  haunted: ['spectral', 'negative', 'dream', 'afterimage'],
-  gilded: ['mosaic', 'posterize', 'duotone', 'oilfilm'],
-  bioluminescent: ['edgeglow', 'dream', 'prism', 'bloom'],
-  stormbound: ['rain', 'noir', 'vhs', 'nightvision'],
+  burning: ['heatwave', 'thermal', 'smear', 'bloom', 'lightleak'],
+  ruined: ['halftone', 'dither', 'noir', 'negative', 'fracture', 'emboss', 'crosshatch'],
+  overgrown: ['dream', 'tint', 'duotone', 'watercolor', 'aurora'],
+  frozen: ['negative', 'duotone', 'prism', 'cellophane', 'frostedglass', 'softfocus'],
+  flooded: ['rain', 'underwater', 'smear', 'cellophane', 'frostedglass', 'watercolor'],
+  dusty: ['halftone', 'dither', 'tint', 'crosshatch', 'lightleak'],
+  moldy: ['smear', 'duotone', 'acid', 'watercolor'],
+  electrified: ['edgeglow', 'prism', 'vhs', 'datamosh', 'xray'],
+  haunted: ['spectral', 'negative', 'dream', 'afterimage', 'softfocus', 'xray'],
+  gilded: ['mosaic', 'posterize', 'duotone', 'oilfilm', 'lightleak', 'emboss'],
+  bioluminescent: ['edgeglow', 'dream', 'prism', 'bloom', 'aurora', 'softfocus'],
+  stormbound: ['rain', 'noir', 'vhs', 'nightvision', 'frostedglass', 'emboss'],
 };
 const CONDITION_LIGHTING_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['lighting'][]>> = {
   bloodied: ['emergency', 'warm'],
@@ -535,12 +543,14 @@ export function resolveRoomVisuals(
               : 1.08;
 
   const previousWasWireframe = recentRooms.at(-1)?.wireframe === true;
+  // Wireframe is a whole-scene material replacement, so it overwhelms the much
+  // larger post-process pool when allowed too often. Even explicit model requests
+  // are treated as a rare suggestion; a false override remains authoritative.
+  const wireframeChance = override?.wireframe === true ? 0.08 : 0.03;
   const wireframe =
-    override?.wireframe === true && !previousWasWireframe
-      ? true
-      : override?.wireframe === false
-        ? false
-        : !previousWasWireframe && rng.chance(0.12);
+    override?.wireframe !== false &&
+    !previousWasWireframe &&
+    rng.chance(wireframeChance);
 
   return {
     shader,
@@ -957,6 +967,8 @@ const SHADER_VALUES = [
   'dither', 'solarize', 'heatwave', 'negative', 'halftone', 'smear', 'rain', 'spectral',
   'mosaic', 'edgeglow', 'oilfilm', 'datamosh', 'cellophane', 'afterimage', 'moire',
   'bloom', 'fracture', 'nightvision',
+  'softfocus', 'watercolor', 'crosshatch', 'lightleak', 'emboss', 'aurora', 'xray',
+  'frostedglass',
 ] as const;
 const LIGHTING_VALUES = ['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse'] as const;
 const BEHAVIOR_VALUES = ['idle', 'wander', 'orbit', 'stare'] as const;

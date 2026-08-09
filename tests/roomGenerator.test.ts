@@ -161,6 +161,7 @@ describe('RoomGenerator cost controls', () => {
       'kettermean.roomCache.v8': '{}',
       'kettermean.roomCache.v10': '{}',
       'kettermean.roomCache.v25': '{}',
+      'kettermean.roomCache.v26': '{}',
       [STORAGE_KEYS.roomCache]: '{}',
       'another-app': 'keep-me',
     });
@@ -171,6 +172,7 @@ describe('RoomGenerator cost controls', () => {
     expect(local.getItem('kettermean.roomCache.v8')).toBeNull();
     expect(local.getItem('kettermean.roomCache.v10')).toBeNull();
     expect(local.getItem('kettermean.roomCache.v25')).toBeNull();
+    expect(local.getItem('kettermean.roomCache.v26')).toBeNull();
     expect(local.getItem(STORAGE_KEYS.roomCache)).toBe('{}');
     expect(local.getItem('another-app')).toBe('keep-me');
   });

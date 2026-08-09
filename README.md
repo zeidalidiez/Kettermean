@@ -15,7 +15,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Explicit next-dream navigation with mood-tinted fades through keyboard, gamepad, and touch input
 - Coherent whole-scene blood, slime, scorch, fire, ruin, overgrowth, ice, flood, dust, mold, electricity, haunting, gilding, bioluminescence, and storm modifiers, with gore gated by the player setting
 - Per-room gravity, movement, friction, bounce, and sway
-- Seeded lighting plus thirty-six randomized visual treatments, including oil film, datamosh, cellophane refraction, afterimages, moiré, bloom, fractured glass, night vision, rain glass, spectral trails, mosaic, edge glow, underwater caustics, kaleidoscope, acid melt, heatwave, negative, halftone, smear, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and wireframe modes
+- Seeded lighting plus forty-four randomized visual treatments, including soft focus, watercolor, crosshatching, light leaks, embossed relief, aurora curtains, X-ray plates, frosted glass, oil film, datamosh, cellophane refraction, afterimages, moiré, bloom, fractured glass, night vision, rain glass, spectral trails, mosaic, edge glow, underwater caustics, rare kaleidoscope, acid melt, heatwave, negative, halftone, smear, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and rare wireframe modes
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - A player flashlight on **F**, gamepad X, and touch, independent of room lighting
