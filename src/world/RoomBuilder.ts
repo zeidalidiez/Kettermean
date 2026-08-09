@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PLAYER } from '../config';
+import { SeededRng } from '../core/rng';
 import type {
   BuiltRoom,
   ColliderBox,
@@ -72,6 +73,7 @@ export class RoomWorld {
     const tags = spec.themeTags ?? [];
     const visuals = spec.visuals ?? defaultVisuals();
     const lighting = lightingProfile(visuals, spec.palette);
+    const outdoor = spec.environment === 'outdoor';
 
     const floorMat = surfaceMaterial(styleForMood('floor', spec.mood, tags), spec.palette.floor, seedKey);
     const ceilMat = surfaceMaterial(styleForMood('ceiling', spec.mood, tags), spec.palette.ceiling, seedKey);
@@ -94,18 +96,20 @@ export class RoomWorld {
       label: 'floor',
     });
 
-    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(spec.width, 0.2, spec.depth), ceilMat);
-    ceiling.position.y = h;
-    this.group.add(ceiling);
-    this.addCollider({
-      minX: -halfW,
-      maxX: halfW,
-      minY: h - 0.02,
-      maxY: h + 0.2,
-      minZ: -halfD,
-      maxZ: halfD,
-      label: 'ceiling',
-    });
+    if (!outdoor) {
+      const ceiling = new THREE.Mesh(new THREE.BoxGeometry(spec.width, 0.2, spec.depth), ceilMat);
+      ceiling.position.y = h;
+      this.group.add(ceiling);
+      this.addCollider({
+        minX: -halfW,
+        maxX: halfW,
+        minY: h - 0.02,
+        maxY: h + 0.2,
+        minZ: -halfD,
+        maxZ: halfD,
+        label: 'ceiling',
+      });
+    }
 
     // Baseboards + crown around the room for architectural readability
     const ring = (
@@ -124,8 +128,10 @@ export class RoomWorld {
       west.position.x = -halfW + depth * 0.5;
       this.group.add(north, south, east, west);
     };
-    ring(0.08, 0.16, 0.08, baseMat);
-    ring(h - 0.1, 0.1, 0.07, trimMat);
+    if (!outdoor) {
+      ring(0.08, 0.16, 0.08, baseMat);
+      ring(h - 0.1, 0.1, 0.07, trimMat);
+    }
 
     const walls: Array<'north' | 'south' | 'east' | 'west'> = [
       'north',
@@ -135,6 +141,10 @@ export class RoomWorld {
     ];
 
     for (const side of walls) {
+      if (outdoor) {
+        this.addCollider(wallCollider(side, halfW, halfD, h, wallT, false), `boundary:${side}`);
+        continue;
+      }
       const mesh =
         side === 'north' || side === 'south'
           ? new THREE.Mesh(new THREE.BoxGeometry(spec.width + wallT, h, wallT), wallMat)
@@ -159,6 +169,8 @@ export class RoomWorld {
       this.group.add(panel);
     }
 
+    if (outdoor) this.addOutdoorSky(spec);
+
     for (const prop of spec.props) {
       this.addProp(prop);
     }
@@ -168,7 +180,12 @@ export class RoomWorld {
 
     // Visible fixtures and real light sources change character with each room.
     const span = Math.max(spec.width, spec.depth);
-    for (let i = 0; i < lighting.stripCount; i += 1) {
+    const fixtureCount = outdoor
+      ? 0
+      : Math.min(10, lighting.stripCount + Math.floor(span / 18));
+    const fixtureColumns = Math.max(1, Math.ceil(Math.sqrt(fixtureCount)));
+    const fixtureRows = Math.max(1, Math.ceil(fixtureCount / fixtureColumns));
+    for (let i = 0; i < fixtureCount; i += 1) {
       const strip = new THREE.Mesh(
         new THREE.BoxGeometry(Math.min(4.2, spec.width * 0.28), 0.06, 0.4),
         new THREE.MeshStandardMaterial({
@@ -178,9 +195,17 @@ export class RoomWorld {
           roughness: 0.35,
         }),
       );
-      const across = lighting.stripCount === 1 ? 0 : i / (lighting.stripCount - 1) - 0.5;
-      const x = across * 2 * Math.min(5, halfW * 0.55);
-      strip.position.set(x, h - 0.12, 0);
+      const column = i % fixtureColumns;
+      const row = Math.floor(i / fixtureColumns);
+      const x =
+        fixtureColumns === 1
+          ? 0
+          : (column / (fixtureColumns - 1) - 0.5) * Math.min(spec.width * 0.68, 32);
+      const z =
+        fixtureRows === 1
+          ? 0
+          : (row / (fixtureRows - 1) - 0.5) * Math.min(spec.depth * 0.62, 28);
+      strip.position.set(x, h - 0.12, z);
       this.group.add(strip);
 
       const bulb = new THREE.PointLight(
@@ -189,7 +214,7 @@ export class RoomWorld {
         span * 1.35,
         1.6,
       );
-      bulb.position.set(x, h - 0.35, 0);
+      bulb.position.set(x, h - 0.35, z);
       this.lights.push(bulb);
       if (lighting.pulseAmplitude > 0) {
         this.pulsingLights.push({
@@ -202,15 +227,24 @@ export class RoomWorld {
       }
     }
 
-    const ambient = new THREE.AmbientLight(lighting.ambient, lighting.ambientIntensity);
+    const ambient = new THREE.AmbientLight(
+      lighting.ambient,
+      lighting.ambientIntensity * (outdoor ? 1.15 : 1),
+    );
     const hemi = new THREE.HemisphereLight(
       lighting.primary,
       lighting.ground,
-      lighting.hemiIntensity,
+      lighting.hemiIntensity * (outdoor ? 1.35 : 1),
     );
-    const key = new THREE.DirectionalLight(lighting.primary, lighting.keyIntensity);
-    key.position.set(halfW * 0.35, h * 0.9, halfD * 0.25);
-    const fill = new THREE.DirectionalLight(lighting.ambient, lighting.fillIntensity);
+    const key = new THREE.DirectionalLight(
+      lighting.primary,
+      lighting.keyIntensity * (outdoor ? 1.4 : 1),
+    );
+    key.position.set(halfW * 0.35, h * (outdoor ? 1.6 : 0.9), halfD * 0.25);
+    const fill = new THREE.DirectionalLight(
+      lighting.ambient,
+      lighting.fillIntensity * (outdoor ? 1.4 : 1),
+    );
     fill.position.set(-halfW * 0.5, h * 0.6, -halfD * 0.3);
     this.lights.push(ambient, hemi, key, fill);
     for (const l of this.lights) scene.add(l);
@@ -316,6 +350,114 @@ export class RoomWorld {
     this.fog = null;
     this.spec = null;
     if (scene.fog) scene.fog = null;
+  }
+
+  private addOutdoorSky(spec: RoomSpec): void {
+    const radius = Math.max(spec.width, spec.depth) * 2.2 + 35;
+    const skyMaterial = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+      toneMapped: false,
+      uniforms: {
+        uTop: { value: new THREE.Color(spec.palette.ceiling) },
+        uHorizon: { value: new THREE.Color(spec.palette.fog) },
+        uGlow: { value: new THREE.Color(spec.palette.light) },
+      },
+      vertexShader: /* glsl */ `
+        varying vec3 vDirection;
+        void main() {
+          vDirection = normalize(position);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform vec3 uTop;
+        uniform vec3 uHorizon;
+        uniform vec3 uGlow;
+        varying vec3 vDirection;
+        void main() {
+          float heightMix = smoothstep(-0.12, 0.78, vDirection.y);
+          vec3 color = mix(uHorizon, uTop, heightMix);
+          float band = exp(-pow((vDirection.y - 0.04) * 7.0, 2.0));
+          color = mix(color, uGlow, band * 0.12);
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 36, 20), skyMaterial);
+    dome.name = 'procedural-sky-dome';
+    dome.userData.keepSolid = true;
+    this.group.add(dome);
+
+    const rng = new SeededRng(`${spec.seed}:outdoor-sky`);
+    const starPositions: number[] = [];
+    for (let index = 0; index < 180; index += 1) {
+      const angle = rng.float(0, Math.PI * 2);
+      const y = rng.float(0.08, 0.96);
+      const horizontal = Math.sqrt(Math.max(0, 1 - y * y));
+      starPositions.push(
+        Math.cos(angle) * horizontal * radius * 0.9,
+        y * radius * 0.9,
+        Math.sin(angle) * horizontal * radius * 0.9,
+      );
+    }
+    const starGeometry = new THREE.BufferGeometry();
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+    const stars = new THREE.Points(
+      starGeometry,
+      new THREE.PointsMaterial({
+        color: spec.palette.light,
+        size: Math.max(0.16, radius * 0.004),
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.72,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+    stars.name = 'procedural-stars';
+    stars.userData.keepSolid = true;
+    this.group.add(stars);
+
+    const moon = new THREE.Mesh(
+      new THREE.SphereGeometry(Math.max(1.5, radius * 0.035), 20, 12),
+      new THREE.MeshBasicMaterial({
+        color: spec.palette.light,
+        fog: false,
+        toneMapped: false,
+      }),
+    );
+    moon.position.set(radius * 0.48, radius * 0.52, -radius * 0.52);
+    moon.name = 'sky-orb';
+    moon.userData.keepSolid = true;
+    this.group.add(moon);
+
+    const horizonMaterial = new THREE.MeshStandardMaterial({
+      color: spec.palette.ambient,
+      roughness: 1,
+      metalness: 0,
+    });
+    const horizonDistance = Math.max(spec.width, spec.depth) * 0.74;
+    for (let index = 0; index < 24; index += 1) {
+      const angle = (index / 24) * Math.PI * 2 + rng.float(-0.08, 0.08);
+      const height = rng.float(2.5, Math.min(13, spec.height * 0.72));
+      const width = rng.float(2.5, 8.5);
+      const depth = rng.float(2.5, 6.5);
+      const geometry = rng.chance(0.34)
+        ? new THREE.ConeGeometry(width * 0.52, height, rng.int(5, 9))
+        : new THREE.BoxGeometry(width, height, depth);
+      const silhouette = new THREE.Mesh(geometry, horizonMaterial);
+      silhouette.position.set(
+        Math.cos(angle) * horizonDistance,
+        height * 0.5 - 0.05,
+        Math.sin(angle) * horizonDistance,
+      );
+      silhouette.rotation.y = -angle + rng.float(-0.3, 0.3);
+      silhouette.name = 'horizon-silhouette';
+      this.group.add(silhouette);
+    }
   }
 
   private addProp(prop: RoomProp): void {
@@ -515,12 +657,12 @@ function lightingProfile(
         ambient: palette.ambient,
         ground: palette.floor,
         stripCount: 3,
-        stripIntensity: 1.45,
-        pointIntensity: 0.82,
-        ambientIntensity: 0.72,
-        hemiIntensity: 0.62,
-        keyIntensity: 0.58,
-        fillIntensity: 0.3,
+        stripIntensity: 2.05,
+        pointIntensity: 1.08,
+        ambientIntensity: 1.02,
+        hemiIntensity: 0.88,
+        keyIntensity: 0.78,
+        fillIntensity: 0.48,
         pulseAmplitude: 0,
         pulseSpeed: 0,
       };

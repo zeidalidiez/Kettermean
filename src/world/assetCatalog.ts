@@ -152,6 +152,25 @@ export const ASSETS: AssetDef[] = [
   a('arch_portal', 'door_fake', 'wrong archway', 'portal', ['courtyard', 'chapel', 'dream'], ['dynamic', 'upper', 'downer'], { x: 2.0, y: 3.0, z: 0.25 }, 0.9, 1.6, { linksByDefault: true }),
 ];
 
+const EXPANSION_THEMES: ThemePreset[] = [
+  t('moonlit_field', 'Moonlit Empty Field', 'Wind moves through grass in a circle around you.', 'upper', 'outdoor', ['outdoor', 'meadow', 'night', 'open'], ['bench_wait', 'lamp_floor', 'plant_fern', 'creature_deer', 'arch_portal'], 52, 44, 18, p('#30442d', '#101827', '#18243a', '#a9c8ff', '#182035', '#d9e8ff', '#40506a')),
+  t('empty_boardwalk', 'Boardwalk After Closing', 'Every shutter is down except the one behind you.', 'static', 'outdoor', ['outdoor', 'boardwalk', 'night', 'open'], ['bench_wait', 'vending_blue', 'sign_wet', 'lamp_floor', 'arch_portal'], 52, 18, 14, p('#554735', '#132032', '#253950', '#ffd07a', '#172538', '#ffe2a8', '#4c5668')),
+  t('rain_plaza', 'Rainless Wet Plaza', 'The paving stones shine beneath a perfectly dry sky.', 'dynamic', 'outdoor', ['outdoor', 'plaza', 'wet', 'open'], ['bench_wait', 'pillar_support', 'sign_wet', 'cart_janitor', 'arch_portal'], 40, 40, 16, p('#4a5860', '#17222c', '#304651', '#67d8e8', '#1c2c34', '#b8f4ff', '#486872')),
+  t('rooftop_garden', 'Rooftop Garden', 'The city below has windows but no streets.', 'upper', 'outdoor', ['outdoor', 'rooftop', 'garden', 'open'], ['plant_fern', 'bench_wait', 'lamp_floor', 'door_glass', 'creature_balloon'], 44, 32, 15, p('#52694a', '#20304c', '#466d55', '#ffa9cc', '#27364a', '#ffe1ef', '#607a70')),
+  t('highway_rest', 'Rest Stop Beyond the Highway', 'Headlights pass where no road is visible.', 'downer', 'outdoor', ['outdoor', 'highway', 'parking', 'night'], ['vending_blue', 'bench_wait', 'sign_wet', 'lamp_floor', 'npc_raincoat'], 66, 38, 17, p('#555452', '#10151d', '#42464b', '#ffcf58', '#171c24', '#ffe5a0', '#52565e')),
+  t('sculpture_park', 'Unfinished Sculpture Park', 'Plaques describe monuments that were never installed.', 'static', 'outdoor', ['outdoor', 'park', 'courtyard', 'open'], ['pillar_support', 'bench_wait', 'plant_fern', 'mirror_tall', 'creature_deer'], 52, 52, 19, p('#697064', '#b9c5d2', '#778276', '#d9eef8', '#9ca9b6', '#ffffff', '#7d8b91')),
+  t('fog_playground', 'Playground in the Fog', 'A swing returns slowly to center.', 'downer', 'outdoor', ['outdoor', 'playground', 'fog', 'open'], ['bench_wait', 'sign_wet', 'lamp_floor', 'creature_balloon', 'arch_portal'], 38, 44, 14, p('#596056', '#aeb9b5', '#727b70', '#e8a96b', '#9eaaa6', '#f6eee0', '#74807a')),
+  t('salt_flats', 'Salt Flats Terminal', 'Departure gates stand alone beneath a white horizon.', 'dynamic', 'outdoor', ['outdoor', 'salt', 'terminal', 'vast'], ['bench_wait', 'pillar_support', 'door_glass', 'npc_guide', 'arch_portal'], 70, 60, 20, p('#d2cdbc', '#8bb7d4', '#ede8d6', '#fff6cb', '#b7ced8', '#ffffff', '#b8c6c8')),
+  t('airport_hangar', 'Airport Hangar Without Planes', 'Painted taxi lines converge beneath an empty gantry.', 'static', 'open-hall', ['hangar', 'airport', 'vast', 'open'], ['pillar_support', 'cart_janitor', 'bench_wait', 'door_service', 'npc_guide'], 60, 46, 17, p('#62696f', '#30363d', '#7b8388', '#f5c44d', '#424a50', '#f4f7f8', '#737b80')),
+  t('museum_atrium', 'Museum Atrium', 'The information desk lists an exhibition called You Are Here.', 'upper', 'open-hall', ['museum', 'atrium', 'open', 'marble'], ['bench_wait', 'pillar_support', 'mirror_tall', 'plant_fern', 'npc_clerk'], 46, 38, 15, p('#d5d0c5', '#ebe8df', '#c9c2b5', '#8ba7bd', '#d8d7d0', '#ffffff', '#aaa9a3')),
+  t('empty_supermarket', 'Supermarket After Inventory', 'Every aisle marker points to aisle zero.', 'downer', 'open-hall', ['supermarket', 'retail', 'open', 'fluorescent'], ['shelf_toy', 'cart_janitor', 'vending_blue', 'sign_wet', 'npc_mannequin'], 54, 36, 8, p('#7b776b', '#d9d7c9', '#b6b2a4', '#ed5e55', '#9c9a91', '#fffde9', '#97958c')),
+  t('convention_hall', 'Unbooked Convention Hall', 'Miles of carpet wait beneath blank hanging signs.', 'static', 'open-hall', ['convention', 'carpet', 'vast', 'open'], ['table_food', 'chair_plastic', 'pillar_support', 'sign_wet', 'npc_clerk'], 62, 50, 13, p('#554d68', '#24232f', '#6d6380', '#65d2c5', '#302d3e', '#e6f5f0', '#625b74')),
+  t('indoor_stadium', 'Stadium Between Games', 'The scoreboard counts down from a number too large to read.', 'dynamic', 'open-hall', ['stadium', 'gym', 'vast', 'echo'], ['bench_wait', 'pillar_support', 'sign_wet', 'npc_guide', 'creature_balloon'], 68, 54, 20, p('#5e4438', '#241a18', '#8a5a42', '#ff944d', '#38231d', '#ffd8b8', '#704d3e')),
+  t('warehouse_cavern', 'Warehouse Cavern', 'Pallet marks continue across an otherwise empty floor.', 'downer', 'open-hall', ['warehouse', 'industrial', 'vast', 'service'], ['cabinet_util', 'cart_janitor', 'pillar_support', 'mattress_stack', 'npc_shadow'], 56, 44, 12, p('#4e5150', '#242727', '#686d6b', '#e4a655', '#323635', '#f2d4a4', '#5e6562')),
+  t('glass_terminal', 'Glass Bus Terminal', 'The arrival board changes whenever you look away.', 'upper', 'open-hall', ['terminal', 'station', 'glass', 'open'], ['bench_wait', 'door_glass', 'vending_blue', 'payphone_wall', 'npc_raincoat'], 50, 30, 11, p('#607985', '#b8d5dd', '#8fb5bf', '#d7f7ff', '#8eb0bb', '#ffffff', '#71939e')),
+  t('cathedral_concourse', 'Cathedral Concourse', 'Announcements arrive as chords from hidden speakers.', 'dynamic', 'open-hall', ['cathedral', 'chapel', 'echo', 'open'], ['bench_pew', 'pillar_support', 'vending_blue', 'arch_portal', 'npc_guide'], 36, 62, 18, p('#343044', '#171521', '#504768', '#c5a7ff', '#211d30', '#eee2ff', '#5b526d')),
+];
+
 export const THEME_PRESETS: ThemePreset[] = [
   {
     id: 'fluorescent_lobby',
@@ -393,6 +412,7 @@ export const THEME_PRESETS: ThemePreset[] = [
     height: 7.5,
     palette: p('#8a4a20', '#2a180c', '#b86830', '#ff9a40', '#3a2010', '#ffe0c0', '#a06030'),
   },
+  ...EXPANSION_THEMES,
 ];
 
 const byId = new Map(ASSETS.map((x) => [x.id, x]));
@@ -461,4 +481,32 @@ function p(
   ambient: string,
 ): ThemePreset['palette'] {
   return { floor, ceiling, walls, accent, fog, light, ambient };
+}
+
+function t(
+  id: string,
+  title: string,
+  blurb: string,
+  mood: MoodAxis,
+  environment: RoomEnvironment,
+  tags: string[],
+  preferredAssets: string[],
+  width: number,
+  depth: number,
+  height: number,
+  palette: ThemePreset['palette'],
+): ThemePreset {
+  return {
+    id,
+    title,
+    blurb,
+    mood,
+    environment,
+    tags,
+    preferredAssets,
+    width,
+    depth,
+    height,
+    palette,
+  };
 }

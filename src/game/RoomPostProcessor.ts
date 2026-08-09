@@ -100,7 +100,7 @@ export class RoomPostProcessor {
           color += 0.012 * sin((vUv.x + vUv.y + uTime * 0.08) * 34.0);
         } else if (uMode == 4.0) {
           float gray = luma(color);
-          gray = smoothstep(0.06, 0.9, gray);
+          gray = pow(clamp(gray * 1.15 + 0.035, 0.0, 1.0), 0.82);
           color = mix(vec3(gray), vec3(gray) * uTint, uStrength * 0.22);
         } else if (uMode == 5.0) {
           float scanline = 0.9 + 0.1 * sin(gl_FragCoord.y * 2.2);
@@ -115,8 +115,8 @@ export class RoomPostProcessor {
         }
 
         // Preserve mood without allowing a treatment to erase navigation detail.
-        float shadowLift = max(0.0, 0.07 - luma(color));
-        color += vec3(shadowLift * 0.72);
+        float shadowLift = max(0.0, 0.09 - luma(color));
+        color += vec3(shadowLift * 0.86);
 
         gl_FragColor = vec4(max(color, vec3(0.0)), 1.0);
       }

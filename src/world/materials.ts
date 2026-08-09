@@ -10,6 +10,9 @@ export type SurfaceStyle =
   | 'metal'
   | 'wood'
   | 'waterless'
+  | 'grass'
+  | 'asphalt'
+  | 'paving'
   | 'ceiling_tile';
 
 const cache = new Map<string, THREE.MeshStandardMaterial>();
@@ -224,6 +227,57 @@ function buildTexture(style: SurfaceStyle, color: string, seedKey: string): THRE
       drawNoise(ctx, size, rnd, 16, [r, g, b]);
       break;
     }
+    case 'grass': {
+      drawNoise(ctx, size, rnd, 34, [r, g, b]);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 1400; i += 1) {
+        const x = rnd() * size;
+        const y = rnd() * size;
+        ctx.strokeStyle = rnd() > 0.5 ? 'rgba(20,55,22,0.28)' : 'rgba(210,225,150,0.12)';
+        ctx.beginPath();
+        ctx.moveTo(x, y + 2 + rnd() * 3);
+        ctx.lineTo(x + (rnd() - 0.5) * 2, y);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'asphalt': {
+      drawNoise(ctx, size, rnd, 42, [r, g, b]);
+      ctx.strokeStyle = 'rgba(12,14,16,0.25)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 12; i += 1) {
+        ctx.beginPath();
+        let x = rnd() * size;
+        let y = rnd() * size;
+        ctx.moveTo(x, y);
+        for (let point = 0; point < 5; point += 1) {
+          x += (rnd() - 0.5) * 28;
+          y += rnd() * 22;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'paving': {
+      drawNoise(ctx, size, rnd, 18, [r, g, b]);
+      const cell = 48;
+      ctx.strokeStyle = 'rgba(25,28,32,0.3)';
+      ctx.lineWidth = 2;
+      for (let y = 0; y <= size; y += cell) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(size, y);
+        ctx.stroke();
+      }
+      for (let x = 0; x <= size; x += cell) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, size);
+        ctx.stroke();
+      }
+      break;
+    }
     case 'ceiling_tile': {
       const cell = 64;
       for (let y = 0; y < size; y += cell) {
@@ -257,7 +311,9 @@ function buildTexture(style: SurfaceStyle, color: string, seedKey: string): THRE
   }
 
   const tex = finishTex(canvas, key);
-  if (style === 'carpet' || style === 'wallpaper') tex.repeat.set(4, 4);
+  if (style === 'grass' || style === 'asphalt') tex.repeat.set(7, 7);
+  else if (style === 'paving') tex.repeat.set(5, 5);
+  else if (style === 'carpet' || style === 'wallpaper') tex.repeat.set(4, 4);
   else if (style === 'tile' || style === 'ceiling_tile') tex.repeat.set(3, 3);
   else if (style === 'wood') tex.repeat.set(2, 2);
   else tex.repeat.set(2, 2);
@@ -312,6 +368,9 @@ export function styleForMood(part: 'floor' | 'wall' | 'ceiling', mood: string, t
   const t = tags.join(' ').toLowerCase();
   if (part === 'floor') {
     if (t.includes('pool')) return 'waterless';
+    if (t.includes('meadow') || t.includes('garden') || t.includes('park') || t.includes('playground')) return 'grass';
+    if (t.includes('highway') || t.includes('parking')) return 'asphalt';
+    if (t.includes('plaza') || t.includes('salt') || t.includes('boardwalk')) return t.includes('boardwalk') ? 'wood' : 'paving';
     if (t.includes('clinic') || t.includes('tile')) return 'tile';
     if (t.includes('wood') || t.includes('courtyard')) return 'wood';
     if (mood === 'downer') return 'concrete';

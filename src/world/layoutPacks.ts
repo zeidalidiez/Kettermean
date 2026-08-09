@@ -2,7 +2,7 @@
 import type { DirectedPlacement } from './assetCatalog';
 import { ASSETS, getAsset } from './assetCatalog';
 import { SeededRng } from '../core/rng';
-import type { RoomLayoutStyle } from '../types';
+import type { RoomEnvironment, RoomLayoutStyle } from '../types';
 
 /**
  * Layout packs = small local furniture arrangements (relative coords).
@@ -69,6 +69,7 @@ export interface PackStampContext {
   layoutStyle?: RoomLayoutStyle;
   /** Recent catalog ids to strongly deprioritize. */
   avoidAssets?: string[];
+  environment?: RoomEnvironment;
 }
 
 const PORTALS = new Set(['door_fake', 'door_service', 'door_glass', 'arch_portal']);
@@ -92,7 +93,7 @@ export function stampRoomPacks(
   const target = clamp(
     Math.round((ctx.targetPacks ?? Math.round(8 + area / 28)) * densityMultiplier),
     10,
-    30,
+    52,
   );
 
   const placements: DirectedPlacement[] = [];
@@ -136,7 +137,7 @@ export function stampRoomPacks(
   }
 
   // Fill leftover with a few lone scatter props for liminal mess.
-  scatterFill(rng, placements, occupied, ctx, Math.min(8, Math.max(3, 32 - placements.length)));
+  scatterFill(rng, placements, occupied, ctx, Math.min(14, Math.max(4, 54 - placements.length)));
 
   // Door-only links.
   for (const p of placements) {
@@ -677,7 +678,10 @@ function placeDoors(
     sides[i] = sides[j]!;
     sides[j] = t;
   }
-  const doorIds = ['door_fake', 'door_service', 'door_glass', 'arch_portal'];
+  const doorIds =
+    ctx.environment === 'outdoor'
+      ? ['arch_portal', 'door_glass', 'arch_portal', 'door_fake']
+      : ['door_fake', 'door_service', 'door_glass', 'arch_portal'];
   for (let i = 0; i < count; i += 1) {
     const side = sides[i % sides.length]!;
     const doorId = doorIds[i % doorIds.length]!;

@@ -10,7 +10,9 @@ describe('offline room invariants', () => {
     const shaderStyles = new Set<string>();
     const lightingStyles = new Set<string>();
     const wireframeModes = new Set<boolean>();
+    const environments = new Set<string>();
     let dimRooms = 0;
+    let largestSide = 0;
 
     for (let index = 0; index < 1_000; index += 1) {
       const room = generateOfflineRoom({
@@ -24,6 +26,8 @@ describe('offline room invariants', () => {
       expect(room.props.length).toBeLessThanOrEqual(ROOM.propCountMax);
       expect(room.entities.length).toBeLessThanOrEqual(ROOM.entityCountMax);
       expect(room.props.some((prop) => prop.linksOnTouch)).toBe(true);
+      environments.add(room.environment ?? 'interior');
+      largestSide = Math.max(largestSide, room.width, room.depth);
       expect(room.visuals).toBeDefined();
       if (room.visuals) {
         shaderStyles.add(room.visuals.shader);
@@ -48,6 +52,8 @@ describe('offline room invariants', () => {
       new Set(['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse']),
     );
     expect(wireframeModes).toEqual(new Set([false, true]));
+    expect(environments).toEqual(new Set(['interior', 'open-hall', 'outdoor']));
+    expect(largestSide).toBeGreaterThan(60);
     expect(dimRooms).toBeLessThan(150);
   });
 
@@ -71,6 +77,7 @@ describe('offline room invariants', () => {
       expect(lastTwo.some((entry) => entry.layoutStyle === room.layoutStyle)).toBe(false);
       expect(lastTwo.some((entry) => entry.shader === room.visuals?.shader)).toBe(false);
       expect(lastTwo.some((entry) => entry.lighting === room.visuals?.lighting)).toBe(false);
+      expect(lastTwo.some((entry) => entry.mood === room.mood)).toBe(false);
 
       recentRooms.push(roomHistoryEntryFor(room));
       if (recentRooms.length > 12) recentRooms.shift();

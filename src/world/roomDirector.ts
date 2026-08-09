@@ -51,21 +51,23 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
   const environment = steer?.environment ?? environmentForTheme(theme);
   const layoutStyle = steer?.layoutStyle ?? selectNovelLayout(rng, recentRooms, environment);
 
-  const mood = steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
+  const proposedMood =
+    steer?.mood || (rng.chance(0.65) ? theme.mood : biasMood(rng, ctx.moodBias));
+  const mood = selectNovelMood(rng, recentRooms, proposedMood);
 
   const sizeJitterW = rng.float(0.72, 1.4);
   const sizeJitterD = rng.float(0.72, 1.4);
   const sizeJitterH = rng.float(0.82, 1.45);
-  const width = clamp(steer?.width ?? theme.width * sizeJitterW, 8, 28);
-  const depth = clamp(steer?.depth ?? theme.depth * sizeJitterD, 8, 28);
-  const height = clamp(steer?.height ?? theme.height * sizeJitterH, 2.5, 9);
+  const width = clamp(steer?.width ?? theme.width * sizeJitterW, ROOM.minSize, ROOM.maxSize);
+  const depth = clamp(steer?.depth ?? theme.depth * sizeJitterD, ROOM.minSize, ROOM.maxSize);
+  const height = clamp(steer?.height ?? theme.height * sizeJitterH, 2.5, 22);
 
   const area = width * depth;
   const density = clamp(steer?.density ?? 1, 0.65, 1.4);
   const targetPacks = clamp(
-    Math.round((12 + area / 22 + rng.float(-2, 3)) * density),
+    Math.round((10 + area / 48 + rng.float(-2, 3)) * density),
     10,
-    30,
+    environment === 'outdoor' ? 42 : 50,
   );
 
   const placements = stampRoomPacks(rng, {
@@ -78,6 +80,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     targetPacks,
     layoutStyle,
     avoidAssets: recentRooms.slice(-2).flatMap((room) => room.assetIds),
+    environment,
   });
 
   // Door-only safety net
@@ -305,7 +308,7 @@ export function resolveRoomVisuals(
   );
   const defaultExposure =
     lighting === 'dim'
-      ? 0.98
+      ? 1.12
       : lighting === 'emergency'
         ? 1.06
         : lighting === 'cold'
@@ -481,10 +484,14 @@ function selectNovelTheme(
 
   const ranked = THEME_PRESETS.map((theme) => {
     let score = rng.float(0, 1);
-    if (requested?.id === theme.id) score += 4;
+    if (requested?.id === theme.id) score += 2.4;
     if (recentThemeIds.has(theme.id)) score -= 9;
     const environment = environmentForTheme(theme);
-    score -= recentEnvironments.filter((value) => value === environment).length * 1.15;
+    score -= recentEnvironments.filter((value) => value === environment).length * 1.45;
+    const sizeClass = sizeClassForDimensions(theme.width, theme.depth);
+    score -= recent
+      .slice(-2)
+      .filter((room) => room.sizeClass === sizeClass).length * 1.35;
     return { theme, score };
   }).sort((a, b) => b.score - a.score);
 
@@ -520,6 +527,28 @@ function selectNovelLayout(
   const recent = new Set(recentRooms.slice(-2).map((room) => room.layoutStyle));
   const fresh = suitable.filter((style) => !recent.has(style));
   return rng.pick(fresh.length ? fresh : suitable);
+}
+
+function selectNovelMood(
+  rng: SeededRng,
+  recentRooms: RoomHistoryEntry[],
+  proposed: MoodAxis,
+): MoodAxis {
+  const recent = new Set(recentRooms.slice(-2).map((room) => room.mood));
+  if (!recent.has(proposed)) return proposed;
+  const moods: MoodAxis[] = ['upper', 'downer', 'static', 'dynamic'];
+  return rng.pick(moods.filter((mood) => !recent.has(mood)));
+}
+
+function sizeClassForDimensions(width: number, depth: number): RoomHistoryEntry['sizeClass'] {
+  const longestSide = Math.max(width, depth);
+  return longestSide >= 46
+    ? 'vast'
+    : longestSide >= 28
+      ? 'large'
+      : longestSide <= 11
+        ? 'compact'
+        : 'standard';
 }
 
 function pickNovelVisual<T extends string>(
@@ -579,20 +608,11 @@ export function defaultSpawnHeight(): number {
 }
 
 export function roomHistoryEntryFor(spec: RoomSpec): RoomHistoryEntry {
-  const longestSide = Math.max(spec.width, spec.depth);
-  const sizeClass =
-    longestSide >= 46
-      ? 'vast'
-      : longestSide >= 28
-        ? 'large'
-        : longestSide <= 11
-          ? 'compact'
-          : 'standard';
   return {
     themeId: spec.themeId,
     environment: spec.environment ?? 'interior',
     layoutStyle: spec.layoutStyle ?? 'clusters',
-    sizeClass,
+    sizeClass: sizeClassForDimensions(spec.width, spec.depth),
     mood: spec.mood,
     shader: spec.visuals?.shader ?? 'none',
     lighting: spec.visuals?.lighting ?? 'fluorescent',

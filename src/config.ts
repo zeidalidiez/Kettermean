@@ -80,12 +80,12 @@ export const LLM_BUDGET = {
 
 export const ROOM = {
   minSize: 8,
-  maxSize: 28,
+  maxSize: 72,
   wallHeightMin: 2.4,
   wallHeightMax: 8,
   propCountMin: 2,
   /** Logical-object budgets; composed models may contain several meshes each. */
-  propCountMax: 36,
+  propCountMax: 72,
   entityCountMin: 0,
-  entityCountMax: 6,
+  entityCountMax: 12,
 } as const;
