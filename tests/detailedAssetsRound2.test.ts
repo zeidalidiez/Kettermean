@@ -34,9 +34,9 @@ describe('second high-detail masterwork expansion', () => {
     expect(MASTERWORK_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(80);
     expect(ASSETS).toEqual(expect.arrayContaining(MASTERWORK_ASSETS));
     const composedVariants = ASSETS.filter((asset) => asset.family);
-    expect(composedVariants).toHaveLength(2_778);
-    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(366);
-    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(1_362);
+    expect(composedVariants).toHaveLength(3_228);
+    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(441);
+    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(1_812);
 
     const families = Map.groupBy(MASTERWORK_ASSETS, (asset) => asset.family);
     expect(families.size).toBe(57);

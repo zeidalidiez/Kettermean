@@ -13,6 +13,7 @@ import type {
 import { DETAILED_ASSETS } from './detailedAssets';
 import { MASTERWORK_ASSETS } from './detailedAssetsRound2';
 import { EXHIBITION_ASSETS } from './detailedAssetsRound3';
+import { ATELIER_ASSETS } from './detailedAssetsRound4';
 import { EXPANDED_ASSETS } from './expandedAssets';
 import { MIXED_MEDIA_ASSETS } from './mixedMediaAssets';
 import { SEMANTIC_ASSETS } from './semanticAssets';
@@ -183,6 +184,7 @@ export const ASSETS: AssetDef[] = [
   ...DETAILED_ASSETS,
   ...MASTERWORK_ASSETS,
   ...EXHIBITION_ASSETS,
+  ...ATELIER_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [
@@ -522,10 +524,13 @@ export function catalogPromptSummary(): string {
   const familyGroups = new Map<number, string[]>();
   for (const [family, variants] of families) {
     const first = variants[0]!;
-    const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
     const category = first.category === 'npc' ? 'npc' : first.category.slice(0, 3);
     const lines = familyGroups.get(variants.length) ?? [];
-    lines.push(`${family}|${category}|${first.tags[0]}${moods === 'any' ? '' : `|${moods}`}`);
+    // Family IDs are intentionally descriptive (for example
+    // `atelier_creature_pangolin`). Category is the only extra signal needed
+    // here; omitting duplicated tag/mood metadata keeps the complete catalog in
+    // tiny browser-model context windows as collections grow.
+    lines.push(`${family}|${category}`);
     familyGroups.set(variants.length, lines);
   }
   const familySections = [...familyGroups.entries()]

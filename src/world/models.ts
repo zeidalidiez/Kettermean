@@ -15,6 +15,11 @@ import {
   EXHIBITION_BOUNDS,
   buildExhibitionModel,
 } from './detailedModelsRound3';
+import type { AtelierModelKind } from './detailedAssetsRound4';
+import {
+  ATELIER_BOUNDS,
+  buildAtelierModel,
+} from './detailedModelsRound4';
 import {
   decorateModelWithFaceKit,
   type FaceHostContext,
@@ -191,7 +196,8 @@ export type PropKind =
   | SemanticModelKind
   | DetailedModelKind
   | MasterworkModelKind
-  | ExhibitionModelKind;
+  | ExhibitionModelKind
+  | AtelierModelKind;
 
 interface PartSpec {
   w: number;
@@ -2241,6 +2247,8 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const atelier = buildAtelierModel(kind, assetVariant(assetId), accent, body);
+  if (atelier) return atelier;
   const exhibition = buildExhibitionModel(kind, assetVariant(assetId), accent, body);
   if (exhibition) return exhibition;
   const masterwork = buildMasterworkModel(kind, assetVariant(assetId), accent, body);
@@ -2676,6 +2684,8 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const atelier = ATELIER_BOUNDS[kind as AtelierModelKind];
+  if (atelier) return atelier;
   const exhibition = EXHIBITION_BOUNDS[kind as ExhibitionModelKind];
   if (exhibition) return exhibition;
   const masterwork = MASTERWORK_BOUNDS[kind as MasterworkModelKind];
@@ -2756,6 +2766,7 @@ function faceHostForKind(kind: PropKind): FaceHostContext {
     value.startsWith('figure_') ||
     value.startsWith('detail_figure_') ||
     value.startsWith('exhibition_figure_') ||
+    value.startsWith('atelier_figure_') ||
     value === 'lowpoly_person' ||
     value === 'voxel_watcher'
   ) return 'humanoid';
@@ -2763,6 +2774,7 @@ function faceHostForKind(kind: PropKind): FaceHostContext {
     value.startsWith('animal_') ||
     value.startsWith('detail_animal_') ||
     value.startsWith('exhibition_animal_') ||
+    value.startsWith('atelier_animal_') ||
     value.includes('dog') ||
     value.includes('cat') ||
     value.includes('bird') ||
