@@ -15,6 +15,15 @@ export type RoomArchitecture =
   | 'basin';
 export type RoomSizeClass = 'compact' | 'standard' | 'large' | 'vast';
 
+/** Semantic object-set plan used to keep a room coherent without removing surprise. */
+export interface RoomComposition {
+  primarySet: string;
+  supportingSet?: string;
+  contrastSet?: string;
+  /** Maximum number of deliberately conflicting layout packs. */
+  contrastBudget: number;
+}
+
 export interface AppSettings {
   mode: DreamMode;
   seed: string;
@@ -162,6 +171,7 @@ export interface RoomSpec {
   environment?: RoomEnvironment;
   layoutStyle?: RoomLayoutStyle;
   architecture?: RoomArchitecture;
+  composition?: RoomComposition;
   width: number;
   depth: number;
   height: number;
@@ -188,6 +198,8 @@ export interface RoomHistoryEntry {
   shader: RoomShaderStyle;
   lighting: RoomLightingStyle;
   wireframe: boolean;
+  primarySet?: string;
+  contrastSet?: string;
   assetIds: string[];
 }
 

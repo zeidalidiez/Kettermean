@@ -1,5 +1,6 @@
 import type { EntityBehavior, MoodAxis } from '../types';
 import type { AssetCategory, AssetDef } from './assetCatalog';
+import { sceneSetIdsForTags } from './sceneSets';
 
 interface AssetFamily {
   id: string;
@@ -66,6 +67,24 @@ const PROP_FAMILIES: AssetFamily[] = [
   family('pallet_stack', 'pallet_stack', 'stacked pallets', 'fixture', ['warehouse', 'industrial', 'service', 'parking'], { x: 1.55, y: 1.45, z: 1.25 }),
   family('server_rack', 'server_rack', 'active server rack', 'fixture', ['server', 'office', 'industrial', 'tech'], { x: 0.9, y: 2.15, z: 0.95 }),
   family('aquarium_tank', 'aquarium_tank', 'lit aquarium tank', 'fixture', ['aquarium', 'museum', 'lobby', 'wet'], { x: 2.15, y: 1.85, z: 0.82 }),
+  family('medical_cart', 'medical_cart', 'mobile medical cart', 'fixture', ['clinic', 'hospital', 'observation'], { x: 1.05, y: 1.25, z: 0.72 }),
+  family('privacy_screen', 'privacy_screen', 'folding privacy screen', 'fixture', ['clinic', 'hospital', 'observation'], { x: 2.25, y: 1.95, z: 0.5 }),
+  family('copy_machine', 'copy_machine', 'office copy machine', 'fixture', ['office', 'archive', 'civic'], { x: 1.15, y: 1.45, z: 0.88 }),
+  family('archive_trolley', 'archive_trolley', 'archive book trolley', 'fixture', ['archive', 'office', 'museum'], { x: 1.25, y: 1.35, z: 0.72 }),
+  family('ticket_gate', 'ticket_gate', 'transit ticket gate', 'fixture', ['station', 'terminal', 'subway'], { x: 1.55, y: 1.18, z: 0.72 }),
+  family('departure_board', 'departure_board', 'departure information board', 'fixture', ['station', 'terminal', 'airport'], { x: 2.25, y: 2.35, z: 0.38 }),
+  family('shopping_cart', 'shopping_cart', 'empty shopping cart', 'fixture', ['mall', 'retail', 'supermarket'], { x: 1.35, y: 1.12, z: 0.82 }),
+  family('retail_display', 'retail_display', 'retail display island', 'fixture', ['mall', 'retail', 'exhibition'], { x: 1.65, y: 1.7, z: 1.05 }),
+  family('chalkboard', 'chalkboard', 'classroom chalkboard', 'fixture', ['school', 'classroom', 'university'], { x: 2.45, y: 1.85, z: 0.32 }),
+  family('lab_bench', 'lab_bench', 'laboratory workbench', 'furniture', ['school', 'lab', 'tech'], { x: 2.25, y: 1.55, z: 0.95 }),
+  family('tool_chest', 'tool_chest', 'rolling tool chest', 'fixture', ['industrial', 'warehouse', 'service'], { x: 1.15, y: 1.3, z: 0.72 }),
+  family('drum_stack', 'drum_stack', 'stacked industrial drums', 'fixture', ['industrial', 'warehouse', 'loading'], { x: 1.65, y: 1.85, z: 1.15 }),
+  family('luggage_cart', 'luggage_cart', 'hotel luggage cart', 'fixture', ['hotel', 'motel', 'terminal'], { x: 1.45, y: 2.05, z: 0.88 }),
+  family('room_service', 'room_service', 'room service trolley', 'furniture', ['hotel', 'motel', 'food'], { x: 1.35, y: 1.28, z: 0.82 }),
+  family('traffic_cone', 'traffic_cone', 'road traffic cone cluster', 'fixture', ['highway', 'parking', 'roadside', 'service'], { x: 1.15, y: 1.05, z: 0.82 }),
+  family('exercise_bike', 'exercise_bike', 'stationary exercise bike', 'fixture', ['gym', 'clinic', 'leisure'], { x: 1.45, y: 1.65, z: 0.72 }),
+  family('cinema_seat', 'cinema_seat', 'folding cinema seat', 'furniture', ['cinema', 'convention', 'leisure'], { x: 0.78, y: 1.35, z: 0.78 }),
+  family('pool_ladder', 'pool_ladder', 'stainless pool ladder', 'fixture', ['pool', 'waterpark', 'wet'], { x: 1.05, y: 1.65, z: 0.72 }),
 ];
 
 const NPC_FAMILIES: AssetFamily[] = [
@@ -99,6 +118,7 @@ export const EXPANDED_ASSETS: AssetDef[] = [...PROP_FAMILIES, ...NPC_FAMILIES].f
       label: `${VARIANT_LABELS[variant]} ${assetFamily.label}`,
       category: assetFamily.category,
       tags: [...assetFamily.tags],
+      setIds: sceneSetIdsForTags(assetFamily.tags),
       moods: [...assetFamily.moods],
       defaultScale: { ...assetFamily.scale },
       scaleRange: { min: 0.78, max: assetFamily.category === 'npc' ? 1.45 : 1.5 },
@@ -136,7 +156,7 @@ function family(
 function renderCostFor(kind: string, category: AssetCategory): number {
   if (category === 'npc') return 5;
   if (['bookcase', 'bus_shelter', 'swing_set', 'server_rack', 'aquarium_tank'].includes(kind)) return 5;
-  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree', 'reception_desk', 'sectional', 'hotel_bed', 'phone_booth', 'lifeguard_chair', 'pallet_stack'].includes(kind)) {
+  if (['locker', 'hospital_bed', 'gurney', 'barrier', 'planter', 'bleacher', 'tree', 'reception_desk', 'sectional', 'hotel_bed', 'phone_booth', 'lifeguard_chair', 'pallet_stack', 'privacy_screen', 'departure_board', 'shopping_cart', 'retail_display', 'lab_bench', 'drum_stack', 'luggage_cart', 'exercise_bike'].includes(kind)) {
     return 3;
   }
   return 2;

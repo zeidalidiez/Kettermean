@@ -69,6 +69,24 @@ export type PropKind =
   | 'pallet_stack'
   | 'server_rack'
   | 'aquarium_tank'
+  | 'medical_cart'
+  | 'privacy_screen'
+  | 'copy_machine'
+  | 'archive_trolley'
+  | 'ticket_gate'
+  | 'departure_board'
+  | 'shopping_cart'
+  | 'retail_display'
+  | 'chalkboard'
+  | 'lab_bench'
+  | 'tool_chest'
+  | 'drum_stack'
+  | 'luggage_cart'
+  | 'room_service'
+  | 'traffic_cone'
+  | 'exercise_bike'
+  | 'cinema_seat'
+  | 'pool_ladder'
   | 'figure_nurse'
   | 'figure_janitor'
   | 'figure_commuter'
@@ -289,6 +307,25 @@ function buildExpandedModel(
       return buildServerRack(variant, accent);
     case 'aquarium_tank':
       return buildAquariumTank(variant, accent);
+    case 'medical_cart':
+    case 'privacy_screen':
+    case 'copy_machine':
+    case 'archive_trolley':
+    case 'ticket_gate':
+    case 'departure_board':
+    case 'shopping_cart':
+    case 'retail_display':
+    case 'chalkboard':
+    case 'lab_bench':
+    case 'tool_chest':
+    case 'drum_stack':
+    case 'luggage_cart':
+    case 'room_service':
+    case 'traffic_cone':
+    case 'exercise_bike':
+    case 'cinema_seat':
+    case 'pool_ladder':
+      return buildSceneExpansion(kind, variant, accent, body);
     case 'figure_nurse':
     case 'figure_janitor':
     case 'figure_commuter':
@@ -960,6 +997,282 @@ function buildAquariumTank(variant: number, accent: string): THREE.Group {
   return group(parts, `aquarium-tank-${variant}`);
 }
 
+/** Additional set-specific props that let coherent scenes furnish themselves richly. */
+function buildSceneExpansion(
+  kind: PropKind,
+  variant: number,
+  accent: string,
+  body: string,
+): THREE.Group {
+  const color = variantColor(accent, variant);
+  const bodyColor = variantColor(body, variant, 0.06);
+  const metal = variantColor('#727c83', variant);
+  const dark = variantColor('#242a2f', variant);
+  const glow = variantColor('#86e5ff', variant, 0.08);
+  const wheel = (x: number, z: number): PartSpec => ({
+    w: 0.16,
+    h: 0.16,
+    d: 0.1,
+    x,
+    y: 0.08,
+    z,
+    color: '#171b1e',
+    shape: 'torus',
+    ry: Math.PI / 2,
+  });
+
+  switch (kind) {
+    case 'medical_cart': {
+      const parts: PartSpec[] = [
+        { w: 0.94, h: 0.82, d: 0.64, x: 0, y: 0.62, z: 0, color, metalness: 0.28 },
+        { w: 1.02, h: 0.1, d: 0.7, x: 0, y: 1.08, z: 0, color: '#e1e4df' },
+        { w: 0.08, h: 0.34, d: 0.08, x: -0.52, y: 1.12, z: -0.2, color: metal, shape: 'cylinder' },
+        { w: 0.42, h: 0.08, d: 0.08, x: -0.68, y: 1.28, z: -0.2, color: metal, shape: 'cylinder', rz: Math.PI / 2 },
+      ];
+      for (let drawer = 0; drawer < 3; drawer += 1) {
+        const y = 0.42 + drawer * 0.25;
+        parts.push({ w: 0.82, h: 0.2, d: 0.035, x: 0, y, z: 0.335, color: variantColor(color, variant, drawer * 0.025) });
+        parts.push({ w: 0.28, h: 0.035, d: 0.05, x: 0, y, z: 0.37, color: metal, metalness: 0.75 });
+      }
+      parts.push(wheel(-0.34, -0.24), wheel(0.34, -0.24), wheel(-0.34, 0.24), wheel(0.34, 0.24));
+      return group(parts, `medical-cart-${variant}`);
+    }
+    case 'privacy_screen': {
+      const fabric = variantColor('#c8d8d4', variant);
+      const parts: PartSpec[] = [];
+      for (let panel = -1; panel <= 1; panel += 1) {
+        const angle = panel * (0.08 + variant * 0.008);
+        parts.push({ w: 0.68, h: 1.48, d: 0.045, x: panel * 0.72, y: 1.05, z: Math.abs(panel) * 0.08, color: fabric, ry: angle });
+        parts.push({ w: 0.055, h: 1.76, d: 0.055, x: panel * 0.72 - 0.34, y: 0.96, z: Math.abs(panel) * 0.08, color: metal, shape: 'cylinder' });
+      }
+      parts.push(
+        { w: 0.055, h: 1.76, d: 0.055, x: 1.06, y: 0.96, z: 0.08, color: metal, shape: 'cylinder' },
+        { w: 0.5, h: 0.06, d: 0.44, x: -1.06, y: 0.06, z: 0.08, color: metal },
+        { w: 0.5, h: 0.06, d: 0.44, x: 1.06, y: 0.06, z: 0.08, color: metal },
+      );
+      return group(parts, `privacy-screen-${variant}`);
+    }
+    case 'copy_machine':
+      return group([
+        { w: 1.02, h: 0.88, d: 0.8, x: 0, y: 0.48, z: 0, color: bodyColor },
+        { w: 1.1, h: 0.36, d: 0.86, x: 0, y: 1.03, z: 0, color: color },
+        { w: 0.96, h: 0.1, d: 0.72, x: 0, y: 1.28, z: -0.04, color: dark, rx: -0.06 },
+        { w: 0.52, h: 0.06, d: 0.38, x: 0.14, y: 1.34, z: -0.08, color: '#b7d5db', metalness: 0.25 },
+        { w: 0.48, h: 0.1, d: 0.5, x: 0, y: 0.74, z: 0.43, color: '#11171b' },
+        { w: 0.34, h: 0.2, d: 0.045, x: -0.28, y: 1.12, z: 0.45, color: glow, emissive: glow, emissiveIntensity: 0.45 },
+        { w: 0.08, h: 0.08, d: 0.04, x: 0.05, y: 1.12, z: 0.45, color: '#78de76', emissive: '#3aa63c', emissiveIntensity: 0.35, shape: 'sphere' },
+        { w: 0.62, h: 0.035, d: 0.42, x: 0, y: 0.78, z: 0.54, color: '#e8e8df' },
+      ], `copy-machine-${variant}`);
+    case 'archive_trolley': {
+      const parts: PartSpec[] = [
+        { w: 1.16, h: 0.08, d: 0.66, x: 0, y: 0.28, z: 0, color: metal, metalness: 0.62 },
+        { w: 1.16, h: 0.08, d: 0.66, x: 0, y: 0.78, z: 0, color: metal, metalness: 0.62 },
+        { w: 1.16, h: 0.08, d: 0.66, x: 0, y: 1.22, z: 0, color: metal, metalness: 0.62 },
+      ];
+      for (const x of [-0.53, 0.53]) parts.push({ w: 0.07, h: 1.2, d: 0.07, x, y: 0.72, z: 0, color: metal, shape: 'cylinder' });
+      for (let book = 0; book < 6; book += 1) {
+        parts.push({ w: 0.12 + (book % 2) * 0.04, h: 0.36 + ((book + variant) % 3) * 0.06, d: 0.46, x: -0.45 + book * 0.18, y: book % 2 ? 1.02 : 0.56, z: 0, color: variantColor(color, variant, book * 0.08), rz: (book % 3 - 1) * 0.06 });
+      }
+      parts.push(wheel(-0.45, -0.22), wheel(0.45, -0.22), wheel(-0.45, 0.22), wheel(0.45, 0.22));
+      return group(parts, `archive-trolley-${variant}`);
+    }
+    case 'ticket_gate':
+      return group([
+        { w: 0.48, h: 1.06, d: 0.66, x: -0.52, y: 0.53, z: 0, color: bodyColor, metalness: 0.45 },
+        { w: 0.48, h: 1.06, d: 0.66, x: 0.52, y: 0.53, z: 0, color: bodyColor, metalness: 0.45 },
+        { w: 0.54, h: 0.1, d: 0.72, x: -0.52, y: 1.08, z: 0, color },
+        { w: 0.54, h: 0.1, d: 0.72, x: 0.52, y: 1.08, z: 0, color },
+        { w: 0.3, h: 0.18, d: 0.04, x: -0.52, y: 1.15, z: 0.27, color: glow, emissive: glow, emissiveIntensity: 0.55 },
+        { w: 0.42, h: 0.62, d: 0.035, x: -0.22, y: 0.64, z: 0, color: variantColor('#8bd7e5', variant), metalness: 0.35, ry: variant % 2 ? 0.18 : -0.18 },
+        { w: 0.42, h: 0.62, d: 0.035, x: 0.22, y: 0.64, z: 0, color: variantColor('#8bd7e5', variant), metalness: 0.35, ry: variant % 2 ? -0.18 : 0.18 },
+      ], `ticket-gate-${variant}`);
+    case 'departure_board': {
+      const parts: PartSpec[] = [
+        { w: 2.12, h: 1.18, d: 0.16, x: 0, y: 1.55, z: 0, color: dark },
+        { w: 1.98, h: 1.02, d: 0.035, x: 0, y: 1.55, z: 0.1, color: '#0b151a' },
+        { w: 0.11, h: 1.12, d: 0.11, x: -0.78, y: 0.58, z: 0, color: metal, shape: 'cylinder' },
+        { w: 0.11, h: 1.12, d: 0.11, x: 0.78, y: 0.58, z: 0, color: metal, shape: 'cylinder' },
+        { w: 1.82, h: 0.08, d: 0.04, x: 0, y: 1.98, z: 0.13, color, emissive: color, emissiveIntensity: 0.32 },
+      ];
+      for (let row = 0; row < 5; row += 1) {
+        const y = 1.8 - row * 0.18;
+        parts.push({ w: 0.72 + ((row + variant) % 3) * 0.18, h: 0.035, d: 0.025, x: -0.35, y, z: 0.13, color: row % 2 ? '#f2d96b' : glow, emissive: row % 2 ? '#836b18' : '#367f8d', emissiveIntensity: 0.28 });
+        parts.push({ w: 0.32, h: 0.035, d: 0.025, x: 0.65, y, z: 0.13, color: '#d9dfdb' });
+      }
+      return group(parts, `departure-board-${variant}`);
+    }
+    case 'shopping_cart': {
+      const parts: PartSpec[] = [
+        { w: 1.08, h: 0.62, d: 0.72, x: 0.08, y: 0.66, z: 0, color: metal, metalness: 0.75 },
+        { w: 1.18, h: 0.08, d: 0.78, x: 0.02, y: 0.34, z: 0, color: metal, metalness: 0.75 },
+        { w: 0.08, h: 0.78, d: 0.08, x: -0.52, y: 0.78, z: 0, color: metal, shape: 'cylinder', rz: -0.22 },
+        { w: 0.08, h: 0.82, d: 0.08, x: 0.58, y: 0.76, z: 0, color: metal, shape: 'cylinder', rz: 0.12 },
+        { w: 0.08, h: 0.88, d: 0.08, x: -0.66, y: 1.08, z: 0, color, shape: 'cylinder', rz: Math.PI / 2 },
+      ];
+      for (let rail = -2; rail <= 2; rail += 1) parts.push({ w: 1.02, h: 0.035, d: 0.035, x: 0.08, y: 0.47 + (rail + 2) * 0.13, z: rail * 0.13, color: metal, metalness: 0.75 });
+      parts.push(wheel(-0.42, -0.25), wheel(0.5, -0.25), wheel(-0.42, 0.25), wheel(0.5, 0.25));
+      return group(parts, `shopping-cart-${variant}`);
+    }
+    case 'retail_display': {
+      const parts: PartSpec[] = [
+        { w: 1.52, h: 0.22, d: 0.94, x: 0, y: 0.11, z: 0, color: bodyColor },
+        { w: 0.42, h: 1.42, d: 0.42, x: 0, y: 0.82, z: 0, color: color },
+      ];
+      for (const y of [0.48, 0.92, 1.36]) {
+        parts.push({ w: 1.42, h: 0.08, d: 0.86, x: 0, y, z: 0, color: bodyColor });
+      }
+      for (let item = 0; item < 8; item += 1) {
+        const side = item % 2 ? -1 : 1;
+        parts.push({ w: 0.18 + (item % 3) * 0.04, h: 0.24 + ((item + variant) % 3) * 0.08, d: 0.2, x: side * (0.32 + (item % 4) * 0.1), y: 0.64 + Math.floor(item / 3) * 0.43, z: (item % 3 - 1) * 0.22, color: variantColor(color, variant, item * 0.1) });
+      }
+      return group(parts, `retail-display-${variant}`);
+    }
+    case 'chalkboard': {
+      const chalk = variantColor('#d7d3bd', variant);
+      const parts: PartSpec[] = [
+        { w: 2.3, h: 1.35, d: 0.08, x: 0, y: 1.18, z: 0, color: variantColor('#31524b', variant), roughness: 0.92 },
+        { w: 2.44, h: 0.08, d: 0.14, x: 0, y: 1.88, z: 0, color: bodyColor },
+        { w: 2.44, h: 0.08, d: 0.14, x: 0, y: 0.48, z: 0, color: bodyColor },
+        { w: 0.08, h: 1.48, d: 0.14, x: -1.18, y: 1.18, z: 0, color: bodyColor },
+        { w: 0.08, h: 1.48, d: 0.14, x: 1.18, y: 1.18, z: 0, color: bodyColor },
+        { w: 1.64, h: 0.08, d: 0.24, x: 0, y: 0.42, z: 0.12, color: bodyColor },
+      ];
+      for (let mark = 0; mark < 5; mark += 1) parts.push({ w: 0.28 + ((mark + variant) % 3) * 0.16, h: 0.025, d: 0.018, x: -0.75 + mark * 0.38, y: 1.18 + (mark % 3 - 1) * 0.24, z: 0.052, color: chalk, rz: (mark % 2 ? -1 : 1) * 0.18 });
+      return group(parts, `chalkboard-${variant}`);
+    }
+    case 'lab_bench': {
+      const parts: PartSpec[] = [
+        { w: 2.16, h: 0.13, d: 0.9, x: 0, y: 0.92, z: 0, color: dark },
+        { w: 0.58, h: 0.82, d: 0.82, x: -0.72, y: 0.44, z: 0, color: bodyColor },
+        { w: 0.58, h: 0.82, d: 0.82, x: 0.72, y: 0.44, z: 0, color: bodyColor },
+        { w: 2.05, h: 0.08, d: 0.32, x: 0, y: 1.42, z: -0.28, color: metal },
+        { w: 0.08, h: 0.52, d: 0.08, x: -0.88, y: 1.18, z: -0.28, color: metal, shape: 'cylinder' },
+        { w: 0.08, h: 0.52, d: 0.08, x: 0.88, y: 1.18, z: -0.28, color: metal, shape: 'cylinder' },
+        { w: 0.58, h: 0.055, d: 0.38, x: 0.35, y: 1.0, z: 0.1, color: '#89aeb5', metalness: 0.48 },
+        { w: 0.06, h: 0.38, d: 0.06, x: 0.56, y: 1.18, z: -0.02, color: metal, shape: 'cylinder', rz: 0.4 },
+      ];
+      for (let flask = 0; flask < 3; flask += 1) parts.push({ w: 0.18, h: 0.3 + flask * 0.06, d: 0.18, x: -0.5 + flask * 0.25, y: 1.12 + flask * 0.03, z: -0.15, color: variantColor(color, variant, flask * 0.14), emissive: flask === variant % 3 ? color : undefined, emissiveIntensity: 0.28, shape: flask % 2 ? 'sphere' : 'cylinder' });
+      return group(parts, `lab-bench-${variant}`);
+    }
+    case 'tool_chest': {
+      const parts: PartSpec[] = [
+        { w: 1.06, h: 1.12, d: 0.66, x: 0, y: 0.62, z: 0, color, metalness: 0.38 },
+        { w: 1.12, h: 0.1, d: 0.7, x: 0, y: 1.2, z: 0, color: dark },
+        { w: 0.42, h: 0.08, d: 0.08, x: 0.68, y: 0.98, z: 0, color: metal, shape: 'cylinder', rz: Math.PI / 2 },
+      ];
+      for (let drawer = 0; drawer < 5; drawer += 1) {
+        const y = 0.28 + drawer * 0.18;
+        parts.push({ w: 0.92, h: 0.14, d: 0.035, x: 0, y, z: 0.345, color: variantColor(color, variant, drawer * 0.02) });
+        parts.push({ w: 0.34, h: 0.03, d: 0.045, x: 0, y, z: 0.38, color: metal, metalness: 0.8 });
+      }
+      parts.push(wheel(-0.38, -0.24), wheel(0.38, -0.24), wheel(-0.38, 0.24), wheel(0.38, 0.24));
+      return group(parts, `tool-chest-${variant}`);
+    }
+    case 'drum_stack': {
+      const parts: PartSpec[] = [];
+      const drums = [
+        { x: -0.42, y: 0.58, z: 0.06 },
+        { x: 0.42, y: 0.58, z: -0.08 },
+        { x: 0, y: 1.42, z: 0.04 },
+      ];
+      drums.forEach((position, index) => {
+        const drumColor = variantColor(color, variant, index * 0.09);
+        parts.push({ w: 0.7, h: 1.02, d: 0.7, ...position, color: drumColor, shape: 'cylinder', metalness: 0.35 });
+        parts.push({ w: 0.73, h: 0.07, d: 0.73, x: position.x, y: position.y + 0.48, z: position.z, color: metal, shape: 'cylinder', metalness: 0.7 });
+        parts.push({ w: 0.73, h: 0.07, d: 0.73, x: position.x, y: position.y - 0.48, z: position.z, color: metal, shape: 'cylinder', metalness: 0.7 });
+        parts.push({ w: 0.72, h: 0.045, d: 0.72, x: position.x, y: position.y, z: position.z, color: '#e7dfb3', shape: 'cylinder' });
+      });
+      return group(parts, `drum-stack-${variant}`);
+    }
+    case 'luggage_cart': {
+      const brass = variantColor('#b89b54', variant);
+      const parts: PartSpec[] = [
+        { w: 1.3, h: 0.15, d: 0.8, x: 0, y: 0.18, z: 0, color: brass, metalness: 0.72 },
+        { w: 1.18, h: 0.08, d: 0.7, x: 0, y: 0.3, z: 0, color: variantColor('#7d4d36', variant) },
+        { w: 0.08, h: 1.7, d: 0.08, x: -0.56, y: 1.05, z: 0, color: brass, shape: 'cylinder' },
+        { w: 0.08, h: 1.7, d: 0.08, x: 0.56, y: 1.05, z: 0, color: brass, shape: 'cylinder' },
+        { w: 1.16, h: 0.08, d: 0.08, x: 0, y: 1.9, z: 0, color: brass, shape: 'cylinder', rz: Math.PI / 2 },
+        { w: 0.62, h: 0.48, d: 0.42, x: -0.24, y: 0.6, z: 0.02, color: bodyColor },
+        { w: 0.42, h: 0.64, d: 0.34, x: 0.34, y: 0.7, z: -0.04, color },
+        { w: 0.28, h: 0.12, d: 0.05, x: 0.34, y: 1.05, z: -0.04, color: dark, shape: 'torus' },
+      ];
+      parts.push(wheel(-0.48, -0.28), wheel(0.48, -0.28), wheel(-0.48, 0.28), wheel(0.48, 0.28));
+      return group(parts, `luggage-cart-${variant}`);
+    }
+    case 'room_service': {
+      const parts: PartSpec[] = [
+        { w: 1.22, h: 0.1, d: 0.74, x: 0, y: 0.34, z: 0, color: metal, metalness: 0.58 },
+        { w: 1.22, h: 0.1, d: 0.74, x: 0, y: 0.92, z: 0, color: bodyColor },
+        { w: 0.07, h: 0.86, d: 0.07, x: -0.52, y: 0.54, z: -0.28, color: metal, shape: 'cylinder' },
+        { w: 0.07, h: 0.86, d: 0.07, x: 0.52, y: 0.54, z: -0.28, color: metal, shape: 'cylinder' },
+        { w: 0.07, h: 0.86, d: 0.07, x: -0.52, y: 0.54, z: 0.28, color: metal, shape: 'cylinder' },
+        { w: 0.07, h: 0.86, d: 0.07, x: 0.52, y: 0.54, z: 0.28, color: metal, shape: 'cylinder' },
+        { w: 0.48, h: 0.2, d: 0.48, x: -0.28, y: 1.06, z: 0, color: '#e5e0d4', shape: 'cylinder' },
+        { w: 0.42, h: 0.36, d: 0.42, x: 0.3, y: 1.12, z: 0, color, metalness: 0.5, shape: 'sphere' },
+        { w: 0.08, h: 0.12, d: 0.08, x: 0.3, y: 1.34, z: 0, color: metal, shape: 'sphere' },
+      ];
+      parts.push(wheel(-0.46, -0.24), wheel(0.46, -0.24), wheel(-0.46, 0.24), wheel(0.46, 0.24));
+      return group(parts, `room-service-${variant}`);
+    }
+    case 'traffic_cone': {
+      const parts: PartSpec[] = [];
+      const cones = [
+        { x: -0.36, z: 0.1, scale: 1 },
+        { x: 0.34, z: -0.12, scale: 0.86 + variant * 0.02 },
+        { x: 0.02, z: 0.3, scale: 0.72 + (variant % 3) * 0.08 },
+      ];
+      for (const cone of cones) {
+        parts.push({ w: 0.62 * cone.scale, h: 0.1, d: 0.62 * cone.scale, x: cone.x, y: 0.05, z: cone.z, color: dark });
+        parts.push({ w: 0.46 * cone.scale, h: 0.82 * cone.scale, d: 0.46 * cone.scale, x: cone.x, y: 0.48 * cone.scale, z: cone.z, color: variantColor('#f27b2c', variant), shape: 'cone' });
+        parts.push({ w: 0.36 * cone.scale, h: 0.12, d: 0.36 * cone.scale, x: cone.x, y: 0.38 * cone.scale, z: cone.z, color: '#eee9dc', shape: 'cylinder' });
+      }
+      return group(parts, `traffic-cone-${variant}`);
+    }
+    case 'exercise_bike':
+      return group([
+        { w: 1.25, h: 0.1, d: 0.48, x: 0, y: 0.08, z: 0, color: dark },
+        { w: 0.12, h: 0.9, d: 0.12, x: -0.2, y: 0.6, z: 0, color: metal, shape: 'cylinder', rz: -0.45 },
+        { w: 0.12, h: 1.16, d: 0.12, x: 0.28, y: 0.76, z: 0, color, shape: 'cylinder', rz: 0.45 },
+        { w: 0.72, h: 0.72, d: 0.18, x: -0.18, y: 0.52, z: 0, color: dark, shape: 'torus', ry: Math.PI / 2 },
+        { w: 0.48, h: 0.12, d: 0.38, x: 0.18, y: 1.2, z: 0, color: bodyColor },
+        { w: 0.62, h: 0.09, d: 0.09, x: 0.56, y: 1.38, z: 0, color: metal, shape: 'cylinder', rz: Math.PI / 2 },
+        { w: 0.38, h: 0.28, d: 0.08, x: 0.3, y: 1.55, z: 0, color: glow, emissive: glow, emissiveIntensity: 0.42 },
+        { w: 0.52, h: 0.07, d: 0.07, x: -0.18, y: 0.52, z: 0, color: metal, shape: 'cylinder', rz: Math.PI / 2 },
+        { w: 0.26, h: 0.08, d: 0.12, x: -0.48, y: 0.52, z: 0, color: dark },
+        { w: 0.26, h: 0.08, d: 0.12, x: 0.12, y: 0.52, z: 0, color: dark },
+      ], `exercise-bike-${variant}`);
+    case 'cinema_seat':
+      return group([
+        { w: 0.7, h: 0.18, d: 0.66, x: 0, y: 0.52, z: 0.05, color },
+        { w: 0.7, h: 0.82 + variant * 0.025, d: 0.16, x: 0, y: 0.93, z: -0.27, color, rx: -0.06 },
+        { w: 0.13, h: 0.62, d: 0.68, x: -0.4, y: 0.63, z: 0, color: dark },
+        { w: 0.13, h: 0.62, d: 0.68, x: 0.4, y: 0.63, z: 0, color: dark },
+        { w: 0.11, h: 0.48, d: 0.11, x: -0.28, y: 0.24, z: -0.2, color: metal, shape: 'cylinder' },
+        { w: 0.11, h: 0.48, d: 0.11, x: 0.28, y: 0.24, z: -0.2, color: metal, shape: 'cylinder' },
+        { w: 0.23, h: 0.18, d: 0.23, x: variant % 2 ? -0.42 : 0.42, y: 0.91, z: 0.12, color: dark, shape: 'cylinder' },
+        { w: 0.15, h: 0.22, d: 0.15, x: variant % 2 ? -0.42 : 0.42, y: 0.93, z: 0.12, color: '#111518', shape: 'cylinder' },
+      ], `cinema-seat-${variant}`);
+    case 'pool_ladder': {
+      const parts: PartSpec[] = [
+        { w: 0.11, h: 1.52, d: 0.11, x: -0.38, y: 0.82, z: 0, color: metal, metalness: 0.82, shape: 'cylinder' },
+        { w: 0.11, h: 1.52, d: 0.11, x: 0.38, y: 0.82, z: 0, color: metal, metalness: 0.82, shape: 'cylinder' },
+        { w: 0.52, h: 0.52, d: 0.11, x: -0.62, y: 1.42, z: 0, color: metal, metalness: 0.82, shape: 'torus', rz: Math.PI / 2 },
+        { w: 0.52, h: 0.52, d: 0.11, x: 0.62, y: 1.42, z: 0, color: metal, metalness: 0.82, shape: 'torus', rz: Math.PI / 2 },
+      ];
+      for (let step = 0; step < 4; step += 1) parts.push({ w: 0.72, h: 0.08, d: 0.22, x: 0, y: 0.28 + step * 0.28, z: 0, color: variantColor(color, variant, step * 0.04), metalness: 0.55 });
+      parts.push(
+        { w: 0.34, h: 0.08, d: 0.34, x: -0.66, y: 0.08, z: 0, color: dark, shape: 'cylinder' },
+        { w: 0.34, h: 0.08, d: 0.34, x: 0.66, y: 0.08, z: 0, color: dark, shape: 'cylinder' },
+      );
+      return group(parts, `pool-ladder-${variant}`);
+    }
+    default:
+      return group([
+        { w: 1, h: 1, d: 1, x: 0, y: 0.5, z: 0, color },
+      ], `scene-expansion-${variant}`);
+  }
+}
+
 function buildHumanoid(kind: PropKind, variant: number, accent: string): THREE.Group {
   const outfitByKind: Partial<Record<PropKind, string>> = {
     figure_nurse: '#dbe9e7',
@@ -1524,6 +1837,24 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
   pallet_stack: { w: 1.55, h: 1.6, d: 1.25 },
   server_rack: { w: 0.9, h: 2.15, d: 0.95 },
   aquarium_tank: { w: 2.15, h: 1.85, d: 0.82 },
+  medical_cart: { w: 1.05, h: 1.25, d: 0.72 },
+  privacy_screen: { w: 2.25, h: 1.95, d: 0.5 },
+  copy_machine: { w: 1.15, h: 1.45, d: 0.88 },
+  archive_trolley: { w: 1.25, h: 1.35, d: 0.72 },
+  ticket_gate: { w: 1.55, h: 1.18, d: 0.72 },
+  departure_board: { w: 2.25, h: 2.35, d: 0.38 },
+  shopping_cart: { w: 1.35, h: 1.12, d: 0.82 },
+  retail_display: { w: 1.65, h: 1.7, d: 1.05 },
+  chalkboard: { w: 2.45, h: 1.85, d: 0.32 },
+  lab_bench: { w: 2.25, h: 1.55, d: 0.95 },
+  tool_chest: { w: 1.15, h: 1.3, d: 0.72 },
+  drum_stack: { w: 1.65, h: 1.85, d: 1.15 },
+  luggage_cart: { w: 1.45, h: 2.05, d: 0.88 },
+  room_service: { w: 1.35, h: 1.28, d: 0.82 },
+  traffic_cone: { w: 1.15, h: 1.05, d: 0.82 },
+  exercise_bike: { w: 1.45, h: 1.65, d: 0.72 },
+  cinema_seat: { w: 0.78, h: 1.35, d: 0.78 },
+  pool_ladder: { w: 1.05, h: 1.65, d: 0.72 },
   figure_nurse: { w: 0.78, h: 2.35, d: 0.58 },
   figure_janitor: { w: 1.1, h: 2.35, d: 0.7 },
   figure_commuter: { w: 1, h: 2.35, d: 0.7 },

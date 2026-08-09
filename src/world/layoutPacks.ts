@@ -3,6 +3,13 @@ import type { DirectedPlacement } from './assetCatalog';
 import { ASSETS, getAsset } from './assetCatalog';
 import { SeededRng } from '../core/rng';
 import type { RoomEnvironment, RoomLayoutStyle } from '../types';
+import {
+  compositionSetIds,
+  planSceneComposition,
+  sceneSetIdsForTags,
+  setAffinity,
+  type PlannedSceneComposition,
+} from './sceneSets';
 
 /**
  * Layout packs = small local furniture arrangements (relative coords).
@@ -46,6 +53,8 @@ export interface LayoutPack {
   role: PackRole;
   /** Soft affinity tags (theme/mood/space). */
   tags: string[];
+  /** Cached semantic sets derived from tags when the pack library is built. */
+  setIds?: string[];
   moods: MoodAxis[];
   /** How much floor this pack wants (approx radius). */
   radius: number;
@@ -70,6 +79,13 @@ export interface PackStampContext {
   /** Recent catalog ids to strongly deprioritize. */
   avoidAssets?: string[];
   environment?: RoomEnvironment;
+  /** Recent scene sets to lightly deprioritize across linked rooms. */
+  avoidSceneSets?: string[];
+}
+
+export interface PackStampResult {
+  placements: DirectedPlacement[];
+  composition: PlannedSceneComposition;
 }
 
 const PORTALS = new Set(['door_fake', 'door_service', 'door_glass', 'arch_portal']);
@@ -77,16 +93,22 @@ const PORTALS = new Set(['door_fake', 'door_service', 'door_glass', 'arch_portal
 /** Build a large combinatorial pack library once. */
 let CACHED: LayoutPack[] | null = null;
 
+const ASSETS_BY_TAG = indexAssets((asset) => asset.tags);
+const ASSETS_BY_CATEGORY = indexAssets((asset) => [asset.category]);
+const ASSETS_BY_SET = indexAssets((asset) => asset.setIds);
+const DIRECT_ALTERNATIVES = new Map<string, typeof ASSETS>();
+
 export function allLayoutPacks(): LayoutPack[] {
   if (CACHED) return CACHED;
   CACHED = buildPackLibrary();
+  for (const pack of CACHED) pack.setIds = sceneSetIdsForTags(pack.tags);
   return CACHED;
 }
 
 export function stampRoomPacks(
   rng: SeededRng,
   ctx: PackStampContext,
-): DirectedPlacement[] {
+): PackStampResult {
   const packs = allLayoutPacks();
   const area = ctx.width * ctx.depth;
   const densityMultiplier = ctx.layoutStyle === 'sparse' ? 0.62 : 1;
@@ -95,6 +117,16 @@ export function stampRoomPacks(
     10,
     52,
   );
+  const preferredSetIds = (ctx.preferAssets ?? []).flatMap(
+    (assetId) => getAsset(assetId)?.setIds ?? [],
+  );
+  const composition = planSceneComposition(rng, {
+    themeTags: ctx.themeTags,
+    preferredSetIds,
+    avoidSetIds: ctx.avoidSceneSets,
+    mood: ctx.mood,
+    targetPacks: target,
+  });
 
   const placements: DirectedPlacement[] = [];
   const occupied: Array<{ x: number; z: number; r: number }> = [];
@@ -104,40 +136,84 @@ export function stampRoomPacks(
 
   // Score packs: theme match + mood + occasional clash.
   const scored = packs
-    .map((p) => ({ pack: p, score: scorePack(rng, p, ctx) }))
+    .map((pack) => {
+      const affinity = setAffinity(pack.setIds, composition);
+      return { pack, affinity, score: scorePack(rng, pack, ctx, affinity) };
+    })
     .filter((s) => s.score > 0.05)
     .sort((a, b) => b.score - a.score);
 
-  // Weighted sample without replacement-ish: walk shuffled top candidates.
+  // Coherent packs dominate. One curated contrast set receives a small fixed
+  // quota so juxtaposition becomes a readable motif instead of visual soup.
   const pool = weightedShuffle(
     rng,
-    scored.slice(0, Math.min(scored.length, 400)),
+    scored
+      .filter(
+        (candidate) =>
+          candidate.affinity === 'primary' || candidate.affinity === 'supporting',
+      )
+      .slice(0, Math.min(scored.length, 400)),
+  );
+  const contrastPool = weightedShuffle(
+    rng,
+    scored
+      .filter((candidate) => candidate.affinity === 'contrast')
+      .slice(0, 140),
   );
 
   let placed = 0;
+  let contrastPlaced = 0;
   let attempts = 0;
   const maxAttempts = target * 14;
 
-  while (placed < target && attempts < maxAttempts && pool.length) {
+  while (
+    placed < target &&
+    attempts < maxAttempts &&
+    (pool.length ||
+      (contrastPlaced < composition.contrastBudget && contrastPool.length > 0))
+  ) {
     attempts += 1;
-    const idx = Math.min(pool.length - 1, Math.floor(rng.float(0, 1) ** 1.7 * pool.length));
-    const { pack } = pool[idx]!;
+    const contrastRemaining = composition.contrastBudget - contrastPlaced;
+    const roomsRemaining = target - placed;
+    const contrastDueAt = Math.floor(
+      ((contrastPlaced + 1) * target) / (composition.contrastBudget + 1),
+    );
+    const useContrast =
+      contrastRemaining > 0 &&
+      contrastPool.length > 0 &&
+      (placed >= contrastDueAt || roomsRemaining <= contrastRemaining || rng.chance(0.1));
+    const activePool = useContrast ? contrastPool : pool;
+    if (!activePool.length) break;
+    const idx = Math.min(
+      activePool.length - 1,
+      Math.floor(rng.float(0, 1) ** 1.7 * activePool.length),
+    );
+    const { pack, affinity } = activePool[idx]!;
     // Soft remove to reduce repeats
-    if (rng.chance(0.55)) pool.splice(idx, 1);
+    if (rng.chance(0.55)) activePool.splice(idx, 1);
 
     const anchor = findAnchor(rng, pack, ctx, occupied);
     if (!anchor) continue;
 
-    const stamped = stampPack(rng, pack, anchor, ctx);
+    const lane = affinity === 'contrast' ? 'contrast' : 'coherent';
+    const stamped = stampPack(rng, pack, anchor, ctx, composition, lane);
     if (!stamped.length) continue;
 
     for (const s of stamped) placements.push(s);
     occupied.push({ x: anchor.x, z: anchor.z, r: pack.radius * anchor.uniformScale });
     placed += 1;
+    if (lane === 'contrast') contrastPlaced += 1;
   }
 
   // Fill leftover with a few lone scatter props for liminal mess.
-  scatterFill(rng, placements, occupied, ctx, Math.min(14, Math.max(4, 54 - placements.length)));
+  scatterFill(
+    rng,
+    placements,
+    occupied,
+    ctx,
+    composition,
+    Math.min(14, Math.max(4, 54 - placements.length)),
+  );
 
   // Door-only links.
   for (const p of placements) {
@@ -145,7 +221,7 @@ export function stampRoomPacks(
     p.linksOnTouch = Boolean(a && (a.category === 'portal' || PORTALS.has(p.assetId)));
   }
 
-  return placements;
+  return { placements, composition };
 }
 
 function buildPackLibrary(): LayoutPack[] {
@@ -673,7 +749,12 @@ function buildPackLibrary(): LayoutPack[] {
   return out;
 }
 
-function scorePack(rng: SeededRng, pack: LayoutPack, ctx: PackStampContext): number {
+function scorePack(
+  rng: SeededRng,
+  pack: LayoutPack,
+  ctx: PackStampContext,
+  affinity: ReturnType<typeof setAffinity>,
+): number {
   let s = pack.weight;
 
   const themeHits = pack.tags.filter((t) => ctx.themeTags.includes(t)).length;
@@ -682,9 +763,14 @@ function scorePack(rng: SeededRng, pack: LayoutPack, ctx: PackStampContext): num
   if (pack.moods.includes(ctx.mood)) s += 0.45;
   else s *= 0.55;
 
-  // Liminal clash: sometimes boost off-theme packs.
-  if (pack.clashy && rng.chance(0.22)) s += 1.1;
-  if (themeHits === 0 && rng.chance(0.18)) s += 0.7; // wrong furniture in the room
+  if (affinity === 'primary') s += 1.3;
+  else if (affinity === 'supporting') s += 0.82;
+  else if (affinity === 'contrast') s += 0.92;
+  else s *= 0.08;
+
+  // Anomalies stay possible, but only when they belong to one of this room's
+  // selected semantic sets (including its one deliberate contrast set).
+  if (pack.clashy && affinity !== 'unrelated') s += 0.28;
 
   if (ctx.giant && pack.role === 'anomaly') s += 1.4;
   if (ctx.preferAssets?.length) {
@@ -709,14 +795,18 @@ function stampPack(
   pack: LayoutPack,
   anchor: { x: number; z: number; rot: number; uniformScale: number },
   ctx: PackStampContext,
+  composition: PlannedSceneComposition,
+  lane: 'coherent' | 'contrast',
 ): DirectedPlacement[] {
   const out: DirectedPlacement[] = [];
   const cos = Math.cos(anchor.rot);
   const sin = Math.sin(anchor.rot);
+  const avoided = new Set(ctx.avoidAssets ?? []);
+  const laneSetIds = new Set(compositionSetIds(composition, lane));
 
   for (const slot of pack.slots) {
     if (slot.omitChance && rng.chance(slot.omitChance)) continue;
-    const assetId = resolvePick(rng, slot.pick, ctx);
+    const assetId = resolvePick(rng, slot.pick, avoided, laneSetIds);
     if (!assetId) continue;
     const asset = getAsset(assetId);
     if (!asset) continue;
@@ -896,15 +986,19 @@ function scatterFill(
   placements: DirectedPlacement[],
   occupied: Array<{ x: number; z: number; r: number }>,
   ctx: PackStampContext,
+  composition: PlannedSceneComposition,
   count: number,
 ): void {
   const avoided = new Set(ctx.avoidAssets ?? []);
-  const freshCandidates = ASSETS.filter(
-    (asset) => asset.category !== 'portal' && !avoided.has(asset.id),
+  const coherentSetIds = compositionSetIds(composition);
+  const alignedCandidates = assetsForSets(coherentSetIds).filter(
+    (asset) => asset.category !== 'portal',
   );
+  const freshCandidates = alignedCandidates.filter((asset) => !avoided.has(asset.id));
   const candidates = freshCandidates.length
     ? freshCandidates
-    : ASSETS.filter((asset) => asset.category !== 'portal');
+    : alignedCandidates;
+  if (!candidates.length) return;
   const hw = ctx.width / 2 - 1.4;
   const hd = ctx.depth / 2 - 1.4;
   for (let i = 0; i < count; i += 1) {
@@ -944,41 +1038,64 @@ function scatterFill(
   }
 }
 
-function resolvePick(rng: SeededRng, pick: string, ctx: PackStampContext): string | null {
-  const avoided = new Set(ctx.avoidAssets ?? []);
+function resolvePick(
+  rng: SeededRng,
+  pick: string,
+  avoided: ReadonlySet<string>,
+  laneSetIds: ReadonlySet<string>,
+): string | null {
+  const aligned = (asset: (typeof ASSETS)[number]): boolean =>
+    asset.setIds.some((setId) => laneSetIds.has(setId));
   if (pick.startsWith('tag:')) {
     const tag = pick.slice(4);
-    const pool = ASSETS.filter(
-      (a) => a.category !== 'portal' && a.tags.includes(tag),
-    );
+    const pool = (ASSETS_BY_TAG.get(tag) ?? []).filter((a) => a.category !== 'portal');
     if (!pool.length) return null;
-    // Prefer theme-aligned, sometimes clash
-    const themed = pool.filter((a) => a.tags.some((t) => ctx.themeTags.includes(t)));
-    const use = themed.length && rng.chance(0.72) ? themed : pool;
-    const fresh = use.filter((asset) => !avoided.has(asset.id));
-    return rng.pick(fresh.length ? fresh : use).id;
+    const themed = pool.filter(aligned);
+    if (!themed.length) return null;
+    const fresh = themed.filter((asset) => !avoided.has(asset.id));
+    return rng.pick(fresh.length ? fresh : themed).id;
   }
   if (pick.startsWith('category:')) {
     const cat = pick.slice(9);
-    const pool = ASSETS.filter((a) => a.category === cat);
+    const pool = ASSETS_BY_CATEGORY.get(cat) ?? [];
     if (!pool.length) return null;
-    const fresh = pool.filter((asset) => !avoided.has(asset.id));
-    return rng.pick(fresh.length ? fresh : pool).id;
+    const matching = pool.filter(aligned);
+    if (!matching.length) return null;
+    const fresh = matching.filter((asset) => !avoided.has(asset.id));
+    return rng.pick(fresh.length ? fresh : matching).id;
   }
   const direct = getAsset(pick);
   if (!direct) return null;
-  const alternatives = ASSETS.filter(
-    (asset) =>
-      asset.id !== pick &&
-      !avoided.has(asset.id) &&
-      Boolean(asset.family) &&
-      asset.category === direct.category &&
-      asset.tags.some((tag) => direct.tags.includes(tag)) &&
-      Math.max(asset.defaultScale.x, asset.defaultScale.z) <=
-        Math.max(direct.defaultScale.x, direct.defaultScale.z) * 2.2,
+  let baseAlternatives = DIRECT_ALTERNATIVES.get(pick);
+  if (!baseAlternatives) {
+    baseAlternatives = (ASSETS_BY_CATEGORY.get(direct.category) ?? []).filter(
+      (asset) =>
+        asset.id !== pick &&
+        Boolean(asset.family) &&
+        asset.tags.some((tag) => direct.tags.includes(tag)) &&
+        Math.max(asset.defaultScale.x, asset.defaultScale.z) <=
+          Math.max(direct.defaultScale.x, direct.defaultScale.z) * 2.2,
+    );
+    DIRECT_ALTERNATIVES.set(pick, baseAlternatives);
+  }
+  const alternatives = baseAlternatives.filter(
+    (asset) => !avoided.has(asset.id) && aligned(asset),
   );
+  const directIsAligned = aligned(direct);
+  if (!directIsAligned) {
+    if (alternatives.length) return rng.pick(alternatives).id;
+    const directSize = Math.max(direct.defaultScale.x, direct.defaultScale.z);
+    const comparable = (ASSETS_BY_CATEGORY.get(direct.category) ?? []).filter(
+      (asset) =>
+        asset.id !== pick &&
+        !avoided.has(asset.id) &&
+        aligned(asset) &&
+        Math.max(asset.defaultScale.x, asset.defaultScale.z) <= directSize * 2.2,
+    );
+    return comparable.length ? rng.pick(comparable).id : null;
+  }
   if (avoided.has(pick)) {
-    return alternatives.length && rng.chance(0.92) ? rng.pick(alternatives).id : pick;
+    return alternatives.length ? rng.pick(alternatives).id : null;
   }
   return alternatives.length && rng.chance(0.64) ? rng.pick(alternatives).id : pick;
 }
@@ -1024,6 +1141,28 @@ function weightedShuffle<T extends { score: number }>(rng: SeededRng, items: T[]
     .map((it) => ({ it, k: rng.float(0.0001, 1) ** (1 / Math.max(0.15, it.score)) }))
     .sort((a, b) => b.k - a.k)
     .map((x) => x.it);
+}
+
+function indexAssets(
+  keysFor: (asset: (typeof ASSETS)[number]) => readonly string[],
+): Map<string, typeof ASSETS> {
+  const index = new Map<string, typeof ASSETS>();
+  for (const asset of ASSETS) {
+    for (const key of keysFor(asset)) {
+      const values = index.get(key) ?? [];
+      values.push(asset);
+      index.set(key, values);
+    }
+  }
+  return index;
+}
+
+function assetsForSets(setIds: readonly string[]): typeof ASSETS {
+  const unique = new Map<string, (typeof ASSETS)[number]>();
+  for (const setId of setIds) {
+    for (const asset of ASSETS_BY_SET.get(setId) ?? []) unique.set(asset.id, asset);
+  }
+  return [...unique.values()];
 }
 
 function overlapsSpawnIsland(

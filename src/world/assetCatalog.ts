@@ -2,11 +2,13 @@ import type {
   EntityBehavior,
   MoodAxis,
   RoomArchitecture,
+  RoomComposition,
   RoomEnvironment,
   RoomLayoutStyle,
   RoomVisuals,
 } from '../types';
 import { EXPANDED_ASSETS } from './expandedAssets';
+import { sceneSetIdsForTags, type SceneSetId } from './sceneSets';
 
 /**
  * Curated kit library. LLMs (cloud or tiny browser models) should SELECT and
@@ -28,6 +30,8 @@ export interface AssetDef {
   label: string;
   category: AssetCategory;
   tags: string[];
+  /** Explicit semantic sets used for coherent scene composition. */
+  setIds: SceneSetId[];
   moods: MoodAxis[];
   /** Default footprint used for layout / collision. */
   defaultScale: { x: number; y: number; z: number };
@@ -93,6 +97,7 @@ export interface RoomDirection {
   environment?: RoomEnvironment;
   layoutStyle?: RoomLayoutStyle;
   architecture?: RoomArchitecture;
+  composition?: RoomComposition;
   tags: string[];
   width: number;
   depth: number;
@@ -502,6 +507,7 @@ function a(
     label,
     category,
     tags,
+    setIds: sceneSetIdsForTags(tags),
     moods,
     defaultScale,
     scaleRange: { min: minS, max: maxS },

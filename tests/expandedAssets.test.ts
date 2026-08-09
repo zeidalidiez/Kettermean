@@ -13,12 +13,12 @@ import {
 afterAll(() => clearModelMaterialCache());
 
 describe('expanded procedural asset catalog', () => {
-  it('contains 480 unique variants across 60 eight-member families', () => {
-    expect(EXPANDED_ASSET_COUNT).toBe(480);
-    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(480);
+  it('contains 624 unique variants across 78 eight-member families', () => {
+    expect(EXPANDED_ASSET_COUNT).toBe(624);
+    expect(new Set(EXPANDED_ASSETS.map((asset) => asset.id)).size).toBe(624);
 
     const families = Map.groupBy(EXPANDED_ASSETS, (asset) => asset.family);
-    expect(families.size).toBe(60);
+    expect(families.size).toBe(78);
     for (const variants of families.values()) {
       expect(variants).toHaveLength(8);
       expect(new Set(variants.map((asset) => asset.variant))).toEqual(
@@ -27,7 +27,7 @@ describe('expanded procedural asset catalog', () => {
     }
 
     expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(160);
-    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(320);
+    expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(464);
     expect(ASSETS).toEqual(expect.arrayContaining(EXPANDED_ASSETS));
   });
 
@@ -92,7 +92,7 @@ describe('expanded procedural asset catalog', () => {
 
     for (const family of families) expect(prompt).toContain(`${family}|`);
     expect(prompt).not.toContain('npc_nurse_02');
-    expect(prompt.length).toBeLessThan(12_000);
+    expect(prompt.length).toBeLessThan(16_000);
   });
 
   it('draws broadly from the new library during procedural generation', () => {
@@ -112,6 +112,6 @@ describe('expanded procedural asset catalog', () => {
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(420);
-  }, 15_000);
+    expect(used.size).toBeGreaterThanOrEqual(540);
+  }, 30_000);
 });

@@ -75,7 +75,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     environment === 'outdoor' ? 42 : 50,
   );
 
-  const placements = stampRoomPacks(rng, {
+  const { placements, composition } = stampRoomPacks(rng, {
     width,
     depth,
     themeTags: theme.tags,
@@ -86,6 +86,10 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     layoutStyle,
     avoidAssets: recentRooms.slice(-2).flatMap((room) => room.assetIds),
     environment,
+    avoidSceneSets: recentRooms
+      .slice(-3)
+      .flatMap((room) => [room.primarySet, room.contrastSet])
+      .filter((setId): setId is string => Boolean(setId)),
   });
 
   // Door-only safety net
@@ -122,13 +126,21 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     title,
     blurb,
     mood,
-    tags: [...theme.tags, mood, 'packs'],
+    tags: [
+      ...theme.tags,
+      mood,
+      'packs',
+      `set:${composition.primarySet}`,
+      ...(composition.supportingSet ? [`support:${composition.supportingSet}`] : []),
+      ...(composition.contrastSet ? [`contrast:${composition.contrastSet}`] : []),
+    ],
     width,
     depth,
     height,
     environment,
     layoutStyle,
     architecture,
+    composition,
     fogNear: mood === 'downer' ? 10 : mood === 'upper' ? 18 : 13,
     fogFar: Math.max(
       mood === 'downer' ? 36 : mood === 'upper' ? 68 : 48,
@@ -251,6 +263,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     environment: dir.environment ?? (theme ? environmentForTheme(theme) : 'interior'),
     layoutStyle: dir.layoutStyle ?? 'clusters',
     architecture: dir.architecture ?? theme?.architecture ?? 'chamber',
+    composition: dir.composition,
     width: dir.width,
     depth: dir.depth,
     height: dir.height,
@@ -707,6 +720,8 @@ export function roomHistoryEntryFor(spec: RoomSpec): RoomHistoryEntry {
     shader: spec.visuals?.shader ?? 'none',
     lighting: spec.visuals?.lighting ?? 'fluorescent',
     wireframe: spec.visuals?.wireframe ?? false,
+    primarySet: spec.composition?.primarySet,
+    contrastSet: spec.composition?.contrastSet,
     assetIds: [
       ...spec.props.map((prop) => prop.assetId).filter((id): id is string => Boolean(id)),
       ...spec.entities.map((entity) => entity.assetId).filter((id): id is string => Boolean(id)),
