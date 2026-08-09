@@ -92,6 +92,12 @@ export interface RoomProp {
   assetId?: string;
 }
 
+export interface RoomSignText {
+  headline: string;
+  caption: string;
+  tags?: string[];
+}
+
 export interface RoomEntity {
   id: string;
   label: string;
@@ -102,6 +108,8 @@ export interface RoomEntity {
   emissive?: string;
   behavior: EntityBehavior;
   speed?: number;
+  /** Optional model-authored line shown when the player approaches this inhabitant. */
+  dialogue?: string;
   /** Composed kit id used by the model library. */
   kind?: string;
   /** Stable catalog id used to build a genuinely different model variant. */
@@ -220,6 +228,10 @@ export interface RoomSpec {
   physics: PhysicsModifiers;
   linkColor: string;
   visuals?: RoomVisuals;
+  /** A short model-authored law, ritual, or contradiction governing this room. */
+  roomRule?: string;
+  /** Validated model-authored signage; procedural signs fill any remaining slots. */
+  signs?: RoomSignText[];
   props: RoomProp[];
   entities: RoomEntity[];
   /** true when produced without an LLM call */

@@ -840,7 +840,7 @@ export class RoomWorld {
    * pull platforms and routes, and so on.
    */
   private addProceduralSignage(spec: RoomSpec): void {
-    const signs = generateRoomSigns({
+    const proceduralSigns = generateRoomSigns({
       seed: spec.seed,
       tags: spec.themeTags,
       mood: spec.mood,
@@ -849,6 +849,17 @@ export class RoomWorld {
       architecture: spec.architecture ?? 'chamber',
       scaleProfile: spec.scaleProfile ?? 'human',
     });
+    const authoredSigns: ProceduralSignText[] = (spec.signs ?? []).map((sign) => ({
+      headline: sign.headline,
+      caption: sign.caption,
+      tags: sign.tags?.length ? sign.tags : spec.themeTags,
+    }));
+    const targetCount = Math.max(proceduralSigns.length, authoredSigns.length);
+    const signs = [...authoredSigns, ...proceduralSigns]
+      .filter((sign, index, all) =>
+        all.findIndex((candidate) => candidate.headline === sign.headline) === index,
+      )
+      .slice(0, targetCount);
     const rng = new SeededRng(`${spec.seed}:sign-placement`);
     const detailScale = clampNumber(spec.worldScale ?? 1, 0.72, 3.2);
     const halfW = spec.width * 0.5;

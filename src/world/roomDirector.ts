@@ -11,8 +11,10 @@ import type {
   RoomEntity,
   RoomHistoryEntry,
   RoomLayoutStyle,
+  RoomPalette,
   RoomProp,
   RoomScaleProfile,
+  RoomSignText,
   RoomSpec,
   RoomVisuals,
 } from '../types';
@@ -41,6 +43,19 @@ export interface DirectorSteer {
   environment?: RoomEnvironment;
   layoutStyle?: RoomLayoutStyle;
   architecture?: RoomArchitecture;
+  scaleProfile?: RoomScaleProfile;
+  worldScale?: number;
+  condition?: RoomCondition;
+  tags?: string[];
+  fogNear?: number;
+  fogFar?: number;
+  linkColor?: string;
+  palette?: Partial<RoomPalette>;
+  physics?: Partial<RoomSpec['physics']>;
+  roomRule?: string;
+  signs?: RoomSignText[];
+  npcLines?: string[];
+  npcBehavior?: EntityBehavior;
 }
 
 /**
@@ -52,14 +67,20 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
   const rng = new SeededRng(ctx.seed);
   const recentRooms = ctx.recentRooms ?? [];
   const theme = selectNovelTheme(rng, recentRooms, steer?.themeId);
-  const condition = selectRoomCondition(
+  const requestedCondition =
+    steer?.condition === 'bloodied' && !ctx.allowGore ? undefined : steer?.condition;
+  const condition = requestedCondition ?? selectRoomCondition(
     new SeededRng(`${ctx.seed}:condition`),
     theme,
     ctx.allowGore,
     recentRooms,
   );
-  const scaleProfile = selectScaleProfile(rng, recentRooms);
-  const worldScale = worldScaleForProfile(rng, scaleProfile);
+  const scaleProfile = steer?.scaleProfile ?? selectScaleProfile(rng, recentRooms);
+  const worldScale = clamp(
+    steer?.worldScale ?? worldScaleForProfile(rng, scaleProfile),
+    0.6,
+    24,
+  );
   const environment = environmentForScale(
     rng,
     steer?.environment ?? environmentForTheme(theme),
@@ -91,7 +112,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     environment === 'outdoor' ? 42 : 50,
   );
 
-  const { placements, composition } = stampRoomPacks(rng, {
+  const stamped = stampRoomPacks(rng, {
     width,
     depth,
     themeTags: theme.tags,
@@ -110,17 +131,27 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
       .flatMap((room) => [room.primarySet, room.contrastSet])
       .filter((setId): setId is string => Boolean(setId)),
   });
+  const placements = steer?.npcBehavior
+    ? stamped.placements.map((placement) => {
+        const asset = getAsset(placement.assetId);
+        const actor = asset?.category === 'npc' || asset?.category === 'creature' || asset?.category === 'anomaly';
+        return actor ? { ...placement, behavior: steer.npcBehavior } : placement;
+      })
+    : stamped.placements;
+  const composition = stamped.composition;
 
   const title = sanitizeDisplayText(
-    cleanSteerText(steer?.title) || varyTitle(rng, theme.title, mood),
+    cleanSteerText(steer?.title, 80) || varyTitle(rng, theme.title, mood),
     theme.title,
     80,
   );
   const blurb = sanitizeDisplayText(
-    cleanSteerText(steer?.blurb) || varyBlurb(rng, theme.blurb, mood),
+    cleanSteerText(steer?.blurb, 320) || varyBlurb(rng, theme.blurb, mood),
     theme.blurb,
-    160,
+    320,
   );
+  const basePalette = conditionPalette(tintPalette(rng, theme.palette, mood), condition);
+  const basePhysics = physicsForMood(rng, mood);
 
   return {
     seed: ctx.seed,
@@ -130,6 +161,7 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     mood,
     tags: [
       ...theme.tags,
+      ...(steer?.tags ?? []),
       mood,
       'packs',
       `scale:${scaleProfile}`,
@@ -148,15 +180,18 @@ export function generateOfflineDirection(ctx: GenerationContext, steer?: Directo
     layoutStyle,
     architecture,
     composition,
-    fogNear: mood === 'downer' ? 10 : mood === 'upper' ? 18 : 13,
-    fogFar: Math.max(
+    fogNear: steer?.fogNear ?? (mood === 'downer' ? 10 : mood === 'upper' ? 18 : 13),
+    fogFar: steer?.fogFar ?? Math.max(
       mood === 'downer' ? 36 : mood === 'upper' ? 68 : 48,
       Math.max(width, depth) * 1.45,
     ),
-    linkColor: moodLinkColor(mood),
-    palette: conditionPalette(tintPalette(rng, theme.palette, mood), condition),
-    physics: physicsForMood(rng, mood),
+    linkColor: steer?.linkColor ?? moodLinkColor(mood),
+    palette: { ...basePalette, ...steer?.palette },
+    physics: { ...basePhysics, ...steer?.physics },
     visuals: resolveRoomVisuals(ctx.seed, mood, steer?.visuals, recentRooms, ctx, condition),
+    roomRule: cleanSteerText(steer?.roomRule, 180),
+    signs: steer?.signs,
+    npcLines: steer?.npcLines,
     placements,
     offline: !steer,
   };
@@ -169,6 +204,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   let entityRenderCost = 0;
   const worldScale = clamp(dir.worldScale ?? 1, 0.6, 24);
 
+  let actorIndex = 0;
   dir.placements.forEach((p, i) => {
     const asset = getAsset(p.assetId);
     if (!asset || asset.category === 'portal') return;
@@ -193,6 +229,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         entities.length >= ROOM.entityCountMax ||
         entityRenderCost + renderCost > ROOM.entityRenderCostMax
       ) return;
+      const dialogue = dir.npcLines?.[actorIndex];
+      actorIndex += 1;
       entities.push({
         id: `e${i}`,
         label,
@@ -202,6 +240,9 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
         color: dir.palette?.accent || '#cccccc',
         behavior: (p.behavior || asset.defaultBehavior || 'idle') as EntityBehavior,
         speed: 0.45 + (i % 3) * 0.2,
+        dialogue: dialogue
+          ? sanitizeDisplayText(dialogue, '', 140) || undefined
+          : undefined,
         kind: asset.kind,
         assetId: asset.id,
       });
@@ -257,7 +298,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     id: `room-${dir.seed}`,
     seed: dir.seed,
     title: sanitizeDisplayText(dir.title, theme?.title || 'Unnamed Room', 80),
-    blurb: sanitizeDisplayText(dir.blurb, theme?.blurb || 'The room waits.', 160),
+    blurb: sanitizeDisplayText(dir.blurb, theme?.blurb || 'The room waits.', 320),
     themeId: dir.themeId,
     themeTags: dir.tags.map((tag) => sanitizeDisplayText(tag, 'liminal', 32)),
     mood: dir.mood,
@@ -283,6 +324,14 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     },
     linkColor: dir.linkColor ?? moodLinkColor(dir.mood),
     visuals: dir.visuals ?? resolveRoomVisuals(dir.seed, dir.mood, undefined, [], {}, dir.condition),
+    roomRule: dir.roomRule
+      ? sanitizeDisplayText(dir.roomRule, '', 180) || undefined
+      : undefined,
+    signs: dir.signs?.slice(0, 6).map((sign) => ({
+      headline: sanitizeDisplayText(sign.headline, '', 64),
+      caption: sanitizeDisplayText(sign.caption, '', 48),
+      tags: sign.tags?.map((tag) => sanitizeDisplayText(tag, '', 32)).filter(Boolean),
+    })).filter((sign) => Boolean(sign.headline && sign.caption)),
     props,
     entities,
     offline: Boolean(dir.offline),
@@ -502,17 +551,9 @@ export function parseRoomDirection(
 
   const themeId = typeof o.themeId === 'string' ? o.themeId : typeof o.theme === 'string' ? o.theme : undefined;
   const theme = themeId ? getTheme(themeId) : undefined;
-  const title = sanitizeDisplayText(
-    str(o.title, theme?.title || 'Unnamed Room'),
-    theme?.title || 'Unnamed Room',
-    80,
-  );
-  const blurb = sanitizeDisplayText(
-    str(o.blurb, theme?.blurb || 'The room waits.'),
-    theme?.blurb || 'The room waits.',
-    160,
-  );
-  const mood = moodOf(o.mood, theme?.mood || 'static');
+  const title = directorText(o.title, 80);
+  const blurb = directorText(o.blurb ?? o.description, 320);
+  const mood = enumValue(o.mood, MOOD_VALUES);
 
   const preferAssets: string[] = [];
   const placementsRaw = Array.isArray(o.placements) ? o.placements : Array.isArray(o.assets) ? o.assets : null;
@@ -525,23 +566,76 @@ export function parseRoomDirection(
     }
   }
 
+  const tags = stringList(o.tags ?? o.themeTags, 10, 32);
+  const environment = enumValue(o.environment, ENVIRONMENT_VALUES);
+  const layoutStyle = enumValue(o.layoutStyle, LAYOUT_VALUES);
+  const architecture = enumValue(o.architecture, ARCHITECTURE_VALUES);
+  const scaleProfile = enumValue(o.scaleProfile, SCALE_PROFILE_VALUES);
+  const conditionCandidate = enumValue(o.condition, CONDITION_VALUES);
+  const condition = conditionCandidate === 'bloodied' && ctx?.allowGore !== true
+    ? undefined
+    : conditionCandidate;
+  const visuals = parseVisualSteer(o.visuals ?? o);
+  const palette = parsePalette(o.palette);
+  const physics = parsePhysics(o.physics);
+  const roomRule = directorText(o.roomRule ?? o.rule, 180);
+  const signs = parseAuthoredSigns(o.signs, tags.length > 0 ? tags : theme?.tags ?? []);
+  const npcLines = stringList(o.npcLines ?? o.dialogue, 6, 140);
+  const npcBehavior = enumValue(o.npcBehavior, BEHAVIOR_VALUES);
+  const width = boundedNumber(o.width, ROOM.minSize, ROOM.maxSize);
+  const depth = boundedNumber(o.depth, ROOM.minSize, ROOM.maxSize);
+  const height = boundedNumber(o.height, ROOM.wallHeightMin, ROOM.maxHeight);
+  const density = boundedNumber(o.density, 0.65, 1.4);
+  const worldScale = boundedNumber(o.worldScale, 0.6, 24);
+  const fogNear = boundedNumber(o.fogNear, 2, ROOM.maxSize);
+  const fogFar = boundedNumber(o.fogFar, 10, ROOM.maxSize * 3);
+  const linkColor = colorValue(o.linkColor);
+  const giant = booleanValue(o.giant) ?? preferAssets.includes('anomaly_giant_baby');
+
+  const hasMeaningfulDirection = Boolean(
+    theme || title || blurb || mood || preferAssets.length || tags.length ||
+    environment || layoutStyle || architecture || scaleProfile || condition ||
+    Object.keys(visuals).length || Object.keys(palette).length || Object.keys(physics).length ||
+    roomRule || signs.length || npcLines.length || npcBehavior || width || depth || height ||
+    density || worldScale || fogNear || fogFar || linkColor || booleanValue(o.giant) !== undefined
+  );
+  if (!hasMeaningfulDirection) return null;
+
   const steer: DirectorSteer = {
     themeId: theme?.id,
     mood,
     title,
     blurb,
     preferAssets,
-    giant: preferAssets.includes('anomaly_giant_baby'),
-    width: typeof o.width === 'number' ? o.width : undefined,
-    depth: typeof o.depth === 'number' ? o.depth : undefined,
-    height: typeof o.height === 'number' ? o.height : undefined,
+    giant,
+    width,
+    depth,
+    height,
+    density,
+    visuals,
+    environment,
+    layoutStyle,
+    architecture,
+    scaleProfile,
+    worldScale,
+    condition,
+    tags,
+    fogNear,
+    fogFar,
+    linkColor,
+    palette,
+    physics,
+    roomRule,
+    signs,
+    npcLines,
+    npcBehavior,
   };
 
   return generateOfflineDirection(
     {
       seed,
       previousTitles: ctx?.previousTitles ?? [],
-      moodBias: ctx?.moodBias ?? mood,
+      moodBias: ctx?.moodBias ?? mood ?? theme?.mood ?? 'static',
       allowGore: ctx?.allowGore ?? false,
       noFlashingLights: ctx?.noFlashingLights ?? false,
       noLowLight: ctx?.noLowLight ?? false,
@@ -789,7 +883,7 @@ function varyBlurb(rng: SeededRng, base: string, mood: MoodAxis): string {
   return base;
 }
 
-function cleanSteerText(v?: string): string | undefined {
+function cleanSteerText(v?: string, maxLength = 160): string | undefined {
   if (!v) return undefined;
   const t = v.replace(/\s+/g, ' ').trim();
   if (t.length < 2) return undefined;
@@ -802,7 +896,161 @@ function cleanSteerText(v?: string): string | undefined {
   ) {
     return undefined;
   }
-  return t.slice(0, 80);
+  return isDirectorPlaceholder(t) ? undefined : t.slice(0, maxLength);
+}
+
+const MOOD_VALUES = ['upper', 'downer', 'static', 'dynamic'] as const;
+const ENVIRONMENT_VALUES = ['interior', 'open-hall', 'outdoor'] as const;
+const LAYOUT_VALUES = ['clusters', 'perimeter', 'axial', 'scattered', 'sparse'] as const;
+const ARCHITECTURE_VALUES = [
+  'chamber', 'colonnade', 'atrium', 'arena', 'concourse', 'courtyard', 'causeway', 'field', 'basin',
+] as const;
+const SCALE_PROFILE_VALUES = ['closet', 'human', 'grand', 'monumental', 'colossal'] as const;
+const CONDITION_VALUES = [
+  'normal', 'bloodied', 'slimed', 'scorched', 'burning', 'ruined', 'overgrown', 'frozen',
+  'flooded', 'dusty', 'moldy', 'electrified', 'haunted', 'gilded', 'bioluminescent', 'stormbound',
+] as const;
+const SHADER_VALUES = [
+  'none', 'retro', 'tint', 'dream', 'noir', 'crt', 'underwater', 'kaleidoscope', 'acid',
+  'fisheye', 'thermal', 'prism', 'vhs', 'strobe', 'mirror', 'tunnel', 'posterize', 'duotone',
+  'dither', 'solarize', 'heatwave', 'negative', 'halftone', 'smear', 'rain', 'spectral',
+  'mosaic', 'edgeglow',
+] as const;
+const LIGHTING_VALUES = ['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse'] as const;
+const BEHAVIOR_VALUES = ['idle', 'wander', 'orbit', 'stare'] as const;
+
+function enumValue<const T extends readonly string[]>(value: unknown, values: T): T[number] | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase().replace(/[ _]+/g, '-');
+  return values.find((candidate) => candidate === normalized);
+}
+
+function directorText(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const cleaned = sanitizeDisplayText(value, '', maxLength);
+  return cleanSteerText(cleaned, maxLength);
+}
+
+function isDirectorPlaceholder(value: string): boolean {
+  const normalized = value.toLowerCase().trim();
+  return (
+    /^<[^>]+>$/.test(normalized) ||
+    /^(?:a |one )?short (?:atmospheric )?(?:title|blurb|description)\b/.test(normalized) ||
+    /\b(?:2|two)\s*(?:-|–|to)\s*(?:5|five)\s+words?\b/.test(normalized) ||
+    /^(?:invent|write|choose|select|return|use exactly)\b/.test(normalized) ||
+    /^(?:upper|downer|static|dynamic)(?:\s+or\s+\w+)+$/.test(normalized)
+  );
+}
+
+function stringList(value: unknown, maxItems: number, maxLength: number): string[] {
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+  return [...new Set(values
+    .map((item) => directorText(item, maxLength))
+    .filter((item): item is string => Boolean(item)))]
+    .slice(0, maxItems);
+}
+
+function boundedNumber(value: unknown, minimum: number, maximum: number): number | undefined {
+  const number = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(number) ? clamp(number, minimum, maximum) : undefined;
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return undefined;
+  if (/^(?:yes|true|1)$/i.test(value.trim())) return true;
+  if (/^(?:no|false|0)$/i.test(value.trim())) return false;
+  return undefined;
+}
+
+function colorValue(value: unknown): string | undefined {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim())
+    ? value.trim().toLowerCase()
+    : undefined;
+}
+
+function parsePalette(value: unknown): Partial<RoomPalette> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const raw = value as Record<string, unknown>;
+  const palette: Partial<RoomPalette> = {};
+  for (const key of ['floor', 'ceiling', 'walls', 'accent', 'fog', 'light', 'ambient'] as const) {
+    const color = colorValue(raw[key]);
+    if (color) palette[key] = color;
+  }
+  return palette;
+}
+
+function parsePhysics(value: unknown): Partial<RoomSpec['physics']> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const raw = value as Record<string, unknown>;
+  return {
+    ...(boundedNumber(raw.gravity, 0.2, 2.2) !== undefined ? { gravity: boundedNumber(raw.gravity, 0.2, 2.2) } : {}),
+    ...(boundedNumber(raw.moveSpeed, 0.4, 2) !== undefined ? { moveSpeed: boundedNumber(raw.moveSpeed, 0.4, 2) } : {}),
+    ...(boundedNumber(raw.friction, 0.2, 2) !== undefined ? { friction: boundedNumber(raw.friction, 0.2, 2) } : {}),
+    ...(boundedNumber(raw.bounce, 0, 0.8) !== undefined ? { bounce: boundedNumber(raw.bounce, 0, 0.8) } : {}),
+    ...(boundedNumber(raw.sway, 0, 2) !== undefined ? { sway: boundedNumber(raw.sway, 0, 2) } : {}),
+  };
+}
+
+function parseVisualSteer(value: unknown): Partial<RoomVisuals> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const raw = value as Record<string, unknown>;
+  const shader = enumValue(raw.shader, SHADER_VALUES);
+  const lighting = enumValue(raw.lighting, LIGHTING_VALUES);
+  const tint = colorValue(raw.tint);
+  const wireframe = booleanValue(raw.wireframe);
+  return {
+    ...(shader ? { shader } : {}),
+    ...(lighting ? { lighting } : {}),
+    ...(tint ? { tint } : {}),
+    ...(wireframe !== undefined ? { wireframe } : {}),
+    ...numberField(raw, 'effectStrength', 0, 0.78),
+    ...numberField(raw, 'pixelSize', 2, 12),
+    ...numberField(raw, 'exposure', 1.02, 1.38),
+    ...numberField(raw, 'motionSpeed', 0.05, 2.4),
+    ...numberField(raw, 'distortion', 0, 1),
+    ...numberField(raw, 'colorCycle', 0, 1),
+    ...numberField(raw, 'viewScale', 1, 1.24),
+    ...numberField(raw, 'mirrorSegments', 2, 12),
+    ...numberField(raw, 'rotationSpeed', -0.22, 0.22),
+    ...numberField(raw, 'flashStrength', 0, 0.24),
+  };
+}
+
+function numberField<K extends keyof RoomVisuals>(
+  raw: Record<string, unknown>,
+  key: K,
+  minimum: number,
+  maximum: number,
+): Partial<Pick<RoomVisuals, K>> {
+  const value = boundedNumber(raw[key], minimum, maximum);
+  return value === undefined ? {} : { [key]: value } as Partial<Pick<RoomVisuals, K>>;
+}
+
+function parseAuthoredSigns(value: unknown, fallbackTags: readonly string[]): RoomSignText[] {
+  if (!Array.isArray(value)) return [];
+  const signs: RoomSignText[] = [];
+  for (const item of value.slice(0, 6)) {
+    if (typeof item === 'string') {
+      const [headline, caption = 'PLEASE PROCEED'] = item.split('|', 2);
+      const sign = {
+        headline: directorText(headline, 64) ?? '',
+        caption: directorText(caption, 48) ?? '',
+        tags: [...fallbackTags],
+      };
+      if (sign.headline && sign.caption) signs.push(sign);
+      continue;
+    }
+    if (!item || typeof item !== 'object') continue;
+    const raw = item as Record<string, unknown>;
+    const sign: RoomSignText = {
+      headline: directorText(raw.headline ?? raw.text, 64) ?? '',
+      caption: directorText(raw.caption ?? raw.subtext, 48) ?? '',
+      tags: stringList(raw.tags, 8, 32),
+    };
+    if (sign.headline && sign.caption) signs.push(sign);
+  }
+  return signs;
 }
 
 const LAYOUT_STYLES: RoomLayoutStyle[] = [
@@ -1118,16 +1366,6 @@ function moodLinkColor(mood: MoodAxis): string {
   if (mood === 'upper') return '#eef2ff';
   if (mood === 'dynamic') return '#2dd4bf';
   return '#c4a35a';
-}
-
-function moodOf(v: unknown, fallback: MoodAxis): MoodAxis {
-  return typeof v === 'string' && ['upper', 'downer', 'static', 'dynamic'].includes(v)
-    ? (v as MoodAxis)
-    : fallback;
-}
-
-function str(v: unknown, fallback: string): string {
-  return typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : fallback;
 }
 
 function clamp(n: number, min: number, max: number): number {

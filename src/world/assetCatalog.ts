@@ -7,6 +7,7 @@ import type {
   RoomEnvironment,
   RoomLayoutStyle,
   RoomScaleProfile,
+  RoomSignText,
   RoomVisuals,
 } from '../types';
 import { EXPANDED_ASSETS } from './expandedAssets';
@@ -122,6 +123,9 @@ export interface RoomDirection {
     sway?: number;
   };
   visuals?: RoomVisuals;
+  roomRule?: string;
+  signs?: RoomSignText[];
+  npcLines?: string[];
   placements: DirectedPlacement[];
   /** true if assembled without live LLM */
   offline?: boolean;
