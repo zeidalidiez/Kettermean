@@ -26,6 +26,10 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   negative: 21,
   halftone: 22,
   smear: 23,
+  rain: 24,
+  spectral: 25,
+  mosaic: 26,
+  edgeglow: 27,
 };
 
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
@@ -186,6 +190,21 @@ export class RoomPostProcessor {
           float dripWave = pow(max(0.0, sin(uv.y * 9.0 - time * 1.35 + columnNoise * 6.28)), 3.0);
           uv.y += (columnNoise - 0.28) * dripWave * 0.026 * uDistortion;
           uv.x += sin(uv.y * 26.0 + time) * 0.004 * uDistortion;
+        } else if (uMode == 24.0) {
+          vec2 rainCell = floor(vec2(uv.x * 54.0, uv.y * 11.0));
+          float rainSeed = hash21(rainCell.xx + vec2(3.1, 9.7));
+          float drop = fract(uv.y * 7.0 + time * (0.7 + rainSeed) + rainSeed);
+          float lens = smoothstep(0.16, 0.0, abs(drop - 0.12));
+          uv.x += (rainSeed - 0.5) * lens * 0.018 * uDistortion;
+          uv.y += lens * 0.006 * uDistortion;
+        } else if (uMode == 26.0) {
+          vec2 cells = vec2(22.0, 16.0);
+          vec2 tile = floor(uv * cells);
+          vec2 center = (tile + 0.5) / cells;
+          float tileNoise = hash21(tile);
+          vec2 local = uv - center;
+          if (tileNoise > 0.66) local = local.yx * vec2(tileNoise > 0.82 ? -1.0 : 1.0, 1.0);
+          uv = mix(uv, center + local, 0.5 + uStrength * 0.34);
         }
 
         bool pixelated = uMode == 1.0 || uMode == 5.0 || uMode == 12.0 || uMode == 18.0;
@@ -199,7 +218,8 @@ export class RoomPostProcessor {
         vec3 color;
         if (
           uMode == 3.0 || uMode == 5.0 || uMode == 8.0 ||
-          uMode == 11.0 || uMode == 12.0 || uMode == 15.0 || uMode == 23.0
+          uMode == 11.0 || uMode == 12.0 || uMode == 15.0 || uMode == 23.0 ||
+          uMode == 25.0
         ) {
           color = vec3(
             texture2D(tDiffuse, safeUv(uv + offset)).r,
@@ -311,6 +331,39 @@ export class RoomPostProcessor {
           vec3 melted = hueShift(color, sin(uv.y * 7.0 + time) * uColorCycle * 0.34);
           melted *= mix(vec3(1.0), uTint * 1.18, 0.18);
           color = mix(color, melted, 0.34 + uStrength * 0.34);
+        } else if (uMode == 24.0) {
+          float streak = pow(max(0.0, sin(vUv.y * 170.0 - time * 9.0 + vUv.x * 31.0)), 18.0);
+          vec3 stormTint = mix(vec3(0.46, 0.62, 0.76), uTint, 0.16);
+          color = mix(color, color * stormTint * 1.34, 0.18 + uStrength * 0.22);
+          color += streak * 0.055 * uDistortion;
+        } else if (uMode == 25.0) {
+          vec2 ghostOffset = vec2(
+            sin(time * 0.61 + uAngleOffset),
+            cos(time * 0.47 - uAngleOffset)
+          ) * (0.004 + uDistortion * 0.009);
+          vec3 ghost = texture2D(tDiffuse, safeUv(uv + ghostOffset)).rgb;
+          float ghostLuma = luma(ghost);
+          vec3 spectral = mix(vec3(ghostLuma), ghost * uTint * 1.12, 0.38);
+          color = mix(color, spectral, 0.28 + uStrength * 0.34);
+        } else if (uMode == 26.0) {
+          float levels = mix(9.0, 4.0, uStrength);
+          vec3 tileColor = floor(color * levels + 0.5) / levels;
+          float grout = step(0.94, fract(vUv.x * 22.0)) + step(0.93, fract(vUv.y * 16.0));
+          tileColor = mix(tileColor, uTint * 0.22, clamp(grout, 0.0, 1.0) * 0.45);
+          color = mix(color, tileColor, 0.4 + uStrength * 0.32);
+        } else if (uMode == 27.0) {
+          vec2 texel = 1.0 / max(uResolution, vec2(1.0));
+          float horizontal = abs(
+            luma(texture2D(tDiffuse, safeUv(uv + vec2(texel.x * 2.0, 0.0))).rgb) -
+            luma(texture2D(tDiffuse, safeUv(uv - vec2(texel.x * 2.0, 0.0))).rgb)
+          );
+          float vertical = abs(
+            luma(texture2D(tDiffuse, safeUv(uv + vec2(0.0, texel.y * 2.0))).rgb) -
+            luma(texture2D(tDiffuse, safeUv(uv - vec2(0.0, texel.y * 2.0))).rgb)
+          );
+          float edge = smoothstep(0.03, 0.22, horizontal + vertical);
+          vec3 outlined = color * 0.68 + uTint * edge * (0.75 + uStrength * 0.7);
+          color = mix(color, outlined, 0.34 + uStrength * 0.3);
         }
 
         if (

@@ -147,7 +147,11 @@ export type RoomShaderStyle =
   | 'heatwave'
   | 'negative'
   | 'halftone'
-  | 'smear';
+  | 'smear'
+  | 'rain'
+  | 'spectral'
+  | 'mosaic'
+  | 'edgeglow';
 export type RoomLightingStyle =
   | 'fluorescent'
   | 'dim'

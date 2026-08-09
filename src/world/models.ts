@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
+import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
 
 export type PropKind =
   | 'chair'
@@ -113,6 +114,18 @@ export type PropKind =
   | 'generator'
   | 'greenhouse_table'
   | 'telescope'
+  | 'elevator_bank'
+  | 'escalator'
+  | 'gas_pump'
+  | 'playground_slide'
+  | 'satellite_dish'
+  | 'motel_sign'
+  | 'newsstand'
+  | 'shipping_container'
+  | 'upright_piano'
+  | 'chandelier'
+  | 'cemetery_gate'
+  | 'water_tower'
   | 'animal_cat'
   | 'animal_dog'
   | 'animal_crow'
@@ -2165,6 +2178,8 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const surreal = buildSurrealModel(kind, assetVariant(assetId), accent, body);
+  if (surreal) return surreal;
   const expanded = buildExpandedModel(kind, assetVariant(assetId), accent, body);
   if (expanded) return expanded;
   const legacyHumanoid: Partial<Record<PropKind, PropKind>> = {
@@ -2588,6 +2603,8 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const surreal = SURREAL_BOUNDS[kind as keyof typeof SURREAL_BOUNDS];
+  if (surreal) return surreal;
   const expanded = EXPANDED_BOUNDS[kind];
   if (expanded) return expanded;
   switch (kind) {
@@ -2652,6 +2669,18 @@ export function boundsForKind(kind: PropKind): { w: number; h: number; d: number
 
 export function kindFromLabel(label: string): PropKind {
   const l = label.toLowerCase();
+  if (l.includes('elevator bank') || l.includes('elevator')) return 'elevator_bank';
+  if (l.includes('escalator')) return 'escalator';
+  if (l.includes('fuel pump') || l.includes('gas pump')) return 'gas_pump';
+  if (l.includes('playground slide')) return 'playground_slide';
+  if (l.includes('receiver dish') || l.includes('satellite dish')) return 'satellite_dish';
+  if (l.includes('motel sign')) return 'motel_sign';
+  if (l.includes('newsstand')) return 'newsstand';
+  if (l.includes('shipping container')) return 'shipping_container';
+  if (l.includes('upright piano') || l === 'piano') return 'upright_piano';
+  if (l.includes('chandelier')) return 'chandelier';
+  if (l.includes('cemetery gate')) return 'cemetery_gate';
+  if (l.includes('water tower')) return 'water_tower';
   if (l.includes('night nurse') || l.includes(' nurse')) return 'figure_nurse';
   if (l.includes('janitor')) return 'figure_janitor';
   if (l.includes('commuter')) return 'figure_commuter';

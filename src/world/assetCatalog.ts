@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import { EXPANDED_ASSETS } from './expandedAssets';
 import { sceneSetIdsForTags, type SceneSetId } from './sceneSets';
+import { SURREAL_ASSETS, SURREAL_THEMES } from './surrealAssets';
 
 /**
  * Curated kit library. LLMs (cloud or tiny browser models) should SELECT and
@@ -167,6 +168,7 @@ export const ASSETS: AssetDef[] = [
   a('door_glass', 'door_fake', 'glass lobby door', 'portal', ['lobby', 'mall', 'clinic'], ['static', 'upper'], { x: 1.3, y: 2.4, z: 0.16 }, 0.9, 1.35, { linksByDefault: true }),
   a('arch_portal', 'door_fake', 'wrong archway', 'portal', ['courtyard', 'chapel', 'dream'], ['dynamic', 'upper', 'downer'], { x: 2.0, y: 3.0, z: 0.25 }, 0.9, 1.6, { linksByDefault: true }),
   ...EXPANDED_ASSETS,
+  ...SURREAL_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [
@@ -466,6 +468,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   },
   ...EXPANSION_THEMES,
   ...CONDITION_THEMES,
+  ...SURREAL_THEMES,
 ];
 
 const byId = new Map(ASSETS.map((x) => [x.id, x]));
@@ -504,9 +507,8 @@ export function catalogPromptSummary(): string {
   }
   const familyLines = [...families.entries()].map(([family, variants]) => {
     const first = variants[0]!;
-    const last = variants.at(-1)!;
     const moods = first.moods.length === 4 ? 'any' : first.moods.join(',');
-    return `${family}|${first.category}|${first.id}..${last.id}|${first.tags.join(',')}|${moods}`;
+    return `${family}|${first.category}|_01.._08|${first.tags.join(',')}|${moods}`;
   });
   const themes = THEME_PRESETS.map((t) => `${t.id}|${t.mood}|${t.tags.join(',')}`);
   return `ASSETS:\n${[...baseLines, ...familyLines].join('\n')}\nTHEMES:\n${themes.join('\n')}`;

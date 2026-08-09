@@ -6,18 +6,20 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated prop kit, including 920 composed furniture, fixture, animal, and NPC variants across 115 families
+- Three.js first-person rooms assembled from a curated prop kit, including 1,016 composed furniture, fixture, animal, and NPC variants across 127 families
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
 - History-aware novelty across themes, layouts, scene conditions, lighting, shaders, moods, and room contents
 - Indoor chambers, vast open halls, and outdoor dreamscapes with procedural skies and horizons
 - Explicit next-dream navigation with mood-tinted fades through keyboard, gamepad, and touch input
-- Coherent whole-scene blood, slime, scorch, active fire, ruin, overgrowth, and ice modifiers, with gore gated by the player setting
+- Coherent whole-scene blood, slime, scorch, fire, ruin, overgrowth, ice, flood, dust, mold, electricity, haunting, gilding, bioluminescence, and storm modifiers, with gore gated by the player setting
 - Per-room gravity, movement, friction, bounce, and sway
-- Seeded lighting plus twenty-four randomized visual treatments, including underwater caustics, kaleidoscope, acid melt, heatwave, negative, halftone, smear, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and wireframe modes
+- Seeded lighting plus twenty-eight randomized visual treatments, including rain glass, spectral trails, mosaic, edge glow, underwater caustics, kaleidoscope, acid melt, heatwave, negative, halftone, smear, fisheye, thermal, prism, VHS, mirror, tunnel, posterize, duotone, dither, solarize, strobe, and wireframe modes
 - Five macro-scale profiles spanning utility closets, human rooms, grand halls, monumental spaces, and colossal open skybox environments where the entire object library scales around a tiny player
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
+- A player flashlight on **F**, gamepad X, and touch, independent of room lighting
+- Tagged procedural room signage that chains contextually related words from a 392-entry semantic lexicon
 - Keyboard/mouse, gamepad, and complete touch controls
 - WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings
 - Provider-scoped room cache and strict one-request-at-a-time generation
@@ -52,7 +54,7 @@ The active room is always entered immediately. Kettermean never holds a fade or 
 
 Cloud models can select themes, mood, title, blurb, and preferred catalog assets. The much smaller browser models only choose eight bounded steering values. In both modes, the client owns titles when needed, layout, placement, collision, density, scene conditions, lighting, visual effects, safety validation, and performance budgets. Press **R** at any time (gamepad Y or the touch **Next** button) to move to the next dream. Recent-room fingerprints actively steer the director away from repeated themes, layouts, conditions, treatments, moods, and assets. Atmospheric dim and pulsing treatments remain part of normal generation, while navigation-heavy kaleidoscope rooms are deliberately rare. The optional **No flashing or pulsing lights** and **No low-light rooms** settings constrain offline, browser-model, and cloud-model rooms locally, so malformed model output and cached rooms cannot bypass them.
 
-The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, six expanded animal families, and twenty-six richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions.
+The procedural catalog includes dense furniture arrangements, public-space fixtures, emergency and ruin objects, outdoor objects, six expanded animal families, and twenty-six richer humanoid families. Assets carry semantic scene-set tags—such as transit, clinical, workplace, aquatic, or roadside—so most placements reinforce a room's primary motif. Some rooms also receive one bounded contrast set chosen from curated pairings, creating intentional juxtaposition without turning the scene into unrelated visual noise. Tagged sign words use the same semantic context to produce readable but uncanny names that belong to the current environment. NPCs use composed heads, faces, torsos, articulated limbs, clothing, profession-specific accessories, and lightweight gait/idle animation rather than placeholder cylinders. Their eye, nose, mouth, hair, spacing, and placement presets recombine procedurally within bounded facial proportions.
 
 ## Cost and lifecycle controls
 
@@ -96,6 +98,7 @@ WebLLM runs in a dedicated web worker so model loading and inference do not free
 | Shift / gamepad B / touch Sprint | Sprint |
 | Space / gamepad A / touch Jump | Jump |
 | R / gamepad Y / touch Next | Enter the next dream |
+| F / gamepad X / touch Light | Toggle flashlight |
 | Escape / gamepad Menu / touch pause | Pause |
 
 The setup menu permits normal touch scrolling and browser zoom. Gameplay input disables page gestures only over the canvas and touch controls.

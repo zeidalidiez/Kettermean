@@ -316,6 +316,10 @@ const SHADER_STYLES: RoomVisuals['shader'][] = [
   'negative',
   'halftone',
   'smear',
+  'rain',
+  'spectral',
+  'mosaic',
+  'edgeglow',
 ];
 const LIGHTING_STYLES: RoomVisuals['lighting'][] = [
   'fluorescent',
@@ -346,6 +350,14 @@ const CONDITION_SHADER_STYLES: Partial<Record<RoomCondition, readonly RoomVisual
   ruined: ['halftone', 'dither', 'noir', 'negative'],
   overgrown: ['dream', 'tint', 'duotone'],
   frozen: ['negative', 'duotone', 'prism'],
+  flooded: ['rain', 'underwater', 'smear'],
+  dusty: ['halftone', 'dither', 'tint'],
+  moldy: ['smear', 'duotone', 'acid'],
+  electrified: ['edgeglow', 'prism', 'vhs'],
+  haunted: ['spectral', 'negative', 'dream'],
+  gilded: ['mosaic', 'posterize', 'duotone'],
+  bioluminescent: ['edgeglow', 'dream', 'prism'],
+  stormbound: ['rain', 'noir', 'vhs'],
 };
 const CONDITION_LIGHTING_STYLES: Partial<Record<RoomCondition, readonly RoomVisuals['lighting'][]>> = {
   bloodied: ['emergency', 'warm'],
@@ -355,6 +367,14 @@ const CONDITION_LIGHTING_STYLES: Partial<Record<RoomCondition, readonly RoomVisu
   ruined: ['cold', 'emergency'],
   overgrown: ['warm', 'fluorescent'],
   frozen: ['cold', 'fluorescent'],
+  flooded: ['cold', 'fluorescent'],
+  dusty: ['warm', 'dim'],
+  moldy: ['fluorescent', 'dim'],
+  electrified: ['pulse', 'cold'],
+  haunted: ['cold', 'dim'],
+  gilded: ['warm', 'fluorescent'],
+  bioluminescent: ['pulse', 'cold'],
+  stormbound: ['cold', 'emergency'],
 };
 
 /** Stable visual treatment for every room, whether or not a model contributes. */
@@ -629,6 +649,86 @@ function conditionPalette(
         light: '#e8fdff',
         ambient: mix('ambient', '#78aebc', 0.42),
       };
+    case 'flooded':
+      return {
+        floor: mix('floor', '#164c59', 0.5),
+        ceiling: mix('ceiling', '#466f78', 0.26),
+        walls: mix('walls', '#2e6470', 0.34),
+        accent: mix('accent', '#58d7df', 0.58),
+        fog: mix('fog', '#285b68', 0.42),
+        light: mix('light', '#c9fbff', 0.46),
+        ambient: mix('ambient', '#356d78', 0.46),
+      };
+    case 'dusty':
+      return {
+        floor: mix('floor', '#6e614c', 0.48),
+        ceiling: mix('ceiling', '#b4a68b', 0.34),
+        walls: mix('walls', '#918268', 0.4),
+        accent: mix('accent', '#c29d5e', 0.42),
+        fog: mix('fog', '#9c8e75', 0.42),
+        light: mix('light', '#f0d9ac', 0.3),
+        ambient: mix('ambient', '#75674f', 0.44),
+      };
+    case 'moldy':
+      return {
+        floor: mix('floor', '#28351d', 0.48),
+        ceiling: mix('ceiling', '#687158', 0.3),
+        walls: mix('walls', '#536044', 0.38),
+        accent: mix('accent', '#889649', 0.5),
+        fog: mix('fog', '#505b45', 0.36),
+        light: mix('light', '#dae4a5', 0.34),
+        ambient: mix('ambient', '#596344', 0.44),
+      };
+    case 'electrified':
+      return {
+        floor: mix('floor', '#071725', 0.56),
+        ceiling: mix('ceiling', '#132b3c', 0.42),
+        walls: mix('walls', '#12354b', 0.46),
+        accent: '#37e6ff',
+        fog: mix('fog', '#10283a', 0.5),
+        light: '#baf8ff',
+        ambient: mix('ambient', '#154a64', 0.56),
+      };
+    case 'haunted':
+      return {
+        floor: mix('floor', '#2a2a37', 0.5),
+        ceiling: mix('ceiling', '#777b91', 0.32),
+        walls: mix('walls', '#55586e', 0.38),
+        accent: mix('accent', '#aeb8e8', 0.52),
+        fog: mix('fog', '#62677b', 0.44),
+        light: '#e9edff',
+        ambient: mix('ambient', '#585d7a', 0.46),
+      };
+    case 'gilded':
+      return {
+        floor: mix('floor', '#49360c', 0.44),
+        ceiling: mix('ceiling', '#7d6522', 0.3),
+        walls: mix('walls', '#725617', 0.36),
+        accent: '#e0b233',
+        fog: mix('fog', '#5c4a20', 0.36),
+        light: '#fff0a0',
+        ambient: mix('ambient', '#81651e', 0.5),
+      };
+    case 'bioluminescent':
+      return {
+        floor: mix('floor', '#082b28', 0.54),
+        ceiling: mix('ceiling', '#143c3b', 0.38),
+        walls: mix('walls', '#124a42', 0.44),
+        accent: '#55efb2',
+        fog: mix('fog', '#123b38', 0.5),
+        light: '#b6ffda',
+        ambient: mix('ambient', '#176a58', 0.55),
+      };
+    case 'stormbound':
+      return {
+        floor: mix('floor', '#26323d', 0.5),
+        ceiling: mix('ceiling', '#344250', 0.42),
+        walls: mix('walls', '#3d4d5b', 0.4),
+        accent: mix('accent', '#8faccc', 0.52),
+        fog: mix('fog', '#4c5d6e', 0.48),
+        light: '#e5f3ff',
+        ambient: mix('ambient', '#536b82', 0.5),
+      };
     default:
       return base;
   }
@@ -778,19 +878,35 @@ function selectRoomCondition(
   if (hasAny('slime', 'goo', 'slimed')) return 'slimed';
   if (hasAny('overgrown', 'jungle', 'moss')) return 'overgrown';
   if (hasAny('frozen', 'ice', 'frost')) return 'frozen';
+  if (hasAny('flooded', 'flood', 'drowned', 'waterlogged')) return 'flooded';
+  if (hasAny('dusty', 'dust', 'sandstorm')) return 'dusty';
+  if (hasAny('moldy', 'mold', 'mildew', 'fungus')) return 'moldy';
+  if (hasAny('electrified', 'electric', 'neon', 'high-voltage')) return 'electrified';
+  if (hasAny('haunted', 'ghost', 'spectral')) return 'haunted';
+  if (hasAny('gilded', 'gold', 'opulent')) return 'gilded';
+  if (hasAny('bioluminescent', 'bioluminescence', 'glow-spores')) return 'bioluminescent';
+  if (hasAny('stormbound', 'storm', 'tempest', 'thunder')) return 'stormbound';
   if (hasAny('bloodied', 'blood', 'gore')) return allowGore ? 'bloodied' : 'ruined';
   if (hasAny('ruined', 'desolate', 'derelict')) return 'ruined';
 
   const previous = recentRooms.at(-1)?.condition;
   const baseWeights: Array<{ condition: RoomCondition; weight: number }> = [
-    { condition: 'normal', weight: 0.48 },
-    { condition: 'ruined', weight: 0.11 },
-    { condition: 'overgrown', weight: 0.09 },
-    { condition: 'slimed', weight: 0.08 },
-    { condition: 'scorched', weight: 0.09 },
-    { condition: 'burning', weight: 0.055 },
-    { condition: 'frozen', weight: 0.07 },
-    ...(allowGore ? [{ condition: 'bloodied' as const, weight: 0.055 }] : []),
+    { condition: 'normal', weight: 0.34 },
+    { condition: 'ruined', weight: 0.075 },
+    { condition: 'overgrown', weight: 0.065 },
+    { condition: 'slimed', weight: 0.05 },
+    { condition: 'scorched', weight: 0.055 },
+    { condition: 'burning', weight: 0.035 },
+    { condition: 'frozen', weight: 0.045 },
+    { condition: 'flooded', weight: 0.06 },
+    { condition: 'dusty', weight: 0.055 },
+    { condition: 'moldy', weight: 0.045 },
+    { condition: 'electrified', weight: 0.05 },
+    { condition: 'haunted', weight: 0.045 },
+    { condition: 'gilded', weight: 0.035 },
+    { condition: 'bioluminescent', weight: 0.04 },
+    { condition: 'stormbound', weight: 0.045 },
+    ...(allowGore ? [{ condition: 'bloodied' as const, weight: 0.035 }] : []),
   ];
   const weighted = baseWeights.map((choice) => ({
     ...choice,

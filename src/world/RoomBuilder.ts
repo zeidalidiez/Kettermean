@@ -1142,6 +1142,281 @@ export class RoomWorld {
         spike.rotation.z = rng.float(-0.18, 0.18);
         this.group.add(spike);
       }
+      return;
+    }
+
+    if (condition === 'flooded') {
+      const waterMaterial = new THREE.MeshStandardMaterial({
+        color: '#287b91',
+        emissive: '#0c3849',
+        emissiveIntensity: 0.12,
+        roughness: 0.08,
+        metalness: 0.04,
+        transparent: true,
+        opacity: 0.43,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(spec.width * 0.92, spec.depth * 0.92, 1, 1),
+        waterMaterial,
+      );
+      water.name = 'condition-flooded-water-plane';
+      water.rotation.x = -Math.PI / 2;
+      water.position.y = 0.028;
+      water.userData.keepSolid = true;
+      this.group.add(water);
+
+      const rippleMaterial = new THREE.MeshBasicMaterial({
+        color: '#8de8ef',
+        transparent: true,
+        opacity: 0.36,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      const rippleCount = clampInt(Math.round(5 + span / 18), 5, 13);
+      for (let index = 0; index < rippleCount; index += 1) {
+        const { x, z } = floorPosition();
+        const ripple = new THREE.Mesh(
+          new THREE.TorusGeometry(rng.float(0.18, 0.52) * detailScale, 0.018 * detailScale, 6, 20),
+          rippleMaterial,
+        );
+        ripple.name = `condition-flooded-ripple-${index}`;
+        ripple.rotation.x = Math.PI / 2;
+        ripple.position.set(x, 0.045, z);
+        ripple.scale.y = rng.float(0.55, 0.9);
+        ripple.userData.keepSolid = true;
+        this.group.add(ripple);
+      }
+      return;
+    }
+
+    if (condition === 'dusty') {
+      const dustCount = clampInt(Math.round(spec.width * spec.depth * 0.085), 90, 280);
+      const positions = new Float32Array(dustCount * 3);
+      for (let index = 0; index < dustCount; index += 1) {
+        positions[index * 3] = rng.float(-halfW * 0.9, halfW * 0.9);
+        positions[index * 3 + 1] = rng.float(0.12, Math.max(0.3, spec.height * 0.82));
+        positions[index * 3 + 2] = rng.float(-halfD * 0.9, halfD * 0.9);
+      }
+      const dustGeometry = new THREE.BufferGeometry();
+      dustGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const dust = new THREE.Points(
+        dustGeometry,
+        new THREE.PointsMaterial({
+          color: '#dfc994',
+          size: 0.055 * detailScale,
+          transparent: true,
+          opacity: 0.48,
+          depthWrite: false,
+          sizeAttenuation: true,
+        }),
+      );
+      dust.name = 'condition-dusty-air';
+      this.group.add(dust);
+      const moundCount = clampInt(Math.round(5 + span / 22), 5, 11);
+      for (let index = 0; index < moundCount; index += 1) {
+        addPool(`drift-${index}`, index % 2 ? '#9a8765' : '#b5a27b', 0.84, rng.float(0.45, 1.35) * detailScale);
+      }
+      return;
+    }
+
+    if (condition === 'moldy') {
+      const patchCount = clampInt(Math.round(7 + span / 16), 7, 16);
+      const moldMaterial = new THREE.MeshStandardMaterial({
+        color: '#657b2a',
+        emissive: '#172608',
+        emissiveIntensity: 0.06,
+        roughness: 0.96,
+      });
+      for (let index = 0; index < patchCount; index += 1) {
+        const patch = addPool(`mold-patch-${index}`, index % 3 ? '#445d21' : '#7b8428', 0.88, rng.float(0.4, 1.2) * detailScale);
+        if (index % 2 === 0) {
+          const caps = rng.int(2, 4);
+          for (let capIndex = 0; capIndex < caps; capIndex += 1) {
+            const cap = new THREE.Mesh(
+              new THREE.SphereGeometry(rng.float(0.05, 0.16) * detailScale, 8, 5),
+              moldMaterial,
+            );
+            cap.name = `condition-moldy-cap-${index}-${capIndex}`;
+            cap.scale.y = 0.45;
+            cap.position.set(
+              patch.position.x + rng.float(-0.35, 0.35) * detailScale,
+              rng.float(0.025, 0.08) * detailScale,
+              patch.position.z + rng.float(-0.35, 0.35) * detailScale,
+            );
+            this.group.add(cap);
+          }
+        }
+      }
+      return;
+    }
+
+    if (condition === 'electrified') {
+      const arcMaterial = new THREE.LineBasicMaterial({
+        color: '#6df7ff',
+        transparent: true,
+        opacity: 0.88,
+        toneMapped: false,
+      });
+      const arcCount = clampInt(Math.round(5 + span / 20), 5, 12);
+      for (let index = 0; index < arcCount; index += 1) {
+        const { x, z } = floorPosition();
+        const points: THREE.Vector3[] = [];
+        const arcHeight = rng.float(0.5, 1.8) * detailScale;
+        for (let segment = 0; segment < 6; segment += 1) {
+          const t = segment / 5;
+          points.push(new THREE.Vector3(
+            x + rng.float(-0.16, 0.16) * detailScale,
+            0.08 + Math.sin(t * Math.PI) * arcHeight + rng.float(-0.08, 0.08),
+            z + (t - 0.5) * rng.float(0.5, 1.25) * detailScale,
+          ));
+        }
+        const arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), arcMaterial);
+        arc.name = `condition-electrified-arc-${index}`;
+        this.group.add(arc);
+        this.conditionEffects.push({
+          object: arc,
+          baseScale: arc.scale.clone(),
+          phase: stablePhase(`${spec.seed}:electric-arc:${index}`),
+          speed: spec.visuals?.flashingDisabled ? 0.35 : rng.float(3.2, 5.4),
+        });
+        if (index < 3) {
+          const light = new THREE.PointLight('#61eaff', 1.35, 8 * detailScale, 1.8);
+          light.position.set(x, Math.max(0.6, arcHeight * 0.58), z);
+          this.group.add(light);
+          this.pulsingLights.push({
+            light,
+            baseIntensity: 1.35,
+            amplitude: spec.visuals?.flashingDisabled ? 0 : 0.055,
+            speed: rng.float(2.8, 4.6),
+            phase: stablePhase(`${spec.seed}:electric-light:${index}`),
+          });
+        }
+      }
+      return;
+    }
+
+    if (condition === 'haunted') {
+      const wispMaterial = new THREE.MeshBasicMaterial({
+        color: '#d7dcff',
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      });
+      const count = clampInt(Math.round(7 + span / 17), 7, 16);
+      for (let index = 0; index < count; index += 1) {
+        const { x, z } = floorPosition();
+        const wisp = new THREE.Mesh(
+          new THREE.SphereGeometry(rng.float(0.18, 0.48) * detailScale, 10, 7),
+          wispMaterial,
+        );
+        wisp.name = `condition-haunted-wisp-${index}`;
+        wisp.scale.set(rng.float(0.55, 0.95), rng.float(1.5, 2.8), rng.float(0.45, 0.8));
+        wisp.position.set(x, rng.float(0.55, Math.max(0.8, spec.height * 0.68)), z);
+        wisp.userData.keepSolid = true;
+        this.group.add(wisp);
+        this.conditionEffects.push({
+          object: wisp,
+          baseScale: wisp.scale.clone(),
+          phase: stablePhase(`${spec.seed}:haunted-wisp:${index}`),
+          speed: rng.float(0.45, 0.9),
+        });
+      }
+      return;
+    }
+
+    if (condition === 'gilded') {
+      const goldMaterial = new THREE.MeshStandardMaterial({
+        color: '#d8ad31',
+        emissive: '#5e3d08',
+        emissiveIntensity: 0.08,
+        metalness: 0.82,
+        roughness: 0.24,
+      });
+      const count = clampInt(Math.round(10 + span / 11), 10, 26);
+      for (let index = 0; index < count; index += 1) {
+        const { x, z } = floorPosition();
+        const size = rng.float(0.1, 0.38) * detailScale;
+        const shard = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), goldMaterial);
+        shard.name = `condition-gilded-shard-${index}`;
+        shard.position.set(x, size * rng.float(0.55, 2.3), z);
+        shard.rotation.set(rng.float(-1, 1), rng.float(-Math.PI, Math.PI), rng.float(-1, 1));
+        this.group.add(shard);
+      }
+      return;
+    }
+
+    if (condition === 'bioluminescent') {
+      const stemMaterial = new THREE.MeshStandardMaterial({ color: '#163d38', roughness: 0.86 });
+      const capMaterial = new THREE.MeshStandardMaterial({
+        color: '#6fffc2',
+        emissive: '#38f5a1',
+        emissiveIntensity: 1.15,
+        roughness: 0.24,
+      });
+      const count = clampInt(Math.round(8 + span / 14), 8, 20);
+      for (let index = 0; index < count; index += 1) {
+        const { x, z } = floorPosition();
+        const mushroomHeight = rng.float(0.18, 0.72) * detailScale;
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.025 * detailScale, 0.055 * detailScale, mushroomHeight, 7),
+          stemMaterial,
+        );
+        stem.position.set(x, mushroomHeight * 0.5, z);
+        stem.name = `condition-bioluminescent-stem-${index}`;
+        const cap = new THREE.Mesh(
+          new THREE.SphereGeometry(rng.float(0.1, 0.28) * detailScale, 10, 6),
+          capMaterial,
+        );
+        cap.scale.y = 0.42;
+        cap.position.set(x, mushroomHeight, z);
+        cap.name = `condition-bioluminescent-cap-${index}`;
+        this.group.add(stem, cap);
+        this.conditionEffects.push({
+          object: cap,
+          baseScale: cap.scale.clone(),
+          phase: stablePhase(`${spec.seed}:bioluminescent-cap:${index}`),
+          speed: rng.float(0.55, 1.15),
+        });
+        if (index < 3) {
+          const light = new THREE.PointLight('#58ffc1', 1.15, 7 * detailScale, 1.9);
+          light.position.set(x, mushroomHeight + 0.25, z);
+          this.group.add(light);
+        }
+      }
+      return;
+    }
+
+    if (condition === 'stormbound') {
+      const dropCount = clampInt(Math.round(spec.width * spec.depth * 0.13), 120, 420);
+      const positions = new Float32Array(dropCount * 6);
+      for (let index = 0; index < dropCount; index += 1) {
+        const x = rng.float(-halfW * 0.94, halfW * 0.94);
+        const y = rng.float(0.15, Math.max(0.4, spec.height * 0.96));
+        const z = rng.float(-halfD * 0.94, halfD * 0.94);
+        const offset = index * 6;
+        positions[offset] = x;
+        positions[offset + 1] = y;
+        positions[offset + 2] = z;
+        positions[offset + 3] = x + 0.07 * detailScale;
+        positions[offset + 4] = y - rng.float(0.28, 0.72) * detailScale;
+        positions[offset + 5] = z + 0.04 * detailScale;
+      }
+      const rainGeometry = new THREE.BufferGeometry();
+      rainGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const rain = new THREE.LineSegments(
+        rainGeometry,
+        new THREE.LineBasicMaterial({ color: '#a6d2eb', transparent: true, opacity: 0.38, toneMapped: false }),
+      );
+      rain.name = 'condition-stormbound-rain';
+      this.group.add(rain);
+      const puddleCount = clampInt(Math.round(5 + span / 20), 5, 12);
+      for (let index = 0; index < puddleCount; index += 1) {
+        addPool(`rain-puddle-${index}`, '#315a6d', 0.46, rng.float(0.45, 1.45) * detailScale);
+      }
     }
   }
 
@@ -1396,6 +1671,145 @@ function applyModelCondition(
       }
       break;
     }
+    case 'flooded': {
+      const wetMaterial = new THREE.MeshStandardMaterial({
+        color: '#4ba2b2',
+        emissive: '#123a47',
+        emissiveIntensity: 0.1,
+        roughness: 0.08,
+        transparent: true,
+        opacity: 0.48,
+        depthWrite: false,
+      });
+      const waterline = markSolid(new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 12, 7),
+        wetMaterial,
+      ));
+      waterline.name = 'condition-flooded-waterline';
+      waterline.position.set(center.x, bounds.min.y + height * 0.04, center.z);
+      waterline.scale.set(width * 0.52, height * 0.055, depth * 0.52);
+      overlays.add(waterline);
+      addFrontMark('#76c2ca', 0.42, 0, '#174a55');
+      break;
+    }
+    case 'dusty':
+      addFrontMark('#b7a37b', 0.52, 0);
+      addFrontMark('#826f52', 0.34, 1);
+      break;
+    case 'moldy': {
+      addFrontMark('#596b29', 0.78, 0);
+      addFrontMark('#84913c', 0.63, 1);
+      const bloom = markSolid(new THREE.Mesh(
+        new THREE.SphereGeometry(Math.min(width, height) * 0.08, 8, 5),
+        new THREE.MeshStandardMaterial({ color: '#9b9e42', roughness: 0.95 }),
+      ));
+      bloom.name = 'condition-moldy-bloom';
+      bloom.scale.y = 0.45;
+      bloom.position.set(center.x, bounds.max.y + height * 0.015, center.z);
+      overlays.add(bloom);
+      break;
+    }
+    case 'electrified': {
+      const arcPoints = [
+        new THREE.Vector3(center.x - width * 0.34, center.y - height * 0.12, bounds.max.z + depth * 0.025),
+        new THREE.Vector3(center.x - width * 0.08, center.y + height * 0.16, bounds.max.z + depth * 0.03),
+        new THREE.Vector3(center.x + width * 0.04, center.y - height * 0.02, bounds.max.z + depth * 0.035),
+        new THREE.Vector3(center.x + width * 0.32, center.y + height * 0.22, bounds.max.z + depth * 0.03),
+      ];
+      const arc = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(arcPoints),
+        new THREE.LineBasicMaterial({ color: '#74f8ff', transparent: true, opacity: 0.9, toneMapped: false }),
+      );
+      arc.name = 'condition-electrified-model-arc';
+      overlays.add(arc);
+      animated.push({
+        object: arc,
+        baseScale: arc.scale.clone(),
+        phase: stablePhase(`${seed}:model-arc`),
+        speed: rng.float(2.4, 4.2),
+      });
+      break;
+    }
+    case 'haunted': {
+      const aura = markSolid(new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 12, 8),
+        new THREE.MeshBasicMaterial({
+          color: '#d5ddff',
+          transparent: true,
+          opacity: 0.13,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        }),
+      ));
+      aura.name = 'condition-haunted-aura';
+      aura.position.copy(center);
+      aura.scale.set(width * 0.56, height * 0.56, depth * 0.56);
+      overlays.add(aura);
+      animated.push({
+        object: aura,
+        baseScale: aura.scale.clone(),
+        phase: stablePhase(`${seed}:haunted-aura`),
+        speed: rng.float(0.4, 0.72),
+      });
+      break;
+    }
+    case 'gilded': {
+      const goldMaterial = new THREE.MeshStandardMaterial({
+        color: '#e2b93e',
+        emissive: '#5a3805',
+        emissiveIntensity: 0.07,
+        metalness: 0.88,
+        roughness: 0.22,
+      });
+      for (let index = 0; index < 2; index += 1) {
+        const plate = markSolid(new THREE.Mesh(
+          new THREE.BoxGeometry(width * rng.float(0.18, 0.38), height * rng.float(0.035, 0.08), depth * 0.035),
+          goldMaterial,
+        ));
+        plate.name = `condition-gilded-plate-${index}`;
+        plate.position.set(
+          center.x + (index ? 1 : -1) * width * 0.23,
+          bounds.min.y + height * rng.float(0.2, 0.82),
+          bounds.max.z + depth * 0.025,
+        );
+        plate.rotation.z = rng.float(-0.7, 0.7);
+        overlays.add(plate);
+      }
+      break;
+    }
+    case 'bioluminescent': {
+      const glowMaterial = new THREE.MeshStandardMaterial({
+        color: '#72ffc4',
+        emissive: '#31ef9a',
+        emissiveIntensity: 1.05,
+        roughness: 0.26,
+      });
+      for (let index = 0; index < 2; index += 1) {
+        const glow = markSolid(new THREE.Mesh(
+          new THREE.SphereGeometry(Math.min(width, height) * rng.float(0.045, 0.085), 9, 6),
+          glowMaterial,
+        ));
+        glow.name = `condition-bioluminescent-growth-${index}`;
+        glow.position.set(
+          center.x + (index ? 1 : -1) * width * rng.float(0.18, 0.34),
+          bounds.min.y + height * rng.float(0.32, 0.86),
+          bounds.max.z + depth * 0.035,
+        );
+        overlays.add(glow);
+        animated.push({
+          object: glow,
+          baseScale: glow.scale.clone(),
+          phase: stablePhase(`${seed}:growth:${index}`),
+          speed: rng.float(0.48, 0.92),
+        });
+      }
+      break;
+    }
+    case 'stormbound':
+      addFrontMark('#7da5b9', 0.38, 0, '#1c465c');
+      addFrontMark('#354f60', 0.28, 1);
+      break;
     default:
       break;
   }
@@ -1435,26 +1849,62 @@ function applyConditionToMaterial(material: THREE.Material, condition: RoomCondi
       case 'frozen':
         candidate.color.lerp(new THREE.Color('#a5deeb'), 0.38);
         break;
+      case 'flooded':
+        candidate.color.lerp(new THREE.Color('#397f8f'), 0.26);
+        break;
+      case 'dusty':
+        candidate.color.lerp(new THREE.Color('#a28d68'), 0.34);
+        break;
+      case 'moldy':
+        candidate.color.lerp(new THREE.Color('#52652c'), 0.3);
+        break;
+      case 'electrified':
+        candidate.color.lerp(new THREE.Color('#53b8c5'), 0.2);
+        break;
+      case 'haunted':
+        candidate.color.lerp(new THREE.Color('#b4bbcf'), 0.36).multiplyScalar(0.86);
+        break;
+      case 'gilded':
+        candidate.color.lerp(new THREE.Color('#d5a82e'), 0.55);
+        break;
+      case 'bioluminescent':
+        candidate.color.lerp(new THREE.Color('#1e705a'), 0.34).multiplyScalar(0.78);
+        break;
+      case 'stormbound':
+        candidate.color.lerp(new THREE.Color('#526978'), 0.3).multiplyScalar(0.82);
+        break;
       default:
         break;
     }
   }
   if (typeof candidate.roughness === 'number') {
     if (condition === 'slimed' || condition === 'frozen') candidate.roughness = 0.22;
+    if (condition === 'flooded' || condition === 'stormbound') candidate.roughness = 0.24;
+    if (condition === 'dusty' || condition === 'moldy') candidate.roughness = 0.96;
+    if (condition === 'electrified') candidate.roughness = Math.min(candidate.roughness, 0.38);
+    if (condition === 'gilded') candidate.roughness = 0.26;
+    if (condition === 'bioluminescent') candidate.roughness = Math.min(candidate.roughness, 0.42);
     if (condition === 'scorched' || condition === 'burning' || condition === 'ruined') {
       candidate.roughness = 0.96;
     }
   }
-  if (typeof candidate.metalness === 'number' && condition !== 'frozen') {
-    candidate.metalness *= condition === 'slimed' ? 0.45 : 0.2;
+  if (typeof candidate.metalness === 'number') {
+    if (condition === 'gilded') candidate.metalness = Math.max(0.68, candidate.metalness);
+    else if (condition === 'electrified') candidate.metalness = Math.max(0.32, candidate.metalness);
+    else if (condition !== 'frozen') candidate.metalness *= condition === 'slimed' ? 0.45 : 0.2;
   }
   if (
-    condition === 'burning' &&
+    (condition === 'burning' || condition === 'electrified' || condition === 'bioluminescent') &&
     candidate.emissive instanceof THREE.Color &&
     typeof candidate.emissiveIntensity === 'number'
   ) {
-    candidate.emissive.lerp(new THREE.Color('#ff3f0b'), 0.38);
-    candidate.emissiveIntensity = Math.max(0.12, candidate.emissiveIntensity * 0.72);
+    const glowColor = condition === 'burning'
+      ? '#ff3f0b'
+      : condition === 'electrified'
+        ? '#43eaff'
+        : '#2af19a';
+    candidate.emissive.lerp(new THREE.Color(glowColor), condition === 'burning' ? 0.38 : 0.48);
+    candidate.emissiveIntensity = Math.max(condition === 'bioluminescent' ? 0.26 : 0.12, candidate.emissiveIntensity * 0.72);
   }
   material.needsUpdate = true;
 }

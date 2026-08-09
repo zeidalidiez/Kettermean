@@ -103,6 +103,10 @@ describe('offline room invariants', () => {
         'negative',
         'halftone',
         'smear',
+        'rain',
+        'spectral',
+        'mosaic',
+        'edgeglow',
       ]),
     );
     expect(lightingStyles).toEqual(
@@ -117,7 +121,23 @@ describe('offline room invariants', () => {
       new Set(['closet', 'human', 'grand', 'monumental', 'colossal']),
     );
     expect(conditions).toEqual(
-      new Set(['normal', 'slimed', 'scorched', 'burning', 'ruined', 'overgrown', 'frozen']),
+      new Set([
+        'normal',
+        'slimed',
+        'scorched',
+        'burning',
+        'ruined',
+        'overgrown',
+        'frozen',
+        'flooded',
+        'dusty',
+        'moldy',
+        'electrified',
+        'haunted',
+        'gilded',
+        'bioluminescent',
+        'stormbound',
+      ]),
     );
     expect(smallestSide).toBeLessThan(6);
     expect(largestSide).toBeGreaterThan(320);
@@ -203,6 +223,14 @@ describe('offline room invariants', () => {
     ['slime_substation', 'slimed'],
     ['overgrown_greenhouse_lab', 'overgrown'],
     ['frozen_observatory', 'frozen'],
+    ['flooded_subway_exchange', 'flooded'],
+    ['dust_archive_hall', 'dusty'],
+    ['mold_locker_complex', 'moldy'],
+    ['electrified_arcade', 'electrified'],
+    ['haunted_ballroom', 'haunted'],
+    ['gilded_megamall', 'gilded'],
+    ['bioluminescent_greenhouse', 'bioluminescent'],
+    ['storm_coast_carpark', 'stormbound'],
   ] as const)('keeps %s visually coherent with its %s condition', (themeId, condition) => {
     const direction = generateOfflineDirection(
       {
