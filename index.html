@@ -23,7 +23,12 @@
         <div id="hud-theme"></div>
         <div id="hud-seed"></div>
         <div id="hud-hint">The room waits.</div>
-        <div id="hud-action"><kbd>R</kbd><span>Next dream · anytime</span></div>
+        <div id="hud-actions">
+          <div id="hud-action" class="hud-action"><kbd>R</kbd><span>Next dream · anytime</span></div>
+          <div id="hud-flashlight" class="hud-action">
+            <kbd>F</kbd><span id="hud-flashlight-state">Flashlight · off</span>
+          </div>
+        </div>
       </div>
 
       <div id="fade-overlay" aria-hidden="true"></div>
@@ -38,6 +43,7 @@
         </div>
         <div class="touch-actions" aria-label="Movement actions">
           <button id="touch-next" class="touch-action next" type="button">Next</button>
+          <button id="touch-flashlight" class="touch-action flashlight" type="button" aria-pressed="false">Light</button>
           <button id="touch-sprint" class="touch-action" type="button">Sprint</button>
           <button id="touch-jump" class="touch-action primary" type="button">Jump</button>
         </div>
@@ -184,6 +190,7 @@
                 <dt>Look</dt><dd>Mouse</dd>
                 <dt>Jump</dt><dd><kbd>Space</kbd></dd>
                 <dt>Sprint</dt><dd><kbd>Shift</kbd></dd>
+                <dt>Flashlight</dt><dd><kbd>F</kbd></dd>
                 <dt>Next dream</dt><dd><kbd>R</kbd></dd>
                 <dt>Pause</dt><dd><kbd>Esc</kbd></dd>
               </dl>
@@ -215,6 +222,7 @@
           <div class="pause-controls">
             <span>Move <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
             <span>Look Mouse</span>
+            <span>Flashlight <kbd>F</kbd> / gamepad X</span>
             <span>Next dream <kbd>R</kbd> / gamepad Y</span>
             <span>Pause <kbd>Esc</kbd></span>
           </div>

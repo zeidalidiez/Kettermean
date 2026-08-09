@@ -264,6 +264,7 @@ export interface InputFrame {
   jump: boolean;
   pausePressed: boolean;
   nextDreamPressed: boolean;
+  flashlightPressed: boolean;
 }
 
 export interface GenerationContext {

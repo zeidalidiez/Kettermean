@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isNextDreamKey, requestPointerLockIfSupported } from '../src/input/InputManager';
+import {
+  isFlashlightKey,
+  isNextDreamKey,
+  requestPointerLockIfSupported,
+} from '../src/input/InputManager';
 
 describe('pointer lock compatibility', () => {
   it('does nothing when a touch browser does not implement Pointer Lock', () => {
@@ -30,5 +34,13 @@ describe('next dream keyboard shortcut', () => {
     expect(isNextDreamKey({ code: 'KeyR', repeat: false })).toBe(true);
     expect(isNextDreamKey({ code: 'KeyR', repeat: true })).toBe(false);
     expect(isNextDreamKey({ code: 'Space', repeat: false })).toBe(false);
+  });
+});
+
+describe('flashlight keyboard shortcut', () => {
+  it('accepts a fresh F press and rejects repeats or unrelated keys', () => {
+    expect(isFlashlightKey({ code: 'KeyF', repeat: false })).toBe(true);
+    expect(isFlashlightKey({ code: 'KeyF', repeat: true })).toBe(false);
+    expect(isFlashlightKey({ code: 'KeyR', repeat: false })).toBe(false);
   });
 });

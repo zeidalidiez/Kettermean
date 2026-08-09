@@ -32,6 +32,11 @@ export class DreamGame {
   private roomWorld = new RoomWorld();
   private generator: RoomGenerator;
   private post: RoomPostProcessor;
+  private readonly flashlight = new THREE.SpotLight('#fff2c4', 18, 48, 0.42, 0.58, 1.15);
+  private readonly flashlightFill = new THREE.PointLight('#ffe7b3', 0.7, 7, 1.4);
+  private readonly flashlightTarget = new THREE.Object3D();
+  private readonly flashlightDirection = new THREE.Vector3();
+  private flashlightEnabled = false;
 
   private state: GameState = 'menu';
   private settings: AppSettings;
@@ -57,6 +62,8 @@ export class DreamGame {
   private readonly hud: HTMLElement;
   private readonly hudTheme: HTMLElement;
   private readonly hudSeed: HTMLElement;
+  private readonly hudFlashlight: HTMLElement;
+  private readonly hudFlashlightState: HTMLElement;
   private readonly menu: HTMLElement;
   private readonly pauseMenu: HTMLElement;
   private readonly pauseRoom: HTMLElement;
@@ -71,6 +78,8 @@ export class DreamGame {
     this.hud = must('hud');
     this.hudTheme = must('hud-theme');
     this.hudSeed = must('hud-seed');
+    this.hudFlashlight = must('hud-flashlight');
+    this.hudFlashlightState = must('hud-flashlight-state');
     this.menu = must('menu');
     this.pauseMenu = must('pause-menu');
     this.pauseRoom = must('pause-room');
@@ -98,6 +107,11 @@ export class DreamGame {
     );
 
     this.player = new PlayerController(window.innerWidth / window.innerHeight);
+    this.flashlight.target = this.flashlightTarget;
+    this.flashlight.visible = false;
+    this.flashlightFill.visible = false;
+    this.flashlight.castShadow = false;
+    this.scene.add(this.flashlight, this.flashlightFill, this.flashlightTarget);
     // Touch pause should be immediate even when a mobile browser throttles RAF.
     this.input = new InputManager(this.canvas, () => this.pause());
     this.generator = new RoomGenerator(settings);
@@ -140,6 +154,7 @@ export class DreamGame {
     this.linking = false;
     this.lastLinkAt = -Infinity;
     this.fade.classList.remove('active');
+    this.setFlashlightEnabled(false);
 
     this.menu.classList.add('hidden');
     this.pauseMenu.classList.add('hidden');
@@ -225,6 +240,7 @@ export class DreamGame {
     this.menu.classList.remove('hidden');
     (must('start-btn') as HTMLButtonElement).focus({ preventScroll: true });
     this.roomWorld.dispose(this.scene);
+    this.setFlashlightEnabled(false);
     this.hideToast();
   }
 
@@ -240,6 +256,9 @@ export class DreamGame {
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     this.input.dispose();
     this.roomWorld.dispose(this.scene);
+    this.scene.remove(this.flashlight, this.flashlightFill, this.flashlightTarget);
+    this.flashlight.dispose();
+    this.flashlightFill.dispose();
     this.post.dispose();
     this.renderer.dispose();
   }
@@ -261,6 +280,7 @@ export class DreamGame {
     this.player.setPhysics(spec.physics);
     this.player.setViewDistance(Math.max(spec.width, spec.depth) * 2.8 + 90);
     this.player.spawnAt(built.spawn.x, built.spawn.y, built.spawn.z, 0);
+    this.updateFlashlightTransform();
     this.previousTitles.push(spec.title);
     if (this.previousTitles.length > 12) this.previousTitles.shift();
     this.recentRooms.push(roomHistoryEntryFor(spec));
@@ -395,8 +415,12 @@ export class DreamGame {
       } else if (frame.nextDreamPressed) {
         void this.advanceDream();
       } else {
+        if (frame.flashlightPressed) {
+          this.setFlashlightEnabled(!this.flashlightEnabled, true);
+        }
         const colliders = this.roomWorld.getColliders();
         this.player.update(dt, frame, colliders);
+        this.updateFlashlightTransform();
         this.roomWorld.update(dt, this.player.position);
       }
     } else if (this.state === 'paused') {
@@ -462,6 +486,28 @@ export class DreamGame {
       else this.input.requestPointerLock();
     }
   };
+
+  private setFlashlightEnabled(enabled: boolean, announce = false): void {
+    this.flashlightEnabled = enabled;
+    this.flashlight.visible = enabled;
+    this.flashlightFill.visible = enabled;
+    this.hudFlashlight.classList.toggle('is-active', enabled);
+    this.hudFlashlightState.textContent = `Flashlight · ${enabled ? 'on' : 'off'}`;
+    const touchButton = must('touch-flashlight') as HTMLButtonElement;
+    touchButton.classList.toggle('is-active', enabled);
+    touchButton.setAttribute('aria-pressed', String(enabled));
+    if (announce) this.showToast(`Flashlight ${enabled ? 'on' : 'off'}`);
+  }
+
+  private updateFlashlightTransform(): void {
+    const camera = this.player.camera;
+    camera.getWorldDirection(this.flashlightDirection);
+    this.flashlight.position.copy(camera.position).addScaledVector(this.flashlightDirection, 0.16);
+    this.flashlight.position.y -= 0.08;
+    this.flashlightTarget.position.copy(camera.position).addScaledVector(this.flashlightDirection, 12);
+    this.flashlightFill.position.copy(camera.position).addScaledVector(this.flashlightDirection, 0.7);
+    this.flashlightTarget.updateMatrixWorld();
+  }
 
   private onPausedKeyDown = (event: KeyboardEvent): void => {
     if (this.state !== 'paused' || event.repeat) return;
