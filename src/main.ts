@@ -53,9 +53,14 @@ const goreToggle = qs<HTMLInputElement>('gore-toggle');
 const noFlashingToggle = qs<HTMLInputElement>('no-flashing-toggle');
 const noLowLightToggle = qs<HTMLInputElement>('no-low-light-toggle');
 const startBtn = qs<HTMLButtonElement>('start-btn');
+const contentWarning = qs<HTMLDialogElement>('content-warning');
+const contentWarningContinue = qs<HTMLButtonElement>('content-warning-continue');
+const contentWarningBack = qs<HTMLButtonElement>('content-warning-back');
 const clearKeyBtn = qs<HTMLButtonElement>('clear-key-btn');
 const resumeBtn = qs<HTMLButtonElement>('resume-btn');
 const quitBtn = qs<HTMLButtonElement>('quit-btn');
+let contentWarningAcknowledged = false;
+let pendingStartSettings: AppSettings | null = null;
 
 populateBrowserModelOptions();
 
@@ -185,9 +190,44 @@ startBtn.addEventListener('click', () => {
     alert('Enter a seed for seeded mode, or switch to randomized.');
     return;
   }
+
+  if (!contentWarningAcknowledged) {
+    pendingStartSettings = next;
+    contentWarning.showModal();
+    contentWarningContinue.focus({ preventScroll: true });
+    return;
+  }
+
+  startDream(next);
+});
+
+contentWarningContinue.addEventListener('click', () => {
+  const next = pendingStartSettings;
+  pendingStartSettings = null;
+  contentWarningAcknowledged = true;
+  contentWarning.close();
+  if (next) startDream(next);
+});
+
+contentWarningBack.addEventListener('click', closeContentWarning);
+contentWarning.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeContentWarning();
+});
+
+function closeContentWarning(): void {
+  pendingStartSettings = null;
+  contentWarning.close();
+  startBtn.focus({ preventScroll: true });
+}
+
+function startDream(next: AppSettings): void {
   if ((next.provider === 'openai' || next.provider === 'anthropic') && !next.apiKey) {
     const ok = confirm('No API key entered. Continue with offline procedural rooms?');
-    if (!ok) return;
+    if (!ok) {
+      startBtn.focus({ preventScroll: true });
+      return;
+    }
     next.provider = 'offline';
     providerSelect.value = 'offline';
     syncProviderUi();
@@ -204,7 +244,7 @@ startBtn.addEventListener('click', () => {
   game.updateSettings(runtimeSettings);
   game.start();
   if (fallbackNotice) game.notify(fallbackNotice);
-});
+}
 
 function setBrowserModelValue(modelId: string): void {
   const id = modelId.trim() || DEFAULT_BROWSER_MODEL;

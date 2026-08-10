@@ -237,6 +237,40 @@
         </aside>
       </div>
 
+      <dialog
+        id="content-warning"
+        class="content-warning"
+        aria-labelledby="content-warning-title"
+        aria-describedby="content-warning-copy content-warning-source"
+      >
+        <div class="content-warning-frame">
+          <p class="eyebrow">AI content notice</p>
+          <h2 id="content-warning-title">Before you enter</h2>
+          <span class="brand-rule" aria-hidden="true"></span>
+
+          <div class="content-warning-copy">
+            <p id="content-warning-copy">
+              Kettermean uses generative AI and procedural systems. Rooms, signs, and
+              characters may be scary, nonsensical, unsettling, or occasionally seem
+              ill-intended.
+            </p>
+            <p id="content-warning-source">
+              Nothing is designed or prompted to offend, target, or harm anyone. Every
+              generation prompt is available in the public source for inspection.
+            </p>
+          </div>
+
+          <div class="content-warning-actions">
+            <button id="content-warning-continue" type="button" class="enter-button">
+              <span aria-hidden="true">→</span><span>Continue into dream</span>
+            </button>
+            <button id="content-warning-back" type="button" class="return-button">
+              Back to settings
+            </button>
+          </div>
+        </div>
+      </dialog>
+
       <div id="pause-menu" class="pause-overlay hidden">
         <section class="pause-rail" role="dialog" aria-modal="true" aria-labelledby="pause-title">
           <p class="eyebrow">Dream suspended</p>

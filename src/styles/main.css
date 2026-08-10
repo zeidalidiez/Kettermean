@@ -614,6 +614,80 @@ kbd {
   text-transform: uppercase;
 }
 
+.content-warning {
+  width: min(620px, calc(100vw - 36px));
+  max-height: calc(100svh - 36px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid rgba(180, 160, 236, 0.58);
+  border-radius: 0;
+  background:
+    linear-gradient(145deg, rgba(18, 23, 29, 0.98), rgba(5, 8, 10, 0.99)),
+    var(--ink);
+  box-shadow: 0 30px 110px rgba(0, 0, 0, 0.72), inset 4px 0 0 var(--violet);
+  color: var(--text);
+}
+
+.content-warning::backdrop {
+  background: rgba(2, 4, 5, 0.76);
+  backdrop-filter: blur(9px) saturate(0.68);
+}
+
+.content-warning-frame {
+  padding: clamp(30px, 5vw, 56px);
+}
+
+.content-warning h2 {
+  margin: 0;
+  color: #e4e3de;
+  font-family: "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  font-size: clamp(2.2rem, 6vw, 4.3rem);
+  font-stretch: condensed;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.content-warning .brand-rule {
+  margin: 27px 0 25px;
+}
+
+.content-warning-copy {
+  display: grid;
+  gap: 15px;
+  color: #b9bab7;
+  font-size: 0.86rem;
+  line-height: 1.72;
+}
+
+.content-warning-copy p {
+  margin: 0;
+}
+
+#content-warning-source {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.content-warning-actions {
+  display: grid;
+  gap: 13px;
+  margin-top: 32px;
+}
+
+.content-warning-actions .enter-button,
+.content-warning-actions .return-button {
+  width: 100%;
+}
+
+.content-warning-actions .return-button {
+  border: 1px solid var(--line-strong);
+  padding: 14px 18px;
+  text-align: center;
+}
+
 #hud {
   position: absolute;
   z-index: 10;
@@ -981,6 +1055,19 @@ kbd {
     width: min(92vw, 430px);
     padding-top: max(38px, env(safe-area-inset-top));
     padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  .content-warning {
+    width: calc(100vw - 28px);
+    max-height: calc(100svh - 28px);
+  }
+
+  .content-warning-frame {
+    padding: 30px 24px 24px;
+  }
+
+  .content-warning h2 {
+    font-size: clamp(2.1rem, 11vw, 3.2rem);
   }
 
   .ai-recovery {
