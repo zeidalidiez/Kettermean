@@ -229,7 +229,10 @@ function payloadAfterMarker(text: string, marker: string): string {
     .replace(/```[a-z0-9_-]*/gi, ' ')
     .replace(/```/g, ' ')
     .trim();
-  const index = cleaned.toUpperCase().lastIndexOf(marker.toUpperCase());
+  // The model is instructed to begin its reply with the marker. Take the first
+  // occurrence: a repeated tag inside prose must not make parsing start late
+  // and drop the field header block.
+  const index = cleaned.toUpperCase().indexOf(marker.toUpperCase());
   return index >= 0 ? cleaned.slice(index + marker.length) : cleaned;
 }
 

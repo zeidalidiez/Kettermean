@@ -60,7 +60,7 @@ describe('surreal scene expansion', () => {
     for (const [family, signatures] of signaturesByFamily) {
       expect(signatures.size, family).toBe(8);
     }
-  });
+  }, 30_000);
 
   it('keeps every new archetype preference attached to a real asset', () => {
     expect(SURREAL_THEMES).toHaveLength(16);

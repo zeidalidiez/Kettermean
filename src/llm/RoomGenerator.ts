@@ -18,7 +18,6 @@ import { parseQaDirection } from '../world/qaDirector';
 import {
   browserChatCompletion,
   disposeBrowserEngine,
-  ensureBrowserEngine,
   interruptBrowserGeneration,
 } from './browserEngine';
 import { extractJsonObject, normalizeRoomSpec } from './schema';
@@ -348,13 +347,6 @@ export class RoomGenerator {
       window.clearTimeout(timer);
       if (this.activeCloudController === controller) this.activeCloudController = null;
     }
-  }
-
-  /** Kick off WebLLM weight download before the first room race. */
-  async preloadBrowserModel(): Promise<void> {
-    if (this.settings.provider !== 'browser') return;
-    const model = this.settings.model.trim() || DEFAULT_BROWSER_MODEL;
-    await ensureBrowserEngine(model, (msg) => this.onStatus?.(msg));
   }
 
   private async callBrowser(

@@ -289,6 +289,9 @@ export class DreamGame {
     this.player.setPhysics(spec.physics);
     this.player.setViewDistance(Math.max(spec.width, spec.depth) * 2.8 + 90);
     this.player.spawnAt(built.spawn.x, built.spawn.y, built.spawn.z, 0);
+    // Guarantee the spawn is not buried inside a solid even if the packed room
+    // left no fully-clear island.
+    this.player.resolveEmbeddedColliders(this.roomWorld.getColliders());
     this.updateFlashlightTransform();
     this.previousTitles.push(spec.title);
     if (this.previousTitles.length > 12) this.previousTitles.shift();

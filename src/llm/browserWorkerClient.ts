@@ -15,6 +15,7 @@ interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (reason: Error) => void;
   onProgress?: (text: string) => void;
+  timer?: ReturnType<typeof setTimeout>;
 }
 
 export interface BrowserWorkerClient {
@@ -25,7 +26,17 @@ export interface BrowserWorkerClient {
   terminate(reason?: string): void;
 }
 
-export function createBrowserWorkerClient(worker: Worker): BrowserWorkerClient {
+/**
+ * @param requestTimeoutMs Optional per-request timeout for inference only.
+ * Model loads are deliberately excluded: first-run weight downloads and shader
+ * compilation can legitimately take several minutes. A hung generate must not
+ * block the serialized engine queue forever, so on timeout the request is
+ * rejected and the worker is told to interrupt its current completion.
+ */
+export function createBrowserWorkerClient(
+  worker: Worker,
+  requestTimeoutMs?: number,
+): BrowserWorkerClient {
   let nextId = 1;
   let terminated = false;
   let terminationReason = 'WebLLM worker terminated.';
@@ -40,6 +51,7 @@ export function createBrowserWorkerClient(worker: Worker): BrowserWorkerClient {
       return;
     }
     pending.delete(message.id);
+    if (request.timer) clearTimeout(request.timer);
     if (message.type === 'error') request.reject(new Error(message.error));
     else request.resolve(message.value);
   };
@@ -69,19 +81,37 @@ export function createBrowserWorkerClient(worker: Worker): BrowserWorkerClient {
   const request = <T>(
     message: WorkerCommand,
     onProgress?: (text: string) => void,
+    timeoutMs?: number,
   ): Promise<T> => {
     if (terminated) return Promise.reject(new Error(terminationReason));
     const id = nextId;
     nextId += 1;
     return new Promise<T>((resolve, reject) => {
-      pending.set(id, {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const pendingRequest: PendingRequest = {
         resolve: (value) => resolve(value as T),
         reject,
         onProgress,
-      });
+      };
+      if (timeoutMs && timeoutMs > 0) {
+        timer = setTimeout(() => {
+          pending.delete(id);
+          // Ask the worker to abandon the stalled completion so the next
+          // queued inference is not blocked behind a hung generation.
+          try {
+            worker.postMessage({ id: 0, type: 'interrupt' } satisfies WorkerRequest);
+          } catch {
+            // A dead worker surfaces via its error event; nothing left to do.
+          }
+          reject(new Error(`Browser model request timed out after ${timeoutMs}ms.`));
+        }, timeoutMs);
+        pendingRequest.timer = timer;
+      }
+      pending.set(id, pendingRequest);
       try {
         worker.postMessage({ ...message, id } satisfies WorkerRequest);
       } catch (err) {
+        if (timer) clearTimeout(timer);
         pending.delete(id);
         reject(err instanceof Error ? err : new Error(String(err)));
       }
@@ -91,7 +121,11 @@ export function createBrowserWorkerClient(worker: Worker): BrowserWorkerClient {
   return {
     load: (modelId, onProgress) => request<void>({ type: 'load', modelId }, onProgress),
     generate: (completionRequest) =>
-      request<unknown>({ type: 'generate', request: completionRequest }),
+      request<unknown>(
+        { type: 'generate', request: completionRequest },
+        undefined,
+        requestTimeoutMs,
+      ),
     interruptGenerate: () => {
       if (!terminated) {
         worker.postMessage({ id: 0, type: 'interrupt' } satisfies WorkerRequest);

@@ -61,6 +61,7 @@ export class InputManager {
   private gamepadPauseHeld = false;
   private gamepadNextHeld = false;
   private gamepadFlashlightHeld = false;
+  private gamepadJumpHeld = false;
   private enabled = false;
   private stickCleanups: Array<() => void> = [];
 
@@ -184,7 +185,8 @@ export class InputManager {
         moveZ += -ly;
         lookX += rx * PLAYER.gamepadLookSensitivity * dt;
         lookY += ry * PLAYER.gamepadLookSensitivity * dt;
-        if (pad.buttons[0]?.pressed) jump = true;
+        if (pad.buttons[0]?.pressed && !this.gamepadJumpHeld) jump = true;
+        this.gamepadJumpHeld = Boolean(pad.buttons[0]?.pressed);
         if (pad.buttons[1]?.pressed) sprint = true;
         const gamepadPause = Boolean(pad.buttons[9]?.pressed);
         if (gamepadPause && !this.gamepadPauseHeld) this.pausePressed = true;
@@ -199,6 +201,7 @@ export class InputManager {
         this.gamepadPauseHeld = false;
         this.gamepadNextHeld = false;
         this.gamepadFlashlightHeld = false;
+        this.gamepadJumpHeld = false;
       }
 
       if (this.jumpBuffered) {
@@ -301,6 +304,7 @@ export class InputManager {
     this.gamepadPauseHeld = false;
     this.gamepadNextHeld = false;
     this.gamepadFlashlightHeld = false;
+    this.gamepadJumpHeld = false;
     this.sprintButton.classList.remove('is-active');
     this.resetStick('move');
     this.resetStick('look');

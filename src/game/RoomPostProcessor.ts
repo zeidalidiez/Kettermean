@@ -76,6 +76,9 @@ const MODE: Record<RoomVisuals['shader'], number> = {
   woven: 71,
 };
 
+/** Keyed by RoomShaderStyle; the compile-time Record guarantees full coverage. */
+export const ROOM_MODE_MAP = MODE;
+
 /** A single optional fullscreen pass. Rooms without an effect skip the render target. */
 export class RoomPostProcessor {
   private readonly target = new THREE.WebGLRenderTarget(1, 1, {
@@ -1070,7 +1073,9 @@ export class RoomPostProcessor {
 
   setProfile(visuals?: RoomVisuals): void {
     this.active = Boolean(visuals && visuals.shader !== 'none');
-    this.material.uniforms.uMode!.value = visuals ? MODE[visuals.shader] : 0;
+    // Defensive: a stale cached room or a drifted shader map must not upload
+    // undefined (NaN) into the shader. Fall back to the identity pass.
+    this.material.uniforms.uMode!.value = visuals ? MODE[visuals.shader] ?? 0 : 0;
     this.material.uniforms.uTint!.value.set(visuals?.tint ?? '#ffffff');
     this.material.uniforms.uStrength!.value = visuals?.effectStrength ?? 0;
     this.material.uniforms.uPixelSize!.value = visuals?.pixelSize ?? 4;

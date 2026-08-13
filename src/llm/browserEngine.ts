@@ -1,4 +1,4 @@
-import { DEFAULT_BROWSER_MODEL } from '../config';
+import { DEFAULT_BROWSER_MODEL, LLM_BUDGET } from '../config';
 import {
   createBrowserWorkerClient,
   type BrowserWorkerClient,
@@ -238,7 +238,7 @@ async function loadModelNow(
     type: 'module',
     name: 'kettermean-webllm',
   });
-  const nextClient = createBrowserWorkerClient(nextWorker);
+  const nextClient = createBrowserWorkerClient(nextWorker, LLM_BUDGET.requestTimeoutMs);
   loadingClient = nextClient;
 
   let cancelLoad!: (reason: Error) => void;

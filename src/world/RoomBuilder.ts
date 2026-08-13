@@ -399,8 +399,11 @@ export class RoomWorld {
         entity.mesh.position.x - playerPos.x,
         entity.mesh.position.z - playerPos.z,
       );
+      // Reject entities far above or below the player so overhead creatures and
+      // distant ledges cannot trigger dialogue from across the room.
+      const verticalGap = Math.abs(entity.mesh.position.y - playerPos.y);
       const reach = maxDistance + Math.min(3, Math.max(entity.data.scale.x, entity.data.scale.z) * 0.35);
-      if (distance > reach || (nearest && distance >= nearest.distance)) continue;
+      if (distance > reach || verticalGap > 4.5 || (nearest && distance >= nearest.distance)) continue;
       nearest = {
         label: entity.data.label,
         dialogue: entity.data.dialogue,
@@ -428,11 +431,15 @@ export class RoomWorld {
     this.group.traverse((obj) => {
       if (obj instanceof THREE.Light) obj.dispose();
       const mesh = obj as THREE.Mesh;
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (Array.isArray(mesh.material)) {
-        for (const material of mesh.material) materials.add(material);
-      } else if (mesh.material) {
-        materials.add(mesh.material);
+      // Cached model/materials resources are released by clearMaterialCaches and
+      // clearModelMaterialCache below; disposing them here would free the shared
+      // instance twice and leave the cache referencing a dead resource.
+      if (mesh.geometry && !mesh.geometry.userData.cacheOwned) mesh.geometry.dispose();
+      const objectMaterials = Array.isArray(mesh.material) ? mesh.material : mesh.material
+        ? [mesh.material]
+        : [];
+      for (const material of objectMaterials) {
+        if (!material.userData.cacheOwned) materials.add(material);
       }
     });
     for (const material of materials) material.dispose();
@@ -455,6 +462,7 @@ export class RoomWorld {
     this.fog = null;
     this.spec = null;
     if (scene.fog) scene.fog = null;
+    scene.background = null;
   }
 
   /** Seeded large-scale structure makes rooms differ before furniture is considered. */
@@ -2017,7 +2025,7 @@ function findSafeSpawn(colliders: ColliderBox[], halfW: number, halfD: number): 
   }
 
   const clearance = PLAYER.radius + 0.18;
-  const chosen = candidates.find(({ x, z }) =>
+  const isClear = ({ x, z }: { x: number; z: number }): boolean =>
     colliders.every((box) => {
       if (box.label === 'floor' || box.label === 'ceiling') return true;
       return !(
@@ -2028,10 +2036,35 @@ function findSafeSpawn(colliders: ColliderBox[], halfW: number, halfD: number): 
         PLAYER.eyeHeight + 0.2 > box.minY &&
         0 < box.maxY
       );
-    }),
-  );
+    });
 
-  return { x: chosen?.x ?? 0, y: PLAYER.eyeHeight, z: chosen?.z ?? 0 };
+  const clear = candidates.find(isClear);
+  if (clear) return { x: clear.x, y: PLAYER.eyeHeight, z: clear.z };
+
+  // No candidate is fully clear. Choose the one buried in the fewest colliders
+  // rather than defaulting to the room center, which may sit inside a solid prop.
+  const solidBoxes = colliders.filter(
+    (box) => box.label !== 'floor' && box.label !== 'ceiling',
+  );
+  let best: { x: number; z: number } = candidates[0]!;
+  let bestBuried = Infinity;
+  for (const candidate of candidates) {
+    const buried = solidBoxes.reduce((count, box) => {
+      const within = candidate.x + clearance > box.minX &&
+        candidate.x - clearance < box.maxX &&
+        candidate.z + clearance > box.minZ &&
+        candidate.z - clearance < box.maxZ &&
+        PLAYER.eyeHeight + 0.2 > box.minY &&
+        0 < box.maxY;
+      return count + (within ? 1 : 0);
+    }, 0);
+    if (buried < bestBuried) {
+      bestBuried = buried;
+      best = candidate;
+    }
+  }
+
+  return { x: best.x, y: PLAYER.eyeHeight, z: best.z };
 }
 
 function stablePhase(id: string): number {

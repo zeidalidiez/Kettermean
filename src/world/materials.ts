@@ -53,6 +53,7 @@ function finishTex(canvas: HTMLCanvasElement, key: string): THREE.CanvasTexture 
   let tex = texCache.get(key);
   if (tex) return tex;
   tex = new THREE.CanvasTexture(canvas);
+  tex.userData.cacheOwned = true;
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
@@ -339,6 +340,7 @@ export function surfaceMaterial(
     emissive: opts?.emissive ? new THREE.Color(opts.emissive) : 0x000000,
     emissiveIntensity: opts?.emissive ? opts.emissiveIntensity ?? 0.5 : 0,
   });
+  mat.userData.cacheOwned = true;
   cache.set(key, mat);
   return mat;
 }
@@ -360,6 +362,7 @@ export function plainMaterial(
     emissive: emissive ? new THREE.Color(emissive) : 0x000000,
     emissiveIntensity: emissive ? emissiveIntensity : 0,
   });
+  mat.userData.cacheOwned = true;
   cache.set(key, mat);
   return mat;
 }

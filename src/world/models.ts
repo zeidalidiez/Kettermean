@@ -281,6 +281,7 @@ function mat(
       emissive: emissive ? new THREE.Color(emissive) : 0x000000,
       emissiveIntensity: emissive ? emissiveIntensity : 0,
     });
+    m.userData.cacheOwned = true;
     matCache.set(key, m);
   }
   return m;
@@ -307,6 +308,7 @@ function part(p: PartSpec): THREE.Mesh {
     default:
       geom = new THREE.BoxGeometry(1, 1, 1);
   }
+  geom.userData.cacheOwned = true;
   const mesh = new THREE.Mesh(
     geom,
     mat(p.color, p.roughness ?? 0.75, p.metalness ?? 0.08, p.emissive, p.emissiveIntensity),
@@ -2257,8 +2259,23 @@ export function buildModel(
   ) {
     normalizeComposedModelToBounds(model, boundsForKind(kind));
   }
+  markCacheOwned(model);
   modelCache.set(key, model);
   return model.clone(true);
+}
+
+/**
+ * Cached models are shared with every room clone. Their geometries and materials
+ * are owned by the model cache and released by clearModelMaterialCache; room
+ * teardown must not dispose them a second time.
+ */
+function markCacheOwned(model: THREE.Object3D): void {
+  model.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry.userData.cacheOwned = true;
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) material.userData.cacheOwned = true;
+  });
 }
 
 /**

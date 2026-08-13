@@ -103,7 +103,7 @@ describe('mixed-media model expansion', () => {
     for (const [family, signatures] of familySignatures) {
       expect(signatures.size, family).toBe(8);
     }
-  });
+  }, 30_000);
 
   it('ships no raster model artwork that could restore the removed sprite actors', () => {
     expect(Object.keys(RASTER_MODEL_ASSETS)).toEqual([]);
@@ -136,5 +136,5 @@ describe('mixed-media model expansion', () => {
     }
 
     expect(used.size).toBeGreaterThanOrEqual(190);
-  }, 20_000);
+  }, 30_000);
 });

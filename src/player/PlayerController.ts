@@ -18,6 +18,9 @@ export class PlayerController {
     sway: 0.3,
   };
   private bobPhase = 0;
+  private readonly forward = new THREE.Vector3();
+  private readonly right = new THREE.Vector3();
+  private readonly wish = new THREE.Vector3();
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(72, aspect, 0.08, 200);
@@ -42,6 +45,17 @@ export class PlayerController {
     this.syncCamera(0);
   }
 
+  /**
+   * Push the player out of any solid overlapped at the spawn point. moveAxis
+   * skips its collision pass on zero movement, so an embedded spawn would
+   * otherwise stay stuck until the player first moves.
+   */
+  resolveEmbeddedColliders(colliders: ColliderBox[]): void {
+    for (const axis of ['x', 'z', 'y'] as const) {
+      this.moveAxis(axis, 0, colliders, true);
+    }
+  }
+
   update(dt: number, input: InputFrame, colliders: ColliderBox[]): ColliderBox | null {
     this.yaw -= input.lookX;
     this.pitch -= input.lookY;
@@ -49,17 +63,17 @@ export class PlayerController {
     this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
 
     const speedBase = (input.sprint ? PLAYER.sprintSpeed : PLAYER.walkSpeed) * this.physics.moveSpeed;
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    this.forward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    this.right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
-    const wish = new THREE.Vector3();
-    wish.addScaledVector(forward, input.moveZ);
-    wish.addScaledVector(right, input.moveX);
-    if (wish.lengthSq() > 0) wish.normalize().multiplyScalar(speedBase);
+    this.wish.set(0, 0, 0);
+    this.wish.addScaledVector(this.forward, input.moveZ);
+    this.wish.addScaledVector(this.right, input.moveX);
+    if (this.wish.lengthSq() > 0) this.wish.normalize().multiplyScalar(speedBase);
 
     const friction = Math.max(0.05, this.physics.friction);
-    this.velocity.x += (wish.x - this.velocity.x) * Math.min(1, dt * 10 * friction);
-    this.velocity.z += (wish.z - this.velocity.z) * Math.min(1, dt * 10 * friction);
+    this.velocity.x += (this.wish.x - this.velocity.x) * Math.min(1, dt * 10 * friction);
+    this.velocity.z += (this.wish.z - this.velocity.z) * Math.min(1, dt * 10 * friction);
 
     const gravity = PLAYER.gravity * this.physics.gravity;
     if (!this.onGround) {
@@ -96,9 +110,12 @@ export class PlayerController {
     axis: 'x' | 'y' | 'z',
     delta: number,
     colliders: ColliderBox[],
+    force = false,
   ): { linkHit: ColliderBox | null; landed: boolean } {
-    if (delta === 0) return { linkHit: null, landed: false };
-    this.position[axis] += delta;
+    // Skip the overlap pass entirely when nothing moved, unless an embedded
+    // spawn needs a zero-motion push-out.
+    if (delta === 0 && !force) return { linkHit: null, landed: false };
+    if (delta !== 0) this.position[axis] += delta;
 
     const radius = PLAYER.radius;
     const feet = this.position.y - PLAYER.eyeHeight;

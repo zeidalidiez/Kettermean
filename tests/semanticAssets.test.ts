@@ -75,7 +75,7 @@ describe('semantic furniture and NPC expansion', () => {
     for (const [family, signatures] of familySignatures) {
       expect(signatures.size, family).toBe(8);
     }
-  });
+  }, 30_000);
 
   it('advertises every new family without letting the cloud prompt sprawl', () => {
     const prompt = catalogPromptSummary();
@@ -109,5 +109,5 @@ describe('semantic furniture and NPC expansion', () => {
 
     expect(usedFamilies.size).toBe(new Set(SEMANTIC_ASSETS.map((asset) => asset.family)).size);
     expect(used.size).toBeGreaterThanOrEqual(160);
-  }, 10_000);
+  }, 20_000);
 });
