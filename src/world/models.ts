@@ -48,7 +48,7 @@ import {
 } from './semanticModels';
 import type { SemanticModelKind } from './semanticAssets';
 import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
-import { buildCraftedModel } from './craftedModels';
+import { buildCraftedModel, isCraftedKind } from './craftedModels';
 import type { CinematicModelKind } from './cinematicAssets';
 import {
   CINEMATIC_BOUNDS,
@@ -2247,7 +2247,8 @@ export function buildModel(
     isMasterworkModelKind(kind) ||
     isExhibitionModelKind(kind) ||
     isAtelierModelKind(kind) ||
-    isCinematicModelKind(kind)
+    isCinematicModelKind(kind) ||
+    isCraftedKind(kind)
   ) {
     normalizeComposedModelToBounds(model, boundsForKind(kind));
   }
@@ -2869,6 +2870,9 @@ function shouldDecorateWithFaceKit(kind: PropKind): boolean {
   const value = String(kind);
   // Preserve the deliberately cheap and voxel lanes as coherent media styles.
   // Cross-mounted faces live on the composed high-detail 3D catalog instead.
+  // Crafted animals carry their own sculpted snouts, eyes, and ears; a generic
+  // generated face would cover the anatomy rather than enhance it.
+  if (isCraftedKind(value)) return false;
   return !value.startsWith('lowpoly_') &&
     !value.startsWith('voxel_');
 }
