@@ -1,6 +1,7 @@
 import { PLAYER, ROOM } from '../config';
 import { SeededRng } from '../core/rng';
 import { sanitizeDisplayText } from '../core/contentSafety';
+import { roomBudget } from './modelQuality';
 import type {
   EntityBehavior,
   GenerationContext,
@@ -213,6 +214,7 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
   let propRenderCost = 0;
   let entityRenderCost = 0;
   const worldScale = clamp(dir.worldScale ?? 1, 0.6, 24);
+  const budget = roomBudget();
 
   let actorIndex = 0;
   const placementOrder = prioritizeContrastProp(dir);
@@ -238,8 +240,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     if (isActor) {
       const renderCost = asset.renderCost ?? 3;
       if (
-        entities.length >= ROOM.entityCountMax ||
-        entityRenderCost + renderCost > ROOM.entityRenderCostMax
+        entities.length >= budget.entityCountMax ||
+        entityRenderCost + renderCost > budget.entityRenderCostMax
       ) return;
       const authoredDialogue = dir.npcLines?.[actorIndex];
       const dialogue = authoredDialogue || generateNpcDialogue({
@@ -269,8 +271,8 @@ export function assembleRoomSpec(dir: RoomDirection): RoomSpec {
     } else {
       const renderCost = asset.renderCost ?? 1;
       if (
-        props.length >= ROOM.propCountMax ||
-        propRenderCost + renderCost > ROOM.propRenderCostMax
+        props.length >= budget.propCountMax ||
+        propRenderCost + renderCost > budget.propRenderCostMax
       ) return;
       props.push({
         id: `p${i}`,

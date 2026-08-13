@@ -1,3 +1,5 @@
+import type { ModelQuality } from './world/modelQuality';
+
 export type DreamMode = 'random' | 'seeded';
 export type LlmProvider = 'offline' | 'openai' | 'anthropic' | 'browser';
 export type AiDepth = 'light' | 'standard' | 'deep';
@@ -55,6 +57,8 @@ export interface AppSettings {
   allowGore: boolean;
   noFlashingLights: boolean;
   noLowLight: boolean;
+  /** Graphics preset controlling model geometry density and room budgets. */
+  modelQuality: ModelQuality;
 }
 
 export interface Vec3 {

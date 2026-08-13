@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { geometryForShape } from './modelQuality';
 import {
   DETAILED_MODEL_KINDS,
   LOW_POLY_MODEL_KINDS,
@@ -639,16 +640,7 @@ function makePart(
   color: string,
   options: PartOptions,
 ): THREE.Mesh {
-  const segments = options.segments ?? (options.flat ? 6 : 18);
-  const geometry = (() => {
-    switch (shape) {
-      case 'cylinder': return new THREE.CylinderGeometry(0.5, 0.5, 1, segments);
-      case 'sphere': return new THREE.SphereGeometry(0.5, segments, Math.max(4, Math.round(segments * 0.7)));
-      case 'cone': return new THREE.ConeGeometry(0.5, 1, segments);
-      case 'torus': return new THREE.TorusGeometry(0.5, 0.12, Math.max(4, Math.round(segments * 0.5)), segments);
-      default: return new THREE.BoxGeometry(1, 1, 1);
-    }
-  })();
+  const geometry = geometryForShape(shape);
   const material = new THREE.MeshStandardMaterial({
     color,
     emissive: options.emissive ?? '#000000',

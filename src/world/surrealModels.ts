@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { geometryForShape } from './modelQuality';
 
 export type SurrealModelKind =
   | 'elevator_bank'
@@ -222,15 +223,7 @@ function makePart(
   color: string,
   options: MeshOptions,
 ): THREE.Mesh {
-  const geometry = (() => {
-    switch (shape) {
-      case 'cylinder': return new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
-      case 'sphere': return new THREE.SphereGeometry(0.5, 16, 11);
-      case 'cone': return new THREE.ConeGeometry(0.5, 1, 16);
-      case 'torus': return new THREE.TorusGeometry(0.5, 0.11, 9, 24);
-      default: return new THREE.BoxGeometry(1, 1, 1);
-    }
-  })();
+  const geometry = geometryForShape(shape);
   const material = new THREE.MeshStandardMaterial({
     color,
     emissive: options.emissive ?? '#000000',

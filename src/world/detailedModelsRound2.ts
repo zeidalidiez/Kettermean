@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
+import { geometryForShape } from './modelQuality';
 import {
   MASTERWORK_BOUNDS,
   MASTERWORK_CREATURE_KINDS,
@@ -811,14 +812,7 @@ function partAdder(parent: THREE.Object3D) {
 }
 
 function geometryFor(shape: Shape): THREE.BufferGeometry {
-  switch (shape) {
-    case 'sphere': return new THREE.SphereGeometry(0.5, 28, 20);
-    case 'cylinder': return new THREE.CylinderGeometry(0.5, 0.5, 1, 28);
-    case 'cone': return new THREE.ConeGeometry(0.5, 1, 28);
-    case 'torus': return new THREE.TorusGeometry(0.5, 0.115, 14, 32);
-    case 'capsule': return new THREE.CapsuleGeometry(0.32, 0.4, 10, 18);
-    default: return new THREE.BoxGeometry(1, 1, 1, 3, 3, 3);
-  }
+  return geometryForShape(shape);
 }
 
 function paletteFor(kind: MasterworkModelKind, variant: number, accent: string, body: string): Palette {

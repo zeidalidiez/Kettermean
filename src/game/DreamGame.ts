@@ -15,6 +15,7 @@ import { RoomWorld } from '../world/RoomBuilder';
 import { resolveRoomVisuals, roomHistoryEntryFor } from '../world/roomDirector';
 import { enforceRoomTextQuality } from '../world/textQuality';
 import { RoomPostProcessor } from './RoomPostProcessor';
+import { setModelQuality } from '../world/modelQuality';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'linking';
 type NextDreamState = 'instant' | 'pending' | 'ready' | 'failed';
@@ -154,8 +155,19 @@ export class DreamGame {
   }
 
   updateSettings(settings: AppSettings): void {
+    const qualityChanged = settings.modelQuality !== this.settings.modelQuality;
     this.settings = settings;
+    setModelQuality(settings.modelQuality);
     this.generator.updateSettings(settings);
+    if (qualityChanged && this.state === 'playing') {
+      // Rebuild the current room so density and room budgets match the new
+      // quality instead of waiting for the next dream transition.
+      this.generator.endSession();
+      this.roomWorld.dispose(this.scene);
+      const ctx = this.makeCtx(this.currentSeed);
+      this.applyRoom(this.generator.getOrOffline(ctx));
+      this.renderFrame();
+    }
   }
 
   notify(message: string): void {

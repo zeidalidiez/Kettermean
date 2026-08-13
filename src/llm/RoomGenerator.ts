@@ -716,7 +716,7 @@ function withSettingsConstraints(
 function cacheKey(ctx: GenerationContext, settings: AppSettings): string {
   const base = settings.baseUrl.trim().replace(/\/$/, '').toLowerCase();
   const model = settings.model.trim() || 'default';
-  return `v29|${settings.provider}|${base}|${model}|${settings.aiDepth}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
+  return `v30|${settings.provider}|${base}|${model}|${settings.aiDepth}|${settings.modelQuality}|${ctx.seed}|g=${ctx.allowGore ? 1 : 0}|f=${ctx.noFlashingLights ? 1 : 0}|l=${ctx.noLowLight ? 1 : 0}`;
 }
 
 function buildPrompt(ctx: GenerationContext, depth: AiDepth): { system: string; user: string } {

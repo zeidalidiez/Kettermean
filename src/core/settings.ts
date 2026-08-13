@@ -6,11 +6,16 @@ import {
   STORAGE_KEYS,
 } from '../config';
 import type { AiDepth, AppSettings, DreamMode, LlmProvider } from '../types';
+import {
+  QUALITY_LEVELS,
+  type ModelQuality,
+} from '../world/modelQuality';
 import { randomSeed } from './rng';
 
 const MODES = new Set<DreamMode>(['random', 'seeded']);
 const PROVIDERS = new Set<LlmProvider>(['offline', 'openai', 'anthropic', 'browser']);
 const AI_DEPTHS = new Set<AiDepth>(['light', 'standard', 'deep']);
+const QUALITIES = new Set<ModelQuality>(QUALITY_LEVELS);
 const BROWSER_MODEL_DEFAULTS_REVISION = 2;
 const LEGACY_BROWSER_DEFAULTS = new Set([
   'Qwen2.5-1.5B-Instruct-q4f16_1-MLC',
@@ -28,6 +33,7 @@ export function defaultSettings(): AppSettings {
     allowGore: false,
     noFlashingLights: false,
     noLowLight: false,
+    modelQuality: 'high',
   };
 }
 
@@ -67,6 +73,9 @@ export function loadSettings(): AppSettings {
       allowGore: parsed.allowGore === true,
       noFlashingLights: parsed.noFlashingLights === true,
       noLowLight: parsed.noLowLight === true,
+      modelQuality: isModelQuality(parsed.modelQuality)
+        ? parsed.modelQuality
+        : defaults.modelQuality,
     };
 
     if ('apiKey' in parsed) {
@@ -135,6 +144,7 @@ function persistNonSecretSettings(settings: AppSettings): void {
     allowGore: settings.allowGore,
     noFlashingLights: settings.noFlashingLights,
     noLowLight: settings.noLowLight,
+    modelQuality: settings.modelQuality,
   };
   try {
     localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(persistent));
@@ -190,6 +200,10 @@ function isProvider(value: unknown): value is LlmProvider {
 
 function isAiDepth(value: unknown): value is AiDepth {
   return typeof value === 'string' && AI_DEPTHS.has(value as AiDepth);
+}
+
+function isModelQuality(value: unknown): value is ModelQuality {
+  return typeof value === 'string' && QUALITIES.has(value as ModelQuality);
 }
 
 function cleanString(value: unknown, fallback: string, maxLength: number): string {

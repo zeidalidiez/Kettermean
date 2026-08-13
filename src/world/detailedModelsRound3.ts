@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
+import { geometryForShape } from './modelQuality';
 import {
   EXHIBITION_BOUNDS,
   EXHIBITION_CREATURE_KINDS,
@@ -634,14 +635,7 @@ function partAdder(parent: THREE.Object3D) {
 }
 
 function geometryFor(shape: Shape): THREE.BufferGeometry {
-  switch (shape) {
-    case 'sphere': return new THREE.SphereGeometry(0.5, 24, 18);
-    case 'cylinder': return new THREE.CylinderGeometry(0.5, 0.5, 1, 24);
-    case 'cone': return new THREE.ConeGeometry(0.5, 1, 24);
-    case 'torus': return new THREE.TorusGeometry(0.5, 0.11, 12, 28);
-    case 'capsule': return new THREE.CapsuleGeometry(0.32, 0.4, 9, 16);
-    default: return new THREE.BoxGeometry(1, 1, 1, 3, 3, 3);
-  }
+  return geometryForShape(shape);
 }
 
 function paletteFor(

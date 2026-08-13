@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
+import { geometryForShape } from './modelQuality';
 import {
   ATELIER_BOUNDS,
   ATELIER_CREATURE_KINDS,
@@ -705,19 +706,10 @@ function partAdder(parent: THREE.Object3D) {
   };
 }
 
-// Shared, high-resolution primitives keep the increased detail affordable. A
+// Shared, quality-scaled primitives keep the increased detail affordable. A
 // model still consists entirely of independently transformed 3D meshes.
-const GEOMETRIES: Record<Shape, THREE.BufferGeometry> = {
-  box: new THREE.BoxGeometry(1, 1, 1, 4, 4, 4),
-  sphere: new THREE.SphereGeometry(0.5, 28, 20),
-  cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 28, 3),
-  cone: new THREE.ConeGeometry(0.5, 1, 28, 3),
-  torus: new THREE.TorusGeometry(0.5, 0.105, 14, 32),
-  capsule: new THREE.CapsuleGeometry(0.32, 0.4, 10, 18),
-};
-
 function geometryFor(shape: Shape): THREE.BufferGeometry {
-  return GEOMETRIES[shape];
+  return geometryForShape(shape);
 }
 
 function paletteFor(kind: AtelierModelKind, variant: number, accent: string, body: string): Palette {

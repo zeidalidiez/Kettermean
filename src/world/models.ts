@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
+import { clearModelQualityGeometries, geometryForShape } from './modelQuality';
 import {
   DETAILED_BOUNDS,
   buildDetailedModel,
@@ -262,6 +263,7 @@ export function clearModelMaterialCache(): void {
     if (!disposedMaterials.has(material)) material.dispose();
   }
   matCache.clear();
+  clearModelQualityGeometries();
 }
 
 function mat(
@@ -288,27 +290,7 @@ function mat(
 }
 
 function part(p: PartSpec): THREE.Mesh {
-  let geom: THREE.BufferGeometry;
-  switch (p.shape) {
-    case 'sphere':
-      geom = new THREE.SphereGeometry(0.5, 20, 16);
-      break;
-    case 'cylinder':
-      geom = new THREE.CylinderGeometry(0.5, 0.5, 1, 18);
-      break;
-    case 'cone':
-      geom = new THREE.ConeGeometry(0.5, 1, 18);
-      break;
-    case 'torus':
-      geom = new THREE.TorusGeometry(0.5, 0.14, 10, 24);
-      break;
-    case 'capsule':
-      geom = new THREE.CapsuleGeometry(0.36, 0.28, 6, 14);
-      break;
-    default:
-      geom = new THREE.BoxGeometry(1, 1, 1);
-  }
-  geom.userData.cacheOwned = true;
+  const geom = geometryForShape(p.shape ?? 'box');
   const mesh = new THREE.Mesh(
     geom,
     mat(p.color, p.roughness ?? 0.75, p.metalness ?? 0.08, p.emissive, p.emissiveIntensity),

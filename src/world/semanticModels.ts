@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SemanticModelKind } from './semanticAssets';
+import { geometryForShape } from './modelQuality';
 
 export const SEMANTIC_BOUNDS: Record<SemanticModelKind, { w: number; h: number; d: number }> = {
   conference_table: { w: 3.8, h: 1.05, d: 1.45 },
@@ -378,15 +379,7 @@ function makePart(
   color: string,
   options: PartOptions,
 ): THREE.Mesh {
-  const geometry = (() => {
-    switch (shape) {
-      case 'cylinder': return new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
-      case 'sphere': return new THREE.SphereGeometry(0.5, 16, 12);
-      case 'cone': return new THREE.ConeGeometry(0.5, 1, 16);
-      case 'torus': return new THREE.TorusGeometry(0.5, 0.12, 9, 24);
-      default: return new THREE.BoxGeometry(1, 1, 1);
-    }
-  })();
+  const geometry = geometryForShape(shape);
   const material = new THREE.MeshStandardMaterial({
     color,
     emissive: options.emissive ?? '#000000',

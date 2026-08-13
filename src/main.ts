@@ -12,6 +12,7 @@ import { getWebGpuStatus, isWebGpuAvailable } from './llm/browserEngine';
 import { clearApiKey, loadSettings, modelForProvider, saveSettings } from './core/settings';
 import { DreamGame } from './game/DreamGame';
 import type { AiDepth, AppSettings, DreamMode, LlmProvider } from './types';
+import { setModelQuality } from './world/modelQuality';
 
 const AI_DEPTHS: readonly AiDepth[] = ['light', 'standard', 'deep'];
 const AI_DEPTH_COPY: Record<AiDepth, { label: string; note: string }> = {
@@ -52,6 +53,7 @@ const aiDepthNote = qs<HTMLElement>('ai-depth-note');
 const goreToggle = qs<HTMLInputElement>('gore-toggle');
 const noFlashingToggle = qs<HTMLInputElement>('no-flashing-toggle');
 const noLowLightToggle = qs<HTMLInputElement>('no-low-light-toggle');
+const qualitySelect = qs<HTMLSelectElement>('quality-select');
 const startBtn = qs<HTMLButtonElement>('start-btn');
 const contentWarning = qs<HTMLDialogElement>('content-warning');
 const contentWarningContinue = qs<HTMLButtonElement>('content-warning-continue');
@@ -76,6 +78,8 @@ function applyForm(s: AppSettings): void {
   goreToggle.checked = s.allowGore;
   noFlashingToggle.checked = s.noFlashingLights;
   noLowLightToggle.checked = s.noLowLight;
+  qualitySelect.value = s.modelQuality;
+  setModelQuality(s.modelQuality);
   syncModeUi();
   syncProviderUi();
 }
@@ -97,6 +101,7 @@ function readForm(): AppSettings {
     allowGore: goreToggle.checked,
     noFlashingLights: noFlashingToggle.checked,
     noLowLight: noLowLightToggle.checked,
+    modelQuality: qualitySelect.value as AppSettings['modelQuality'],
   };
 }
 
@@ -183,6 +188,7 @@ providerSelect.addEventListener('change', syncProviderUi);
 browserModelSelect.addEventListener('change', () => syncAiStatus('browser'));
 modelInput.addEventListener('input', () => syncAiStatus(providerSelect.value as LlmProvider));
 aiDepthInput.addEventListener('input', syncAiDepthUi);
+qualitySelect.addEventListener('change', () => setModelQuality(qualitySelect.value as AppSettings['modelQuality']));
 
 startBtn.addEventListener('click', () => {
   const next = readForm();
