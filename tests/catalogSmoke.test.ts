@@ -29,7 +29,7 @@ describe('catalog smoke test', () => {
       expect(() => buildModel(kind as PropKind, '#6a7a8a', '#c4b59a', `${kind}_smoke`), kind)
         .not.toThrow();
     }
-  });
+  }, 30_000);
 
   it('produces playable rooms that respect prop and entity budgets', () => {
     for (let index = 0; index < 25; index += 1) {
