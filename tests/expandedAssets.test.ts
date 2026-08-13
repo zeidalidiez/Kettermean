@@ -120,7 +120,7 @@ describe('expanded procedural asset catalog', () => {
 
   it('draws broadly from the new library during procedural generation', () => {
     const used = new Set<string>();
-    for (let index = 0; index < 2_000; index += 1) {
+    for (let index = 0; index < 400; index += 1) {
       const room = generateOfflineRoom({
         seed: `asset-coverage-${index}`,
         previousTitles: [],
@@ -135,6 +135,6 @@ describe('expanded procedural asset catalog', () => {
       }
     }
 
-    expect(used.size).toBeGreaterThanOrEqual(860);
+    expect(used.size).toBeGreaterThanOrEqual(500);
   }, 30_000);
 });

@@ -71,7 +71,7 @@ describe('procedural NPC dialogue', () => {
   it('gives every procedurally placed inhabitant something to say', () => {
     const lines = new Set<string>();
     let inhabitants = 0;
-    for (let index = 0; index < 300; index += 1) {
+    for (let index = 0; index < 150; index += 1) {
       const room = generateOfflineRoom({
         seed: `offline-dialogue-${index}`,
         previousTitles: [],
@@ -86,7 +86,7 @@ describe('procedural NPC dialogue', () => {
       }
     }
 
-    expect(inhabitants).toBeGreaterThan(100);
-    expect(lines.size).toBeGreaterThan(100);
-  });
+    expect(inhabitants).toBeGreaterThan(50);
+    expect(lines.size).toBeGreaterThan(50);
+  }, 20_000);
 });

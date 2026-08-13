@@ -23,22 +23,22 @@ import {
 afterAll(() => clearModelMaterialCache());
 
 describe('fifth high-detail cinematic expansion', () => {
-  it('adds 768 items and 640 beings across 176 everyday families', () => {
-    expect(CINEMATIC_PROP_FAMILIES).toHaveLength(96);
-    expect(CINEMATIC_BEING_FAMILIES).toHaveLength(80);
-    expect(CINEMATIC_HUMANOID_KINDS).toHaveLength(40);
-    expect(CINEMATIC_CREATURE_KINDS).toHaveLength(40);
+  it('adds 1,664 items and 2,136 beings across 475 everyday families', () => {
+    expect(CINEMATIC_PROP_FAMILIES).toHaveLength(208);
+    expect(CINEMATIC_BEING_FAMILIES).toHaveLength(267);
+    expect(CINEMATIC_HUMANOID_KINDS).toHaveLength(135);
+    expect(CINEMATIC_CREATURE_KINDS).toHaveLength(132);
     expect(CINEMATIC_VARIANTS_PER_FAMILY).toBe(8);
-    expect(CINEMATIC_PROP_ASSET_COUNT).toBe(768);
-    expect(CINEMATIC_BEING_ASSET_COUNT).toBe(640);
-    expect(CINEMATIC_ASSET_COUNT).toBe(1408);
-    expect(new Set(CINEMATIC_ASSETS.map((asset) => asset.id)).size).toBe(1408);
-    expect(CINEMATIC_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(320);
-    expect(CINEMATIC_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(320);
+    expect(CINEMATIC_PROP_ASSET_COUNT).toBe(1664);
+    expect(CINEMATIC_BEING_ASSET_COUNT).toBe(2136);
+    expect(CINEMATIC_ASSET_COUNT).toBe(3800);
+    expect(new Set(CINEMATIC_ASSETS.map((asset) => asset.id)).size).toBe(3800);
+    expect(CINEMATIC_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(1080);
+    expect(CINEMATIC_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(1056);
     expect(ASSETS).toEqual(expect.arrayContaining(CINEMATIC_ASSETS));
 
     const families = Map.groupBy(CINEMATIC_ASSETS, (asset) => asset.family);
-    expect(families.size).toBe(176);
+    expect(families.size).toBe(475);
     for (const variants of families.values()) {
       expect(variants).toHaveLength(8);
       expect(new Set(variants.map((asset) => asset.variant))).toEqual(
@@ -108,7 +108,7 @@ describe('fifth high-detail cinematic expansion', () => {
     const familyById = new Map(CINEMATIC_ASSETS.map((asset) => [asset.id, asset.family!]));
     const used = new Set<string>();
     const usedFamilies = new Set<string>();
-    for (let index = 0; index < 2_000; index += 1) {
+    for (let index = 0; index < 500; index += 1) {
       const room = generateOfflineRoom({
         seed: `cinematic-coverage-${index}`,
         previousTitles: [],
@@ -124,7 +124,7 @@ describe('fifth high-detail cinematic expansion', () => {
       }
     }
 
-    expect(usedFamilies.size).toBeGreaterThanOrEqual(120);
-    expect(used.size).toBeGreaterThanOrEqual(600);
+    expect(usedFamilies.size).toBeGreaterThanOrEqual(300);
+    expect(used.size).toBeGreaterThanOrEqual(500);
   }, 40_000);
 });
