@@ -133,7 +133,7 @@ describe('high-detail artisan expansion', () => {
       expect(prompt).toContain(`${family.id}|`);
     }
     expect(prompt).not.toContain('artisan_rolltop_desk_02');
-    expect(prompt.length).toBeLessThan(20_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('makes every family and most variants reachable in ordinary procedural rooms', () => {

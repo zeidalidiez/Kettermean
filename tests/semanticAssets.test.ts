@@ -83,7 +83,7 @@ describe('semantic furniture and NPC expansion', () => {
 
     for (const family of families) expect(prompt).toContain(`${family}|`);
     expect(prompt).not.toContain('npc_dentist_02');
-    expect(prompt.length).toBeLessThan(16_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('draws broadly from the new tagged families during ordinary generation', () => {

@@ -14,6 +14,7 @@ import { DETAILED_ASSETS } from './detailedAssets';
 import { MASTERWORK_ASSETS } from './detailedAssetsRound2';
 import { EXHIBITION_ASSETS } from './detailedAssetsRound3';
 import { ATELIER_ASSETS } from './detailedAssetsRound4';
+import { CINEMATIC_ASSETS } from './cinematicAssets';
 import { EXPANDED_ASSETS } from './expandedAssets';
 import { MIXED_MEDIA_ASSETS } from './mixedMediaAssets';
 import { SEMANTIC_ASSETS } from './semanticAssets';
@@ -185,6 +186,7 @@ export const ASSETS: AssetDef[] = [
   ...MASTERWORK_ASSETS,
   ...EXHIBITION_ASSETS,
   ...ATELIER_ASSETS,
+  ...CINEMATIC_ASSETS,
 ];
 
 const EXPANSION_THEMES: ThemePreset[] = [

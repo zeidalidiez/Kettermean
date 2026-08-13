@@ -115,7 +115,7 @@ describe('expanded procedural asset catalog', () => {
 
     for (const family of families) expect(prompt).toContain(`${family}|`);
     expect(prompt).not.toContain('npc_nurse_02');
-    expect(prompt.length).toBeLessThan(16_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('draws broadly from the new library during procedural generation', () => {

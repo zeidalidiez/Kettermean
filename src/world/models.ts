@@ -48,6 +48,8 @@ import {
 } from './semanticModels';
 import type { SemanticModelKind } from './semanticAssets';
 import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
+import type { CinematicModelKind } from './cinematicAssets';
+import { CINEMATIC_BOUNDS, buildCinematicModel, isCinematicModelKind } from './cinematicModels';
 
 export type PropKind =
   | 'chair'
@@ -210,7 +212,8 @@ export type PropKind =
   | DetailedModelKind
   | MasterworkModelKind
   | ExhibitionModelKind
-  | AtelierModelKind;
+  | AtelierModelKind
+  | CinematicModelKind;
 
 interface PartSpec {
   w: number;
@@ -2237,7 +2240,8 @@ export function buildModel(
     isDetailedModelKind(kind) ||
     isMasterworkModelKind(kind) ||
     isExhibitionModelKind(kind) ||
-    isAtelierModelKind(kind)
+    isAtelierModelKind(kind) ||
+    isCinematicModelKind(kind)
   ) {
     normalizeComposedModelToBounds(model, boundsForKind(kind));
   }
@@ -2300,6 +2304,8 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
+  if (cinematic) return cinematic;
   const atelier = buildAtelierModel(kind, assetVariant(assetId), accent, body);
   if (atelier) return atelier;
   const exhibition = buildExhibitionModel(kind, assetVariant(assetId), accent, body);
@@ -2737,6 +2743,8 @@ const EXPANDED_BOUNDS: Partial<Record<PropKind, { w: number; h: number; d: numbe
 };
 
 export function boundsForKind(kind: PropKind): { w: number; h: number; d: number } {
+  const cinematic = CINEMATIC_BOUNDS[kind as CinematicModelKind];
+  if (cinematic) return cinematic;
   const atelier = ATELIER_BOUNDS[kind as AtelierModelKind];
   if (atelier) return atelier;
   const exhibition = EXHIBITION_BOUNDS[kind as ExhibitionModelKind];
@@ -2820,6 +2828,7 @@ function faceHostForKind(kind: PropKind): FaceHostContext {
     value.startsWith('detail_figure_') ||
     value.startsWith('exhibition_figure_') ||
     value.startsWith('atelier_figure_') ||
+    value.startsWith('cine_figure_') ||
     value === 'lowpoly_person' ||
     value === 'voxel_watcher'
   ) return 'humanoid';
@@ -2828,6 +2837,7 @@ function faceHostForKind(kind: PropKind): FaceHostContext {
     value.startsWith('detail_animal_') ||
     value.startsWith('exhibition_animal_') ||
     value.startsWith('atelier_animal_') ||
+    value.startsWith('cine_animal_') ||
     value.includes('dog') ||
     value.includes('cat') ||
     value.includes('bird') ||

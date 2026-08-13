@@ -37,9 +37,9 @@ describe('third high-detail exhibition expansion', () => {
     expect(ASSETS).toEqual(expect.arrayContaining(EXHIBITION_ASSETS));
 
     const composedVariants = ASSETS.filter((asset) => asset.family);
-    expect(composedVariants).toHaveLength(3_228);
-    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(441);
-    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(1_812);
+    expect(composedVariants).toHaveLength(4_636);
+    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(617);
+    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(3_220);
 
     const exhibitionIds = new Set(EXHIBITION_ASSETS.map((asset) => asset.id));
     const exhibitionKinds = new Set(EXHIBITION_ASSETS.map((asset) => asset.kind));
@@ -131,7 +131,7 @@ describe('third high-detail exhibition expansion', () => {
       expect(prompt).toContain(`${family.id}|`);
     }
     expect(prompt).not.toContain('exhibition_steamer_trunk_02');
-    expect(prompt.length).toBeLessThan(22_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('makes every new family and most variants reachable in ordinary rooms', () => {

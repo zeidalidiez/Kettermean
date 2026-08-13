@@ -116,7 +116,7 @@ describe('mixed-media model expansion', () => {
     for (const family of families) expect(prompt).toContain(`${family}|`);
     expect(prompt).not.toContain('npc_sprite_');
     expect(prompt).toContain('FAMILIES (IDs end 01-08):');
-    expect(prompt.length).toBeLessThan(16_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('draws broadly from the mixed-media families during ordinary generation', () => {

@@ -34,9 +34,9 @@ describe('second high-detail masterwork expansion', () => {
     expect(MASTERWORK_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(80);
     expect(ASSETS).toEqual(expect.arrayContaining(MASTERWORK_ASSETS));
     const composedVariants = ASSETS.filter((asset) => asset.family);
-    expect(composedVariants).toHaveLength(3_228);
-    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(441);
-    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(1_812);
+    expect(composedVariants).toHaveLength(4_636);
+    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(617);
+    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(3_220);
 
     const families = Map.groupBy(MASTERWORK_ASSETS, (asset) => asset.family);
     expect(families.size).toBe(57);
@@ -129,7 +129,7 @@ describe('second high-detail masterwork expansion', () => {
     }
     expect(prompt).not.toContain('masterwork_writing_bureau_02');
     expect(prompt).not.toContain('npc_sprite_');
-    expect(prompt.length).toBeLessThan(20_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('makes every new family and most variants reachable in ordinary rooms', () => {

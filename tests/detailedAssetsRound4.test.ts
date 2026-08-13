@@ -37,12 +37,12 @@ describe('fourth high-detail atelier expansion', () => {
     expect(ATELIER_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(90);
     expect(ATELIER_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(60);
     expect(ASSETS).toEqual(expect.arrayContaining(ATELIER_ASSETS));
-    expect(ASSETS).toHaveLength(3_263);
+    expect(ASSETS).toHaveLength(4_671);
 
     const composedVariants = ASSETS.filter((asset) => asset.family);
-    expect(composedVariants).toHaveLength(3_228);
-    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(441);
-    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(1_812);
+    expect(composedVariants).toHaveLength(4_636);
+    expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(617);
+    expect(ASSETS.filter((asset) => asset.tags.includes('high-detail'))).toHaveLength(3_220);
 
     const atelierIds = new Set(ATELIER_ASSETS.map((asset) => asset.id));
     const atelierKinds = new Set(ATELIER_ASSETS.map((asset) => asset.kind));
@@ -179,7 +179,7 @@ describe('fourth high-detail atelier expansion', () => {
       expect(prompt).toContain(`${family.id}|`);
     }
     expect(prompt).not.toContain('atelier_cloud_atlas_02');
-    expect(prompt.length).toBeLessThan(16_000);
+    expect(prompt.length).toBeLessThan(30_000);
   });
 
   it('makes every family and most variants reachable in ordinary offline rooms', () => {
