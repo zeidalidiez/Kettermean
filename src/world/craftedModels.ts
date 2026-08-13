@@ -87,6 +87,8 @@ const CRAFTED_ANIMAL_KINDS = new Set<string>([
   'animal_cat',
   'animal_horse',
   'animal_rabbit',
+  'animal_crow',
+  'animal_fish',
   'figure_deer',
   'figure_baby',
   'figure_balloon',
@@ -95,6 +97,32 @@ const CRAFTED_ANIMAL_KINDS = new Set<string>([
   'figure_raincoat',
   'figure_mannequin',
   'figure_shadow',
+  'figure_nurse',
+  'figure_janitor',
+  'figure_commuter',
+  'figure_hazmat',
+  'figure_mascot',
+  'figure_bellhop',
+  'figure_guard',
+  'figure_worker',
+  'figure_patient',
+  'figure_conductor',
+  'figure_teacher',
+  'figure_cook',
+  'figure_swimmer',
+  'figure_groundskeeper',
+  'figure_receptionist',
+  'figure_courier',
+  'figure_usher',
+  'figure_tourist',
+  'figure_mechanic',
+  'figure_lifeguard',
+  'figure_vendor',
+  'figure_firefighter',
+  'figure_librarian',
+  'figure_lab_tech',
+  'figure_coach',
+  'figure_musician',
 ]);
 
 /** Build a detailed everyday model, or null when the kind is not crafted here. */
@@ -179,6 +207,8 @@ function buildCraftedAnimal(
     case 'animal_cat': buildCat(root, b, p, variant); break;
     case 'animal_horse': buildHorse(root, b, p, variant); break;
     case 'animal_rabbit': buildRabbit(root, b, p, variant); break;
+    case 'animal_fish': buildFish(root, b, p, variant); break;
+    case 'animal_crow': buildCrow(root, b, p, variant); break;
     case 'figure_deer': buildDeer(root, b, p, variant); break;
     case 'figure_baby': buildBaby(root, b, p, variant); break;
     case 'figure_balloon': buildBalloonDog(root, b, p, variant); break;
@@ -314,7 +344,49 @@ function buildHorse(root: THREE.Group, b: Bounds, p: Palette, variant: number): 
   void variant;
 }
 
-/** A rabbit with a compact body, long ears, cheek fluff, tail, and hind legs. */
+/** A fish with a fusiform body, dorsal fin, tail, pectoral fins, gills, and eye. */
+function buildFish(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const h = b.h, w = b.w, d = b.d;
+  // Body tapers nose to tail.
+  add([w * 0.5, h * 0.5, d * 0.7], [0, h * 0.5, 0], p.primary, { shape: 'sphere', name: 'fs-body' });
+  add([w * 0.42, h * 0.42, d * 0.5], [0, h * 0.5, -d * 0.3], p.secondary, { shape: 'sphere', name: 'fs-tail-haunch' });
+  add([w * 0.28, h * 0.3, d * 0.3], [0, h * 0.5, d * 0.42], p.light, { shape: 'sphere', name: 'fs-head' });
+  // Tail fin.
+  add([w * 0.3, h * 0.3, d * 0.06], [0, h * 0.5, -d * 0.5], p.secondary, { shape: 'cone', rotation: [Math.PI / 2, 0, 0], name: 'fs-tail-fin' });
+  add([w * 0.2, h * 0.2, d * 0.05], [0, h * 0.5, -d * 0.62], p.primary, { shape: 'cone', rotation: [Math.PI / 2, 0, 0], name: 'fs-tail-fin-2' });
+  // Dorsal fin.
+  add([w * 0.12, h * 0.18, d * 0.05], [0, h * 0.68, -d * 0.05], p.primary, { shape: 'cone', name: 'fs-dorsal' });
+  // Pectoral fins.
+  for (const side of [-1, 1]) add([w * 0.12, h * 0.1, d * 0.04], [side * w * 0.2, h * 0.42, d * 0.12], p.secondary, { shape: 'cone', rotation: [0, 0, side * 0.5], name: 'fs-pectoral' });
+  // Eye + gill line.
+  add([w * 0.05, h * 0.05, d * 0.04], [w * 0.2, h * 0.56, d * 0.36], p.dark, { shape: 'sphere', name: 'fs-eye' });
+  add([0.02, h * 0.24, 0.02], [0, h * 0.52, d * 0.3], p.dark, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], name: 'fs-gill' });
+  void variant;
+}
+
+/** A crow with a compact body, head, pointed beak, tail, wings, and legs. */
+function buildCrow(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const h = b.h, w = b.w, d = b.d;
+  add([w * 0.42, h * 0.36, d * 0.42], [0, h * 0.48, 0], p.dark, { shape: 'sphere', name: 'cw-body' });
+  add([w * 0.34, h * 0.3, d * 0.34], [0, h * 0.48, -d * 0.18], p.primary, { shape: 'sphere', name: 'cw-rump' });
+  add([w * 0.3, h * 0.34, d * 0.3], [0, h * 0.72, d * 0.18], p.dark, { shape: 'sphere', name: 'cw-head' });
+  // Beak.
+  add([w * 0.12, h * 0.08, d * 0.3], [0, h * 0.68, d * 0.34], p.dark, { shape: 'cone', rotation: [Math.PI / 2, 0, 0], name: 'cw-beak' });
+  // Eye.
+  add([w * 0.04, h * 0.04, d * 0.03], [0, h * 0.78, d * 0.26], p.glow, { shape: 'sphere', name: 'cw-eye' });
+  // Wings folded.
+  for (const side of [-1, 1]) add([w * 0.2, h * 0.2, d * 0.3], [side * w * 0.22, h * 0.5, 0], p.primary, { shape: 'capsule', rotation: [0, 0, side * -0.3], name: side < 0 ? 'cw-wing-l' : 'cw-wing-r' });
+  // Tail.
+  add([w * 0.1, h * 0.16, d * 0.28], [0, h * 0.5, -d * 0.32], p.dark, { shape: 'capsule', rotation: [0.3, 0, 0], name: 'cw-tail' });
+  // Legs + claws.
+  for (const side of [-1, 1]) {
+    add([0.02, h * 0.24, 0.02], [side * w * 0.08, h * 0.16, d * 0.02], p.dark, { shape: 'cylinder', name: 'cw-leg' });
+    add([0.05, 0.02, 0.06], [side * w * 0.08, h * 0.05, d * 0.04], p.dark, { shape: 'capsule', name: 'cw-foot' });
+  }
+  void variant;
+}
 function buildRabbit(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
   const add = partAdder(root);
   const h = b.h, w = b.w, d = b.d;
