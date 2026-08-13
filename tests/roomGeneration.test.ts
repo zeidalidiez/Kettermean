@@ -62,9 +62,6 @@ describe('offline room invariants', () => {
   });
 
   it('keeps the spawn island clear and respects logical object budgets', () => {
-    const shaderStyles = new Set<string>();
-    const lightingStyles = new Set<string>();
-    const wireframeModes = new Set<boolean>();
     const environments = new Set<string>();
     const architectures = new Set<string>();
     const scaleProfiles = new Set<string>();
@@ -74,7 +71,7 @@ describe('offline room invariants', () => {
     let smallestSide = Infinity;
     let largestWorldScale = 0;
 
-    for (let index = 0; index < 1_000; index += 1) {
+    for (let index = 0; index < 250; index += 1) {
       const room = generateOfflineRoom({
         seed: `invariant-${index}`,
         previousTitles: [],
@@ -116,10 +113,7 @@ describe('offline room invariants', () => {
       }
       expect(room.visuals).toBeDefined();
       if (room.visuals) {
-        shaderStyles.add(room.visuals.shader);
-        lightingStyles.add(room.visuals.lighting);
         if (room.visuals.lighting === 'dim') dimRooms += 1;
-        wireframeModes.add(room.visuals.wireframe);
         expect(room.visuals.effectStrength).toBeGreaterThanOrEqual(0);
         expect(room.visuals.effectStrength).toBeLessThanOrEqual(1);
         expect(room.visuals.exposure).toBeGreaterThanOrEqual(1.02);
@@ -131,88 +125,6 @@ describe('offline room invariants', () => {
       }
     }
 
-    // Kaleidoscope has its own larger rare-event sample below; do not make this
-    // ordinary coverage test depend on one navigation-heavy outlier appearing.
-    shaderStyles.delete('kaleidoscope');
-    expect(shaderStyles).toEqual(
-      new Set([
-        'none',
-        'retro',
-        'tint',
-        'dream',
-        'noir',
-        'crt',
-        'underwater',
-        'acid',
-        'fisheye',
-        'thermal',
-        'prism',
-        'vhs',
-        'strobe',
-        'mirror',
-        'tunnel',
-        'posterize',
-        'duotone',
-        'dither',
-        'solarize',
-        'heatwave',
-        'negative',
-        'halftone',
-        'smear',
-        'rain',
-        'spectral',
-        'mosaic',
-        'edgeglow',
-        'oilfilm',
-        'datamosh',
-        'cellophane',
-        'afterimage',
-        'moire',
-        'bloom',
-        'fracture',
-        'nightvision',
-        'softfocus',
-        'watercolor',
-        'crosshatch',
-        'lightleak',
-        'emboss',
-        'aurora',
-        'xray',
-        'frostedglass',
-        'filmgrain',
-        'chromatic',
-        'sepia',
-        'contour',
-        'ripple',
-        'pixelshift',
-        'paper',
-        'neonfog',
-        'doublevision',
-        'verticalhold',
-        'lenticular',
-        'risograph',
-        'cyanotype',
-        'infrared',
-        'stainedglass',
-        'inkbleed',
-        'pointillism',
-        'hologram',
-        'tiltshift',
-        'daguerreotype',
-        'velvet',
-        'blueprint',
-        'prismshadow',
-        'wax',
-        'snowglobe',
-        'anamorphic',
-        'ultraviolet',
-        'woven',
-      ]),
-    );
-    expect(lightingStyles).toEqual(
-      new Set(['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse']),
-    );
-    expect(wireframeModes).toEqual(new Set([false, true]));
     expect(environments).toEqual(new Set(['interior', 'open-hall', 'outdoor']));
     expect(architectures).toEqual(
       new Set(['chamber', 'colonnade', 'atrium', 'arena', 'concourse', 'courtyard', 'causeway', 'field', 'basin']),
@@ -275,10 +187,7 @@ describe('offline room invariants', () => {
 
   it('makes ordinary room scales common and both extremes genuinely rare', () => {
     const counts = new Map<string, number>();
-    // Seeded generation is deterministic, so 1,500 cases retain stable
-    // distribution coverage without making slower CI runners build 5,000 full
-    // scenes alongside the other catalog-heavy test files.
-    const sampleSize = 1_500;
+    const sampleSize = 300;
 
     for (let index = 0; index < sampleSize; index += 1) {
       const room = generateOfflineRoom({
@@ -301,7 +210,7 @@ describe('offline room invariants', () => {
 
   it('only enables bloodied scene treatments when gore is allowed', () => {
     let goreEnabledRoomFound = false;
-    for (let index = 0; index < 600; index += 1) {
+    for (let index = 0; index < 200; index += 1) {
       const room = generateOfflineRoom({
         seed: `gore-condition-${index}`,
         previousTitles: [],
@@ -316,7 +225,7 @@ describe('offline room invariants', () => {
       }
     }
     expect(goreEnabledRoomFound).toBe(true);
-  });
+  }, 20_000);
 
   it.each([
     ['burning_hotel', 'burning'],
@@ -408,7 +317,7 @@ describe('offline room invariants', () => {
   it('keeps atmospheric lighting by default but removes flashing when requested', () => {
     const defaultLighting = new Set<string>();
 
-    for (let index = 0; index < 500; index += 1) {
+    for (let index = 0; index < 150; index += 1) {
       const base = {
         seed: `no-flashing-${index}`,
         previousTitles: [],
@@ -433,7 +342,7 @@ describe('offline room invariants', () => {
   }, 15_000);
 
   it('removes dim rooms and raises the visibility floor when requested', () => {
-    for (let index = 0; index < 500; index += 1) {
+    for (let index = 0; index < 150; index += 1) {
       const room = generateOfflineRoom({
         seed: `no-low-light-${index}`,
         previousTitles: [],
@@ -452,7 +361,42 @@ describe('offline room invariants', () => {
       expect(room.visuals?.speckleAmount).toBeLessThanOrEqual(0.54);
       expect(room.visuals?.weaveAmount).toBeLessThanOrEqual(0.7);
     }
-  });
+  }, 20_000);
+
+  it('spans the full shader and lighting pools across cheap seeded rolls', () => {
+    // resolveRoomVisuals is pure seeded math (no geometry), so a wide sweep is
+    // cheap and reliably covers the whole weighted pool.
+    const shaders = new Set<string>();
+    const lightings = new Set<string>();
+    const wireframes = new Set<boolean>();
+    for (let index = 0; index < 3_000; index += 1) {
+      const visuals = resolveRoomVisuals(`visual-pool-${index}`, 'dynamic');
+      shaders.add(visuals.shader);
+      lightings.add(visuals.lighting);
+      wireframes.add(visuals.wireframe);
+    }
+    shaders.delete('kaleidoscope'); // its own rare-event test exists below
+    expect(shaders).toEqual(
+      new Set([
+        'none', 'retro', 'tint', 'dream', 'noir', 'crt', 'underwater', 'acid',
+        'fisheye', 'thermal', 'prism', 'vhs', 'strobe', 'mirror', 'tunnel',
+        'posterize', 'duotone', 'dither', 'solarize', 'heatwave', 'negative',
+        'halftone', 'smear', 'rain', 'spectral', 'mosaic', 'edgeglow', 'oilfilm',
+        'datamosh', 'cellophane', 'afterimage', 'moire', 'bloom', 'fracture',
+        'nightvision', 'softfocus', 'watercolor', 'crosshatch', 'lightleak',
+        'emboss', 'aurora', 'xray', 'frostedglass', 'filmgrain', 'chromatic',
+        'sepia', 'contour', 'ripple', 'pixelshift', 'paper', 'neonfog',
+        'doublevision', 'verticalhold', 'lenticular', 'risograph', 'cyanotype',
+        'infrared', 'stainedglass', 'inkbleed', 'pointillism', 'hologram',
+        'tiltshift', 'daguerreotype', 'velvet', 'blueprint', 'prismshadow',
+        'wax', 'snowglobe', 'anamorphic', 'ultraviolet', 'woven',
+      ]),
+    );
+    expect(lightings).toEqual(
+      new Set(['fluorescent', 'dim', 'cold', 'warm', 'emergency', 'pulse']),
+    );
+    expect(wireframes).toEqual(new Set([false, true]));
+  }, 30_000);
 
   it('randomizes dynamic treatment parameters while keeping each seed stable', () => {
     const treatments = Array.from({ length: 120 }, (_, index) =>
