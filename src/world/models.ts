@@ -49,7 +49,12 @@ import {
 import type { SemanticModelKind } from './semanticAssets';
 import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
 import type { CinematicModelKind } from './cinematicAssets';
-import { CINEMATIC_BOUNDS, buildCinematicModel, isCinematicModelKind } from './cinematicModels';
+import {
+  CINEMATIC_BOUNDS,
+  buildCinematicLegacyModel,
+  buildCinematicModel,
+  isCinematicModelKind,
+} from './cinematicModels';
 
 export type PropKind =
   | 'chair'
@@ -2306,6 +2311,14 @@ function createModel(
 ): THREE.Group {
   const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
   if (cinematic) return cinematic;
+  const legacyUpgrade = buildCinematicLegacyModel(
+    String(kind),
+    assetVariant(assetId),
+    accent,
+    body,
+    boundsForKind(kind),
+  );
+  if (legacyUpgrade) return legacyUpgrade;
   const atelier = buildAtelierModel(kind, assetVariant(assetId), accent, body);
   if (atelier) return atelier;
   const exhibition = buildExhibitionModel(kind, assetVariant(assetId), accent, body);

@@ -80,6 +80,84 @@ function buildCinematicProp(
   return root;
 }
 
+const LEGACY_KIND_FORMS: Record<string, CinematicPropForm> = {
+  chair: 'seating',
+  armchair: 'seating',
+  sofa: 'seating',
+  sectional: 'seating',
+  dining_chair: 'seating',
+  office_chair: 'seating',
+  stool: 'seating',
+  bench: 'seating',
+  garden_bench: 'seating',
+  pool_lounger: 'seating',
+  cinema_seat: 'seating',
+  airport_seat: 'seating',
+  desk: 'table',
+  reception_desk: 'table',
+  coffee_table: 'table',
+  side_table: 'table',
+  table: 'table',
+  cafeteria_table: 'table',
+  folding_table: 'table',
+  lab_bench: 'table',
+  greenhouse_table: 'table',
+  cabinet: 'casework',
+  filing_cabinet: 'casework',
+  wardrobe: 'casework',
+  bookcase: 'casework',
+  shelf: 'casework',
+  locker: 'casework',
+  utility_shelf: 'casework',
+  vending: 'retail',
+  plant: 'greenspace',
+  planter: 'greenspace',
+  lamp: 'ceremonial',
+  mattress: 'soft',
+  crib: 'soft',
+  hospital_bed: 'soft',
+  examination_bed: 'soft',
+  cooler: 'kitchen',
+  washer: 'kitchen',
+  trash: 'industrial',
+  cart: 'industrial',
+  generator: 'industrial',
+  boiler: 'industrial',
+  server_rack: 'technology',
+  tv: 'technology',
+  terminal: 'technology',
+  phone_booth: 'transport',
+  payphone: 'transport',
+};
+
+/**
+ * Rebuild the pre-cinematic everyday kinds through the high-detail prop forms so
+ * rooms stop rendering basic lego silhouettes. Bounds come from the caller to
+ * avoid a module cycle with models.ts.
+ */
+export function buildCinematicLegacyModel(
+  kind: string,
+  variant: number,
+  accent: string,
+  body: string,
+  bounds: { w: number; h: number; d: number },
+): THREE.Group | null {
+  const form = LEGACY_KIND_FORMS[kind];
+  if (!form) return null;
+  const palette = paletteFor(`legacy_${kind}` as CinematicModelKind, variant, accent, body);
+  const familyIndex = hashString(kind) % 120;
+  const root = new THREE.Group();
+  buildPropChassis(root, bounds, palette, variant, familyIndex, form);
+  addPropIdentity(root, bounds, palette, variant, form);
+  addPropFinish(root, bounds, palette, variant, familyIndex);
+  root.name = `${kind}-${variant}`;
+  root.userData.detailTier = 'cinematic';
+  root.userData.detailVariant = variant;
+  root.userData.legacyUpgrade = true;
+  root.userData.geometryOnly = true;
+  return root;
+}
+
 function buildPropChassis(
   root: THREE.Group,
   b: Bounds,
