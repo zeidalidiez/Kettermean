@@ -48,6 +48,7 @@ import {
 } from './semanticModels';
 import type { SemanticModelKind } from './semanticAssets';
 import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
+import { buildCraftedModel } from './craftedModels';
 import type { CinematicModelKind } from './cinematicAssets';
 import {
   CINEMATIC_BOUNDS,
@@ -2311,6 +2312,8 @@ function createModel(
 ): THREE.Group {
   const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
   if (cinematic) return cinematic;
+  const crafted = buildCraftedModel(kind, assetVariant(assetId), accent, body, boundsForKind(kind));
+  if (crafted) return crafted;
   const legacyUpgrade = buildCinematicLegacyModel(
     String(kind),
     assetVariant(assetId),
