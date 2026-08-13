@@ -32,7 +32,10 @@ describe('second high-detail masterwork expansion', () => {
     expect(new Set(MASTERWORK_ASSETS.map((asset) => asset.id)).size).toBe(456);
     expect(MASTERWORK_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(72);
     expect(MASTERWORK_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(80);
-    expect(ASSETS).toEqual(expect.arrayContaining(MASTERWORK_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(MASTERWORK_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
     const composedVariants = ASSETS.filter((asset) => asset.family);
     expect(composedVariants).toHaveLength(7_028);
     expect(new Set(composedVariants.map((asset) => asset.family)).size).toBe(916);

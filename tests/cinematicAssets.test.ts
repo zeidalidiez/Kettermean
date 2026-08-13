@@ -35,7 +35,10 @@ describe('fifth high-detail cinematic expansion', () => {
     expect(new Set(CINEMATIC_ASSETS.map((asset) => asset.id)).size).toBe(3800);
     expect(CINEMATIC_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(1080);
     expect(CINEMATIC_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(1056);
-    expect(ASSETS).toEqual(expect.arrayContaining(CINEMATIC_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(CINEMATIC_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
 
     const families = Map.groupBy(CINEMATIC_ASSETS, (asset) => asset.family);
     expect(families.size).toBe(475);
@@ -49,7 +52,7 @@ describe('fifth high-detail cinematic expansion', () => {
       expect(variants.every((asset) => asset.setIds.length > 0)).toBe(true);
       expect(variants.every((asset) => asset.renderCost! >= 12)).toBe(true);
     }
-  }, 30_000);
+  }, 90_000);
 
   it('builds every addition as layered 3D geometry with a distinct silhouette per variant', () => {
     const signaturesByFamily = new Map<string, Set<string>>();

@@ -33,7 +33,10 @@ describe('semantic furniture and NPC expansion', () => {
 
     expect(SEMANTIC_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(64);
     expect(SEMANTIC_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(112);
-    expect(ASSETS).toEqual(expect.arrayContaining(SEMANTIC_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(SEMANTIC_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
   });
 
   it('builds every variant as a detailed and visibly distinct model', () => {

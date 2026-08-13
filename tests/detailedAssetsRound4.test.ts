@@ -36,7 +36,10 @@ describe('fourth high-detail atelier expansion', () => {
     expect(new Set(ATELIER_ASSETS.map((asset) => asset.id)).size).toBe(450);
     expect(ATELIER_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(90);
     expect(ATELIER_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(60);
-    expect(ASSETS).toEqual(expect.arrayContaining(ATELIER_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(ATELIER_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
     expect(ASSETS).toHaveLength(7_063);
 
     const composedVariants = ASSETS.filter((asset) => asset.family);

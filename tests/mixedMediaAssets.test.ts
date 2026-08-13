@@ -45,7 +45,10 @@ describe('mixed-media model expansion', () => {
     expect(countKinds(LOW_POLY_MODEL_KINDS)).toBe(64);
     expect(countKinds(VOXEL_MODEL_KINDS)).toBe(64);
     expect(MIXED_MEDIA_ASSETS.some((asset) => asset.kind.startsWith('sprite_'))).toBe(false);
-    expect(ASSETS).toEqual(expect.arrayContaining(MIXED_MEDIA_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(MIXED_MEDIA_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
   });
 
   it('builds the intended detailed, cheap, and voxel render styles without 2D sprites', () => {

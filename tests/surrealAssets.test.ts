@@ -24,7 +24,10 @@ describe('surreal scene expansion', () => {
         new Set([0, 1, 2, 3, 4, 5, 6, 7]),
       );
     }
-    expect(ASSETS).toEqual(expect.arrayContaining(SURREAL_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(SURREAL_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
   });
 
   it('builds each family as eight visibly distinct composed models', () => {

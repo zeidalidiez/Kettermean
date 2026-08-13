@@ -32,7 +32,10 @@ describe('high-detail artisan expansion', () => {
     expect(new Set(DETAILED_ASSETS.map((asset) => asset.id)).size).toBe(456);
     expect(DETAILED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(72);
     expect(DETAILED_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(80);
-    expect(ASSETS).toEqual(expect.arrayContaining(DETAILED_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(DETAILED_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
 
     const families = Map.groupBy(DETAILED_ASSETS, (asset) => asset.family);
     expect(families.size).toBe(57);

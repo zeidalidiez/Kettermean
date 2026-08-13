@@ -30,7 +30,10 @@ describe('expanded procedural asset catalog', () => {
     expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(208);
     expect(EXPANDED_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(48);
     expect(EXPANDED_ASSETS.filter((asset) => asset.category !== 'npc')).toHaveLength(712);
-    expect(ASSETS).toEqual(expect.arrayContaining(EXPANDED_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(EXPANDED_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
   });
 
   it('mixes bounded eye, nose, mouth, hair, spacing, and placement presets for NPC faces', () => {

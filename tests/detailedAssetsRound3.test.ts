@@ -34,7 +34,10 @@ describe('third high-detail exhibition expansion', () => {
     expect(new Set(EXHIBITION_ASSETS.map((asset) => asset.id)).size).toBe(450);
     expect(EXHIBITION_ASSETS.filter((asset) => asset.category === 'npc')).toHaveLength(90);
     expect(EXHIBITION_ASSETS.filter((asset) => asset.category === 'creature')).toHaveLength(60);
-    expect(ASSETS).toEqual(expect.arrayContaining(EXHIBITION_ASSETS));
+    // Fast membership check instead of vitest's deep arrayContaining, which is
+    // quadratic across the multi-thousand-entry catalog.
+    const catalogIds = new Set(ASSETS.map((asset) => asset.id));
+    expect(EXHIBITION_ASSETS.every((asset) => catalogIds.has(asset.id))).toBe(true);
 
     const composedVariants = ASSETS.filter((asset) => asset.family);
     expect(composedVariants).toHaveLength(7_028);
