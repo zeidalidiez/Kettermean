@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { ROOM } from '../config';
 
 /**
@@ -25,46 +26,128 @@ export interface ShapeDensity {
   torus: [number, number];
   /** CapsuleGeometry(..., capSegments, radialSegments). */
   capsule: [number, number];
-  /** BoxGeometry(..., widthSegments, heightSegments, depthSegments). */
-  box: [number, number, number];
+  /** RoundedBoxGeometry(..., bevelSegments). */
+  box: [number, number];
+  /** LatheGeometry(profile, radialSegments). */
+  lathe: [number];
 }
 
 const DENSITY: Record<ModelQuality, ShapeDensity> = {
   low: {
-    sphere: [12, 8],
-    cylinder: [12, 1],
-    cone: [12, 1],
-    torus: [8, 12],
-    capsule: [6, 10],
-    box: [1, 1, 1],
+    sphere: [14, 10],
+    cylinder: [14, 1],
+    cone: [14, 1],
+    torus: [10, 16],
+    capsule: [6, 12],
+    box: [1, 0.05],
+    lathe: [14],
   },
   medium: {
-    sphere: [18, 12],
-    cylinder: [18, 2],
-    cone: [18, 2],
-    torus: [10, 20],
-    capsule: [8, 12],
-    box: [2, 2, 2],
+    sphere: [22, 15],
+    cylinder: [22, 2],
+    cone: [22, 2],
+    torus: [12, 24],
+    capsule: [8, 16],
+    box: [2, 0.05],
+    lathe: [20],
   },
   high: {
-    sphere: [28, 20],
-    cylinder: [28, 3],
-    cone: [28, 3],
-    torus: [14, 32],
-    capsule: [10, 18],
-    box: [4, 4, 4],
+    sphere: [32, 22],
+    cylinder: [32, 4],
+    cone: [32, 4],
+    torus: [16, 36],
+    capsule: [12, 20],
+    box: [3, 0.06],
+    lathe: [28],
   },
   ultra: {
-    sphere: [36, 24],
-    cylinder: [36, 4],
-    cone: [36, 4],
-    torus: [18, 48],
-    capsule: [14, 26],
-    box: [5, 5, 5],
+    sphere: [44, 30],
+    cylinder: [44, 6],
+    cone: [44, 6],
+    torus: [22, 48],
+    capsule: [16, 28],
+    box: [4, 0.06],
+    lathe: [40],
   },
 };
 
 const GEOMETRY_CACHE = new Map<string, THREE.BufferGeometry>();
+
+/** A turned-wood profile: swelling near the top, taper to a small foot. */
+function latheTurnedProfile(): THREE.Vector2[] {
+  return [
+    new THREE.Vector2(0.02, 0.0),
+    new THREE.Vector2(0.1, 0.02),
+    new THREE.Vector2(0.14, 0.08),
+    new THREE.Vector2(0.12, 0.16),
+    new THREE.Vector2(0.16, 0.3),
+    new THREE.Vector2(0.14, 0.5),
+    new THREE.Vector2(0.12, 0.68),
+    new THREE.Vector2(0.13, 0.8),
+    new THREE.Vector2(0.09, 0.9),
+    new THREE.Vector2(0.06, 0.97),
+    new THREE.Vector2(0.03, 1.0),
+  ];
+}
+
+/** A tapered cone profile for contemporary legs. */
+function latheTaperProfile(): THREE.Vector2[] {
+  return [
+    new THREE.Vector2(0.04, 0.0),
+    new THREE.Vector2(0.07, 0.04),
+    new THREE.Vector2(0.09, 0.18),
+    new THREE.Vector2(0.1, 0.4),
+    new THREE.Vector2(0.1, 0.7),
+    new THREE.Vector2(0.08, 0.9),
+    new THREE.Vector2(0.05, 1.0),
+  ];
+}
+
+/** A column profile with capital, shaft, and base. */
+function latheColumnProfile(): THREE.Vector2[] {
+  return [
+    new THREE.Vector2(0.16, 0.0),
+    new THREE.Vector2(0.18, 0.03),
+    new THREE.Vector2(0.12, 0.06),
+    new THREE.Vector2(0.11, 0.9),
+    new THREE.Vector2(0.15, 0.94),
+    new THREE.Vector2(0.18, 0.97),
+    new THREE.Vector2(0.17, 1.0),
+  ];
+}
+
+/** A vase/bowl profile with a rounded belly and flared rim. */
+function latheVaseProfile(): THREE.Vector2[] {
+  return [
+    new THREE.Vector2(0.1, 0.0),
+    new THREE.Vector2(0.12, 0.02),
+    new THREE.Vector2(0.22, 0.12),
+    new THREE.Vector2(0.3, 0.34),
+    new THREE.Vector2(0.26, 0.55),
+    new THREE.Vector2(0.17, 0.72),
+    new THREE.Vector2(0.1, 0.82),
+    new THREE.Vector2(0.06, 0.88),
+    new THREE.Vector2(0.09, 0.93),
+    new THREE.Vector2(0.16, 0.97),
+    new THREE.Vector2(0.15, 1.0),
+  ];
+}
+
+const LATHE_PROFILES = [
+  latheTurnedProfile,
+  latheTaperProfile,
+  latheColumnProfile,
+  latheVaseProfile,
+];
+
+export type LatheProfile = 'turned' | 'taper' | 'column' | 'vase';
+
+const LATHE_PROFILE_INDEX: Record<LatheProfile, number> = {
+  turned: 0,
+  taper: 1,
+  column: 2,
+  vase: 3,
+};
 
 /**
  * Shared primitives keyed by the active quality. Geometry is only allocated once
@@ -94,9 +177,24 @@ export function geometryForShape(
     case 'capsule':
       geometry = new THREE.CapsuleGeometry(0.36, 0.28, d[0], d[1]);
       break;
+    case 'lathe':
+      geometry = new THREE.LatheGeometry(LATHE_PROFILES[0]!(), d[0]);
+      break;
     default:
-      geometry = new THREE.BoxGeometry(1, 1, 1, d[0], d[1], d[2]);
+      geometry = new RoundedBoxGeometry(1, 1, 1, d[0], d[1]);
   }
+  geometry.userData.cacheOwned = true;
+  GEOMETRY_CACHE.set(key, geometry);
+  return geometry;
+}
+
+/** A lathe-turned part selected by profile name, cached per quality. */
+export function geometryForLathe(profile: LatheProfile): THREE.BufferGeometry {
+  const d = DENSITY[activeQuality].lathe;
+  const key = `${activeQuality}:lathe:${profile}`;
+  const cached = GEOMETRY_CACHE.get(key);
+  if (cached) return cached;
+  const geometry = new THREE.LatheGeometry(LATHE_PROFILES[LATHE_PROFILE_INDEX[profile]]!(), d[0]);
   geometry.userData.cacheOwned = true;
   GEOMETRY_CACHE.set(key, geometry);
   return geometry;

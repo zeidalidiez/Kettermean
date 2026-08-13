@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { geometryForShape } from './modelQuality';
+import { geometryForLathe, geometryForShape } from './modelQuality';
+import type { LatheProfile } from './modelQuality';
 import type { PropKind } from './models';
 
 /**
@@ -15,6 +16,8 @@ type Bounds = { w: number; h: number; d: number };
 
 interface PartOptions {
   shape?: Shape;
+  /** Turn the part as a lathe profile (turned legs, vases, columns). */
+  lathe?: LatheProfile;
   rotation?: [number, number, number];
   roughness?: number;
   metalness?: number;
@@ -554,9 +557,7 @@ function buildChair(root: THREE.Group, b: Bounds, p: Palette, variant: number): 
   for (const lx of [-1, 1]) for (const lz of [-1, 1]) {
     const x = lx * w * 0.38;
     const z = lz * d * 0.38;
-    add([0.05, h * 0.08, 0.05], [x, h * 0.035, z], p.dark, { shape: 'cylinder', name: 'c-foot' });
-    add([0.04, h * 0.42, 0.04], [x, h * 0.28, z], p.trim, { shape: 'cylinder', name: 'c-leg' });
-    add([0.055, h * 0.1, 0.055], [x, h * 0.34, z], p.dark, { shape: 'cylinder', name: 'c-leg-knee' });
+    add([w * 0.16, h * 0.44, w * 0.16], [x, h * 0.24, z], p.dark, { lathe: 'turned', name: 'c-leg' });
   }
   // Stretchers between legs.
   for (const sx of [-1, 1]) {
@@ -784,9 +785,7 @@ function buildTable(root: THREE.Group, b: Bounds, p: Palette, variant: number): 
   // Turned legs.
   for (const lx of [-1, 1]) for (const lz of [-1, 1]) {
     const x = lx * w * 0.42, z = lz * d * 0.42;
-    add([0.07, h * 0.76, 0.07], [x, h * 0.38, z], p.dark, { shape: 'cylinder', name: 't-leg' });
-    add([0.09, h * 0.08, 0.09], [x, h * 0.06, z], p.trim, { shape: 'cylinder', name: 't-leg-knee' });
-    add([0.08, 0.05, 0.08], [x, h * 0.03, z], p.dark, { shape: 'sphere', name: 't-foot' });
+    add([w * 0.16, h * 0.8, w * 0.16], [x, h * 0.42, z], p.dark, { lathe: 'turned', name: 't-leg' });
   }
   // Stretchers.
   add([0.04, 0.04, d * 0.7], [0, h * 0.28, 0], p.trim, { shape: 'cylinder', name: 't-stretcher' });
@@ -969,8 +968,7 @@ function buildPlant(root: THREE.Group, b: Bounds, p: Palette, variant: number): 
   const add = partAdder(root);
   const h = b.h, w = b.w, d = b.d;
   // Pot with rim.
-  add([w * 0.5, h * 0.22, d * 0.5], [0, h * 0.11, 0], p.secondary, { shape: 'cylinder', name: 'pl-pot' });
-  add([w * 0.54, 0.04, d * 0.54], [0, h * 0.22, 0], p.trim, { shape: 'cylinder', name: 'pl-rim' });
+  add([w * 0.6, h * 0.26, d * 0.6], [0, h * 0.13, 0], p.secondary, { lathe: 'vase', name: 'pl-pot' });
   // Soil.
   add([w * 0.46, 0.03, d * 0.46], [0, h * 0.24, 0], p.dark, { shape: 'cylinder', name: 'pl-soil' });
   // Trunk.
@@ -992,16 +990,12 @@ function buildPlant(root: THREE.Group, b: Bounds, p: Palette, variant: number): 
 function buildLamp(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
   const add = partAdder(root);
   const h = b.h, w = b.w;
-  // Base.
-  add([w * 0.4, 0.05, w * 0.4], [0, h * 0.03, 0], p.dark, { shape: 'cylinder', name: 'l-base' });
-  add([w * 0.32, 0.05, w * 0.32], [0, h * 0.08, 0], p.trim, { shape: 'cylinder', name: 'l-base-2' });
-  // Stem.
-  add([0.04, h * 0.5, 0.04], [0, h * 0.35, 0], p.metal, { shape: 'cylinder', name: 'l-stem' });
+  // Turned base.
+  add([w * 0.5, h * 0.22, w * 0.5], [0, h * 0.12, 0], p.dark, { lathe: 'column', name: 'l-base' });
+  // Turned stem.
+  add([w * 0.22, h * 0.5, w * 0.22], [0, h * 0.44, 0], p.metal, { lathe: 'turned', name: 'l-stem' });
   // Shade.
-  add([w * 0.34, h * 0.2, w * 0.34], [0, h * 0.72, 0], p.primary, { shape: 'cone', rotation: [Math.PI, 0, 0], name: 'l-shade' });
-  add([w * 0.36, 0.02, w * 0.36], [0, h * 0.82, 0], p.trim, { shape: 'cylinder', name: 'l-shade-top' });
-  // Finial.
-  add([0.05, 0.08, 0.05], [0, h * 0.88, 0], p.metal, { shape: 'sphere', name: 'l-finial' });
+  add([w * 0.34, h * 0.24, w * 0.34], [0, h * 0.74, 0], p.primary, { lathe: 'vase', rotation: [Math.PI, 0, 0], name: 'l-shade' });
   // Bulb glow.
   add([w * 0.08, 0.06, w * 0.08], [0, h * 0.64, 0], p.glow, { shape: 'sphere', emissive: p.glow, emissiveIntensity: 0.8, name: 'l-bulb' });
   void variant;
@@ -1167,7 +1161,12 @@ function partAdder(parent: THREE.Object3D) {
       opacity,
       depthWrite: opacity >= 0.5,
     });
-    const mesh = new THREE.Mesh(geometryForShape(options.shape ?? 'box'), material);
+    const mesh = new THREE.Mesh(
+      options.lathe
+        ? geometryForLathe(options.lathe)
+        : geometryForShape(options.shape ?? 'box'),
+      material,
+    );
     mesh.scale.set(...scale);
     mesh.position.set(...position);
     if (options.rotation) mesh.rotation.set(...options.rotation);
