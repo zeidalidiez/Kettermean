@@ -107,13 +107,41 @@ function buildArchetype(
 ): void {
   const text = `${kind} ${form}`;
 
-  if (/(pipe_organ|player_piano|perfumery_organ|aurora_light_organ)/.test(text)) {
+  if (/(magic_lantern|film_projector)/.test(kind)) {
+    buildProjector(root, kind, b, p, variant);
+  } else if (kind.includes('optometrist_phoropter')) {
+    buildPhoropter(root, b, p, variant);
+  } else if (kind.includes('fresnel_lighthouse_lens')) {
+    buildFresnelLens(root, b, p, variant);
+  } else if (kind.includes('seismograph')) {
+    buildSeismograph(root, b, p, variant);
+  } else if (/(seed_archive_carousel|seed_vault_indexer)/.test(kind)) {
+    buildSeedCarousel(root, b, p, variant);
+  } else if (kind.includes('rotary_deli_slicer')) {
+    buildDeliSlicer(root, b, p, variant);
+  } else if (kind.includes('processional_canopy')) {
+    buildProcessionalCanopy(root, b, p, variant);
+  } else if (kind.includes('topiary_frame')) {
+    buildTopiary(root, b, p, variant);
+  } else if (kind.includes('votive_candle_rack')) {
+    buildVotiveRack(root, b, p, variant);
+  } else if (kind.includes('surgical_carousel')) {
+    buildSurgicalCarousel(root, b, p, variant);
+  } else if (kind.includes('kinetic_chandelier')) {
+    buildChandelier(root, b, p, variant);
+  } else if (kind.includes('ceremonial_tea_robot')) {
+    buildTeaRobot(root, b, p, variant);
+  } else if (kind.includes('navigation_throne')) {
+    buildNavigationThrone(root, kind, b, p, variant);
+  } else if (kind.includes('polar_expedition_sledge')) {
+    buildSledge(root, b, p, variant);
+  } else if (/(pipe_organ|player_piano|perfumery_organ|aurora_light_organ)/.test(text)) {
     buildKeyboardInstrument(root, b, p, variant);
   } else if (/(clock)/.test(kind) && !/(clockmaker_bench|clockwork_proscenium)/.test(kind)) {
     buildClock(root, b, p, variant);
   } else if (/(gramophone|phonograph|record_console|radio_cabinet|dictation|reel_to_reel)/.test(kind)) {
     buildAudio(root, kind, b, p, variant);
-  } else if (/(telescope|camera_tripod|magic_lantern|film_projector|spotlight|fresnel|phoropter|stereoscope|planetarium_projector|star_chart_projector)/.test(kind)) {
+  } else if (/(telescope|camera_tripod|spotlight|stereoscope|planetarium_projector|star_chart_projector)/.test(kind)) {
     buildOpticalInstrument(root, kind, b, p, variant);
   } else if (/(loom|sewing|laundry_folding|haberdashery|glove_fitting)/.test(kind) || form === 'textile' || form === 'tailoring') {
     buildTextileMachine(root, kind, b, p, variant);
@@ -266,6 +294,198 @@ function buildMycologyIncubator(root: THREE.Group, b: Bounds, p: Palette, varian
   for (let gauge = 0; gauge < 2; gauge += 1) {
     add([b.w * 0.055, b.w * 0.055, b.d * 0.025], [-b.w * (0.3 - gauge * 0.1), b.h * 0.88, b.d * 0.44], gauge ? p.glow : p.paintDark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], emissive: gauge ? p.glow : undefined, emissiveIntensity: 0.15, name: 'incubator-gauge' });
   }
+}
+
+function buildProjector(root: THREE.Group, kind: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const deckY = b.h * 0.48;
+  add([b.w * 0.72, b.h * 0.08, b.d * 0.66], [0, b.h * 0.04, 0], p.paintDark, { name: 'projector-steel-base' });
+  for (const x of [-0.25, 0.25]) add([b.w * 0.045, b.h * 0.43, b.w * 0.045], [x * b.w, b.h * 0.25, 0], p.metal, { shape: 'cylinder', metalness: 0.55, name: 'projector-stand-leg' });
+  add([b.w * 0.62, b.h * 0.07, b.d * 0.56], [0, deckY, 0], p.metal, { name: 'projector-stand-deck', metalness: 0.42 });
+  add([b.w * 0.56, b.h * 0.3, b.d * 0.48], [0, b.h * 0.66, 0], p.paint, { name: kind.includes('magic') ? 'magic-lantern-box-body' : 'film-projector-box-body' });
+  add([b.w * 0.18, b.w * 0.18, b.d * 0.34], [0, b.h * 0.67, b.d * 0.38], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], metalness: 0.5, name: 'projector-lens-barrel' });
+  add([b.w * 0.15, b.w * 0.035, b.w * 0.15], [0, b.h * 0.67, b.d * 0.56], p.glass, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], opacity: 0.62, emissive: p.glow, emissiveIntensity: 0.13, name: 'projector-glass-lens' });
+  if (!kind.includes('magic')) {
+    for (const side of [-1, 1]) {
+      add([b.w * 0.3, b.w * 0.3, b.d * 0.045], [side * b.w * 0.25, b.h * 0.91, -b.d * 0.06], p.metal, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], metalness: 0.55, name: 'projector-film-reel' });
+      add([b.w * 0.055, b.w * 0.055, b.d * 0.04], [side * b.w * 0.25, b.h * 0.91, -b.d * 0.035], p.paintDark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'projector-reel-hub' });
+    }
+  } else {
+    add([b.w * 0.42, b.h * 0.06, b.d * 0.42], [0, b.h * 0.84, 0], p.metal, { name: 'magic-lantern-vented-roof', metalness: 0.4 });
+    add([b.w * 0.16, b.h * 0.22, b.d * 0.04], [-b.w * 0.31, b.h * 0.66, 0], p.glass, { opacity: 0.55, emissive: p.glow, emissiveIntensity: 0.18, name: 'magic-lantern-slide-glass' });
+  }
+  void variant;
+}
+
+function buildPhoropter(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.66, b.h * 0.07, b.d * 0.66], [0, b.h * 0.04, 0], p.paintDark, { name: 'phoropter-steel-base' });
+  add([b.w * 0.09, b.h * 0.74, b.w * 0.09], [0, b.h * 0.42, -b.d * 0.18], p.metal, { shape: 'cylinder', metalness: 0.6, name: 'phoropter-support-column' });
+  add([b.w * 0.68, b.h * 0.06, b.d * 0.08], [0, b.h * 0.8, 0], p.metal, { name: 'phoropter-cross-arm', metalness: 0.6 });
+  for (const side of [-1, 1]) {
+    add([b.w * 0.28, b.h * 0.32, b.d * 0.14], [side * b.w * 0.22, b.h * 0.69, b.d * 0.08], p.paint, { name: 'phoropter-lens-housing' });
+    for (let lens = 0; lens < 4; lens += 1) {
+      const angle = lens / 4 * Math.PI * 2;
+      add([b.w * 0.085, b.w * 0.025, b.w * 0.085], [side * b.w * 0.22 + Math.cos(angle) * b.w * 0.075, b.h * 0.69 + Math.sin(angle) * b.h * 0.075, b.d * 0.16], p.glass, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], opacity: 0.62, name: 'phoropter-glass-lens' });
+    }
+  }
+  add([b.w * 0.18, b.h * 0.045, b.d * 0.07], [0, b.h * 0.65, b.d * 0.1], p.metal, { name: 'phoropter-nose-bridge', metalness: 0.5 });
+  void variant;
+}
+
+function buildFresnelLens(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.76, b.h * 0.09, b.d * 0.76], [0, b.h * 0.055, 0], p.brass, { shape: 'cylinder', metalness: 0.58, name: 'fresnel-rotating-base' });
+  add([b.w * 0.5, b.h * 0.62, b.d * 0.5], [0, b.h * 0.48, 0], p.glass, { shape: 'cylinder', opacity: 0.32, emissive: p.glow, emissiveIntensity: 0.1, name: 'fresnel-prismatic-glass' });
+  for (let ring = 0; ring < 6; ring += 1) {
+    add([b.w * (0.51 + ring % 2 * 0.035), b.w * (0.51 + ring % 2 * 0.035), b.w * 0.025], [0, b.h * (0.25 + ring * 0.105), 0], ring % 2 ? p.brass : p.glass, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], opacity: ring % 2 ? 1 : 0.58, metalness: ring % 2 ? 0.55 : 0, name: ring % 2 ? 'fresnel-brass-band' : 'fresnel-glass-prism-ring' });
+  }
+  add([b.w * 0.16, b.w * 0.16, b.w * 0.16], [0, b.h * 0.52, 0], p.glow, { shape: 'sphere', emissive: p.glow, emissiveIntensity: 0.3, name: 'fresnel-lamp-core' });
+  add([b.w * 0.7, b.h * 0.06, b.d * 0.7], [0, b.h * 0.86, 0], p.brass, { shape: 'cylinder', metalness: 0.58, name: 'fresnel-top-frame' });
+  void variant;
+}
+
+function buildSeismograph(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const deckY = b.h * 0.52;
+  add([b.w * 0.94, b.h * 0.08, b.d * 0.78], [0, deckY, 0], p.wood, { name: 'seismograph-desk-top' });
+  for (const x of [-0.4, 0.4]) for (const z of [-0.31, 0.31]) add([b.w * 0.055, deckY, b.d * 0.055], [x * b.w, deckY / 2, z * b.d], p.woodDark, { name: 'seismograph-desk-leg' });
+  add([b.w * 0.38, b.d * 0.38, b.d * 0.38], [-b.w * 0.18, b.h * 0.69, 0], p.light, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'seismograph-paper-drum' });
+  for (let line = -2; line <= 2; line += 1) add([b.w * 0.012, b.d * 0.385, b.d * 0.385], [-b.w * 0.18 + line * b.w * 0.065, b.h * 0.69, 0], p.paintDark, { shape: 'torus', rotation: [0, Math.PI / 2, 0], name: 'seismograph-paper-trace' });
+  addBeamBetween(root, [b.w * 0.06, b.h * 0.84, 0], [-b.w * 0.06, b.h * 0.68, 0], b.w * 0.025, b.d * 0.035, p.metal, 'seismograph-stylus-arm');
+  add([b.w * 0.04, b.h * 0.22, b.w * 0.04], [b.w * 0.08, b.h * 0.82, 0], p.metal, { shape: 'cylinder', name: 'seismograph-stylus-pivot', metalness: 0.55 });
+  add([b.w * 0.42, b.h * 0.11, b.d * 0.3], [b.w * 0.26, b.h * 0.62, 0], p.paint, { name: 'seismograph-drive-motor' });
+  void variant;
+}
+
+function buildSeedCarousel(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.72, b.h * 0.08, b.d * 0.72], [0, b.h * 0.05, 0], p.paintDark, { shape: 'cylinder', name: 'seed-carousel-rotating-base' });
+  add([b.w * 0.09, b.h * 0.78, b.w * 0.09], [0, b.h * 0.46, 0], p.metal, { shape: 'cylinder', metalness: 0.5, name: 'seed-carousel-center-column' });
+  for (let tier = 0; tier < 3; tier += 1) {
+    const y = b.h * (0.3 + tier * 0.25);
+    add([b.w * (0.72 - tier * 0.08), b.h * 0.045, b.d * (0.72 - tier * 0.08)], [0, y, 0], p.wood, { shape: 'cylinder', name: 'seed-carousel-circular-shelf' });
+    for (let drawer = 0; drawer < 6; drawer += 1) {
+      const angle = drawer / 6 * Math.PI * 2 + tier * 0.25;
+      const radius = b.w * (0.23 - tier * 0.02);
+      add([b.w * 0.16, b.h * 0.12, b.d * 0.12], [Math.cos(angle) * radius, y + b.h * 0.08, Math.sin(angle) * radius], shifted(p.woodDark, drawer + tier + variant), { rotation: [0, -angle, 0], name: 'seed-carousel-labeled-drawer' });
+      add([b.w * 0.075, b.h * 0.025, b.d * 0.012], [Math.cos(angle) * radius * 1.22, y + b.h * 0.08, Math.sin(angle) * radius * 1.22], p.light, { rotation: [0, -angle, 0], name: 'paper-seed-label' });
+    }
+  }
+}
+
+function buildDeliSlicer(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.92, b.h * 0.48, b.d * 0.78], [0, b.h * 0.28, 0], p.wood, { name: 'deli-counter-cabinet' });
+  add([b.w, b.h * 0.07, b.d * 0.9], [0, b.h * 0.55, 0], p.light, { name: 'deli-countertop' });
+  add([b.w * 0.16, b.h * 0.34, b.d * 0.42], [-b.w * 0.18, b.h * 0.73, -b.d * 0.05], p.metal, { name: 'deli-slicer-steel-housing', metalness: 0.48 });
+  add([b.w * 0.46, b.w * 0.045, b.w * 0.46], [0, b.h * 0.76, b.d * 0.12], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], metalness: 0.7, name: 'deli-slicer-circular-blade' });
+  add([b.w * 0.48, b.h * 0.06, b.d * 0.38], [b.w * 0.23, b.h * 0.61, 0], p.metal, { rotation: [0, 0, -0.08], name: 'deli-slicer-sliding-carriage', metalness: 0.44 });
+  add([b.w * 0.07, b.h * 0.31, b.w * 0.07], [b.w * 0.34, b.h * 0.75, 0], p.paintDark, { rotation: [0, 0, -0.3], name: 'deli-slicer-grip' });
+  void variant;
+}
+
+function buildProcessionalCanopy(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const x of [-0.4, 0.4]) for (const z of [-0.36, 0.36]) add([b.w * 0.045, b.h * 0.88, b.d * 0.045], [x * b.w, b.h * 0.46, z * b.d], p.brass, { name: 'canopy-brass-carrying-pole', metalness: 0.56 });
+  add([b.w * 0.94, b.h * 0.11, b.d * 0.84], [0, b.h * 0.91, 0], shifted(p.fabric, variant), { name: 'processional-canopy-fabric-roof' });
+  for (const side of [-1, 1]) {
+    add([b.w * 0.78, b.h * 0.24, b.d * 0.025], [0, b.h * 0.77, side * b.d * 0.38], p.fabricDark, { name: 'processional-canopy-fabric-valance' });
+    add([b.w * 0.025, b.h * 0.56, b.d * 0.5], [side * b.w * 0.4, b.h * 0.61, 0], p.fabric, { opacity: 0.7, name: 'processional-canopy-side-drape' });
+  }
+  for (let fringe = -4; fringe <= 4; fringe += 1) add([b.w * 0.014, b.h * 0.12, b.w * 0.014], [fringe * b.w * 0.09, b.h * 0.67, b.d * 0.39], p.brass, { shape: 'cylinder', name: 'canopy-fabric-fringe' });
+}
+
+function buildTopiary(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.6, b.h * 0.18, b.d * 0.6], [0, b.h * 0.1, 0], p.wood, { name: 'topiary-planter' });
+  add([b.w * 0.48, b.h * 0.08, b.d * 0.48], [0, b.h * 0.21, 0], p.soil, { name: 'topiary-soil' });
+  add([b.w * 0.055, b.h * 0.68, b.w * 0.055], [0, b.h * 0.54, 0], p.woodDark, { shape: 'cylinder', name: 'topiary-trunk' });
+  for (let ring = 0; ring < 5; ring += 1) {
+    const radius = b.w * (0.32 - ring * 0.045);
+    const y = b.h * (0.4 + ring * 0.12);
+    add([radius * 2, radius * 2, b.w * 0.018], [0, y, 0], p.metal, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], metalness: 0.42, name: 'topiary-wire-ring' });
+    for (const side of [-1, 1]) add([b.w * 0.12, b.h * 0.18, b.d * 0.08], [side * radius * 0.58, y, 0], shifted(p.foliage, ring + side + variant), { shape: 'cone', rotation: [0, 0, side * 0.5], name: 'topiary-clipped-foliage' });
+  }
+  for (const side of [-1, 1]) addBeamBetween(root, [0, b.h * 0.25, 0], [side * b.w * 0.28, b.h * 0.82, 0], b.w * 0.018, b.d * 0.018, p.metal, 'topiary-wire-upright');
+}
+
+function buildVotiveRack(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.88, b.h * 0.07, b.d * 0.7], [0, b.h * 0.04, 0], p.woodDark, { name: 'votive-rack-base' });
+  for (const x of [-0.4, 0.4]) add([b.w * 0.05, b.h * 0.84, b.d * 0.05], [x * b.w, b.h * 0.47, 0], p.metal, { name: 'votive-rack-steel-upright', metalness: 0.46 });
+  for (let row = 0; row < 3; row += 1) {
+    const y = b.h * (0.25 + row * 0.25);
+    add([b.w * 0.82, b.h * 0.035, b.d * 0.54], [0, y, 0], p.metal, { name: 'votive-candle-shelf', metalness: 0.42 });
+    for (let candle = -3; candle <= 3; candle += 1) {
+      const height = b.h * (0.08 + ((candle + row + variant) % 3) * 0.015);
+      add([b.w * 0.045, height, b.w * 0.045], [candle * b.w * 0.1, y + height / 2, 0], '#ddd2b3', { shape: 'cylinder', name: 'votive-wax-candle' });
+      add([b.w * 0.026, b.h * 0.055, b.w * 0.026], [candle * b.w * 0.1, y + height + b.h * 0.025, 0], p.glow, { shape: 'cone', emissive: p.glow, emissiveIntensity: 0.28, name: 'votive-candle-flame' });
+    }
+  }
+}
+
+function buildSurgicalCarousel(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.62, b.h * 0.07, b.d * 0.62], [0, b.h * 0.04, 0], p.paintDark, { shape: 'cylinder', name: 'surgical-carousel-base' });
+  add([b.w * 0.1, b.h * 0.78, b.w * 0.1], [0, b.h * 0.44, 0], p.metal, { shape: 'cylinder', metalness: 0.6, name: 'surgical-carousel-column' });
+  add([b.w * 0.55, b.h * 0.06, b.d * 0.55], [0, b.h * 0.84, 0], p.metal, { shape: 'cylinder', metalness: 0.52, name: 'surgical-carousel-hub' });
+  for (let arm = 0; arm < 8; arm += 1) {
+    const angle = arm / 8 * Math.PI * 2;
+    add([b.w * 0.34, b.h * 0.035, b.d * 0.035], [Math.cos(angle) * b.w * 0.18, b.h * 0.84, Math.sin(angle) * b.d * 0.18], p.metal, { rotation: [0, -angle, 0], metalness: 0.6, name: 'surgical-carousel-arm' });
+    add([b.w * 0.025, b.h * (0.22 + arm % 3 * 0.04), b.w * 0.025], [Math.cos(angle) * b.w * 0.36, b.h * 0.7, Math.sin(angle) * b.d * 0.36], arm % 2 ? p.brass : p.metal, { shape: 'cylinder', metalness: 0.65, name: 'surgical-hanging-instrument' });
+  }
+  void variant;
+}
+
+function buildChandelier(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.42, b.h * 0.07, b.d * 0.42], [0, b.h * 0.94, 0], p.brass, { shape: 'cylinder', metalness: 0.62, name: 'chandelier-ceiling-canopy' });
+  add([b.w * 0.05, b.h * 0.48, b.w * 0.05], [0, b.h * 0.7, 0], p.brass, { shape: 'cylinder', metalness: 0.62, name: 'chandelier-center-drop' });
+  add([b.w * 0.24, b.w * 0.24, b.w * 0.24], [0, b.h * 0.48, 0], p.brass, { shape: 'sphere', metalness: 0.55, name: 'chandelier-center-hub' });
+  for (let arm = 0; arm < 8; arm += 1) {
+    const angle = arm / 8 * Math.PI * 2;
+    const radius = b.w * 0.28;
+    add([b.w * 0.34, b.h * 0.035, b.d * 0.035], [Math.cos(angle) * b.w * 0.17, b.h * 0.48, Math.sin(angle) * b.d * 0.17], p.brass, { rotation: [0, -angle, 0], metalness: 0.58, name: 'chandelier-radial-arm' });
+    add([b.w * 0.035, b.h * 0.22, b.w * 0.035], [Math.cos(angle) * radius, b.h * 0.38, Math.sin(angle) * b.d * 0.28], p.brass, { shape: 'cylinder', metalness: 0.58, name: 'chandelier-lamp-stem' });
+    add([b.w * 0.12, b.h * 0.14, b.d * 0.12], [Math.cos(angle) * radius, b.h * 0.25, Math.sin(angle) * b.d * 0.28], shifted(p.glow, arm + variant), { shape: 'cone', emissive: p.glow, emissiveIntensity: 0.2, name: 'chandelier-glass-lamp' });
+  }
+}
+
+function buildTeaRobot(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.56, b.h * 0.08, b.d * 0.56], [0, b.h * 0.05, 0], p.paintDark, { name: 'tea-robot-wheeled-base' });
+  for (const side of [-1, 1]) add([b.w * 0.14, b.w * 0.14, b.d * 0.08], [side * b.w * 0.2, b.h * 0.07, b.d * 0.2], p.paintDark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'tea-robot-wheel' });
+  add([b.w * 0.46, b.h * 0.42, b.d * 0.42], [0, b.h * 0.38, 0], p.metal, { name: 'tea-robot-torso', metalness: 0.42 });
+  add([b.w * 0.32, b.h * 0.24, b.d * 0.3], [0, b.h * 0.72, 0], p.paint, { name: 'tea-robot-head' });
+  for (const side of [-1, 1]) {
+    add([b.w * 0.06, b.h * 0.34, b.w * 0.06], [side * b.w * 0.3, b.h * 0.48, 0], p.brass, { shape: 'cylinder', rotation: [0, 0, side * 0.35], metalness: 0.58, name: 'tea-robot-articulated-arm' });
+    add([b.w * 0.08, b.h * 0.08, b.d * 0.1], [side * b.w * 0.36, b.h * 0.3, 0], p.metal, { name: 'tea-robot-gripper' });
+  }
+  add([b.w * 0.7, b.h * 0.045, b.d * 0.42], [0, b.h * 0.31, b.d * 0.28], p.brass, { name: 'tea-robot-serving-tray', metalness: 0.5 });
+  add([b.w * 0.15, b.h * 0.14, b.d * 0.15], [0, b.h * 0.4, b.d * 0.28], p.light, { shape: 'cylinder', name: 'tea-robot-ceramic-pot' });
+  for (const side of [-1, 1]) add([b.w * 0.055, b.w * 0.025, b.w * 0.055], [side * b.w * 0.11, b.h * 0.78, b.d * 0.17], p.glow, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], emissive: p.glow, emissiveIntensity: 0.2, name: 'tea-robot-eye-lens' });
+  void variant;
+}
+
+function buildNavigationThrone(root: THREE.Group, kind: string, b: Bounds, p: Palette, variant: number): void {
+  buildSeat(root, kind, b, p, variant);
+  const add = partAdder(root);
+  add([b.w * 0.78, b.h * 0.055, b.d * 0.34], [0, b.h * 0.61, b.d * 0.34], p.metal, { rotation: [-0.18, 0, 0], name: 'navigation-throne-instrument-console', metalness: 0.38 });
+  for (let gauge = -2; gauge <= 2; gauge += 1) add([b.w * 0.08, b.w * 0.025, b.w * 0.08], [gauge * b.w * 0.13, b.h * 0.65, b.d * 0.47], p.glass, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], opacity: 0.7, name: 'navigation-throne-gauge' });
+  add([b.w * 0.52, b.w * 0.52, b.d * 0.05], [0, b.h * 0.78, -b.d * 0.35], p.brass, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], metalness: 0.55, name: 'navigation-throne-compass-ring' });
+}
+
+function buildSledge(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const side of [-1, 1]) {
+    add([b.w * 0.08, b.h * 0.06, b.d * 0.92], [side * b.w * 0.31, b.h * 0.08, 0], p.metal, { rotation: [0.04, 0, 0], metalness: 0.55, name: 'expedition-sledge-runner' });
+    add([b.w * 0.05, b.h * 0.6, b.d * 0.05], [side * b.w * 0.31, b.h * 0.38, -b.d * 0.4], p.metal, { rotation: [-0.22, 0, 0], metalness: 0.52, name: 'expedition-sledge-handle' });
+  }
+  for (let slat = -3; slat <= 3; slat += 1) add([b.w * 0.74, b.h * 0.045, b.d * 0.09], [0, b.h * 0.18, slat * b.d * 0.12], p.wood, { name: 'expedition-sledge-wood-slat' });
+  add([b.w * 0.56, b.h * 0.26, b.d * 0.46], [0, b.h * 0.34, b.d * 0.05], p.fabric, { name: 'expedition-sledge-canvas-load' });
+  for (const direction of [-1, 1]) add([b.w * 0.035, b.h * 0.29, b.d * 0.5], [direction * b.w * 0.24, b.h * 0.34, b.d * 0.05], p.woodDark, { rotation: [0, 0, direction * 0.08], name: 'expedition-sledge-load-rail' });
+  void variant;
 }
 
 function buildSeat(root: THREE.Group, kind: string, b: Bounds, p: Palette, variant: number): void {
@@ -467,9 +687,9 @@ function buildOpticalInstrument(root: THREE.Group, kind: string, b: Bounds, p: P
   for (const side of [-1, 0, 1]) add([b.w * 0.045, b.h * 0.58, b.w * 0.045], [side * b.w * 0.23, b.h * 0.31, (side === 0 ? -1 : 1) * b.d * 0.18], p.metal, { shape: 'cylinder', rotation: [side === 0 ? 0.13 : -0.08, 0, side * 0.24], metalness: 0.58, name: 'optical-tripod-leg' });
   add([b.w * 0.14, b.h * 0.28, b.w * 0.14], [0, centerY, 0], p.metal, { shape: 'cylinder', metalness: 0.58, name: 'optical-pedestal' });
   const horizontal = /(telescope|spotlight|projector|lantern|stereoscope)/.test(kind);
-  add([b.w * 0.48, b.h * 0.34, b.d * 0.72], [0, b.h * 0.76, 0], p.paint, { shape: 'cylinder', rotation: horizontal ? [Math.PI / 2, 0, 0] : [0, 0, Math.PI / 2], name: 'optical-instrument-barrel' });
-  add([b.w * 0.39, b.w * 0.39, b.d * 0.045], [0, b.h * 0.76, b.d * 0.38], p.glass, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], opacity: 0.55, emissive: p.glow, emissiveIntensity: 0.12, name: 'optical-glass-lens' });
-  add([b.w * 0.25, b.w * 0.25, b.d * 0.035], [0, b.h * 0.76, -b.d * 0.38], p.paintDark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'optical-eyepiece' });
+  add([b.w * 0.25, horizontal ? b.d * 0.72 : b.w * 0.72, b.w * 0.25], [0, b.h * 0.76, 0], p.paint, { shape: 'cylinder', rotation: horizontal ? [Math.PI / 2, 0, 0] : [0, 0, Math.PI / 2], name: 'optical-instrument-barrel' });
+  add([b.w * 0.23, b.d * 0.04, b.w * 0.23], [0, b.h * 0.76, b.d * 0.38], p.glass, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], opacity: 0.55, emissive: p.glow, emissiveIntensity: 0.12, name: 'optical-glass-lens' });
+  add([b.w * 0.15, b.d * 0.035, b.w * 0.15], [0, b.h * 0.76, -b.d * 0.38], p.paintDark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'optical-eyepiece' });
   if (kind.includes('film_projector') || kind.includes('magic_lantern')) for (const side of [-1, 1]) add([b.w * 0.36, b.w * 0.36, b.d * 0.055], [side * b.w * 0.27, b.h * 0.95, -b.d * 0.08], p.metal, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], name: 'projector-film-reel' });
   void variant;
 }

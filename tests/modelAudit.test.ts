@@ -19,6 +19,7 @@ describe('full production model audit', () => {
     const rows: AuditRow[] = [];
     const failures: string[] = [];
     const bannedDecoration = /(cine-variant|variant-(masterwork|exhibition)-finial|atelier-variant-.*-(finial|medal)|face-rivet|orbiting|family-.*-(stamp|maker-mark)|edge-screw|arm-stud|tuft-row)/i;
+    const roundedSemantic = /(balloon|bubble|orb|orrery|planet|lunar_globe|jellyfish|globe|eclipse_engine)/i;
 
     for (let index = 0; index < ASSETS.length; index += 1) {
       const asset = ASSETS[index]!;
@@ -65,6 +66,9 @@ describe('full production model audit', () => {
       if (triangles > 35_000) failures.push(`${asset.id}: ${Math.round(triangles).toLocaleString()} triangles`);
       if (meshes > 220) failures.push(`${asset.id}: ${meshes} meshes`);
       if (bannedNames.length > 0) failures.push(`${asset.id}: banned decoration ${[...new Set(bannedNames)].join(', ')}`);
+      if (meshes >= 10 && rounded / meshes >= 0.72 && !roundedSemantic.test(asset.id)) {
+        failures.push(`${asset.id}: ${percent(rounded / meshes)} non-semantic rounded primitives`);
+      }
 
       rows.push({
         id: asset.id,
@@ -93,7 +97,7 @@ describe('full production model audit', () => {
     printRows('Highest mesh counts', byMeshes, (row) => `${row.meshes} meshes / ${Math.round(row.triangles).toLocaleString()} tris`);
     printRows('Rounded-primitive warnings', bubbleHeavy, (row) => `${percent(row.roundedRatio)} rounded / ${row.meshes} meshes`);
 
-    expect(failures).toEqual([]);
+    expect(failures.slice(0, 40), `${failures.length} catalogue audit failure(s)`).toEqual([]);
   }, 120_000);
 });
 

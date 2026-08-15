@@ -62,17 +62,53 @@ describe('production model regressions', () => {
     expect(report.names.some((name) => /(cine-variant|finial|edge-screw|arm-stud)/.test(name))).toBe(false);
     expect(report.textured / report.meshes).toBeGreaterThan(0.9);
   });
+
+  it.each([
+    ['detail_coat_check_island', 'masterwork_coat_check_01', ['coat-check-hanger', 'hanging-fabric-coat-body']],
+    ['detail_wardian_plant_case', 'exhibition_wardian_case_01', ['wardian-front-glass', 'wardian-tapered-leaf']],
+    ['atelier_prop_rain_orchestra', 'atelier_rain_orchestra_01', ['rain-orchestra-chime-tube', 'rain-orchestra-catch-tray']],
+    ['atelier_prop_mycology_incubator', 'atelier_mycology_incubator_01', ['cultured-mushroom-stalk', 'cultured-mushroom-cap']],
+    ['detail_magic_lantern', 'exhibition_magic_lantern_01', ['magic-lantern-box-body', 'projector-glass-lens']],
+    ['detail_optometrist_phoropter', 'exhibition_phoropter_01', ['phoropter-lens-housing', 'phoropter-glass-lens']],
+    ['detail_seed_archive_carousel', 'exhibition_seed_carousel_01', ['seed-carousel-center-column', 'seed-carousel-labeled-drawer']],
+    ['detail_processional_canopy', 'exhibition_canopy_01', ['canopy-brass-carrying-pole', 'processional-canopy-fabric-roof']],
+    ['atelier_prop_surgical_carousel', 'atelier_surgical_carousel_01', ['surgical-carousel-arm', 'surgical-hanging-instrument']],
+    ['atelier_prop_ceremonial_tea_robot', 'atelier_tea_robot_01', ['tea-robot-torso', 'tea-robot-serving-tray']],
+    ['atelier_prop_polar_expedition_sledge', 'atelier_polar_sledge_01', ['expedition-sledge-runner', 'expedition-sledge-wood-slat']],
+  ] as const)('keeps %s identifiable from functional parts', (kind, assetId, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#77899a', '#9e8669', assetId);
+    const report = inspect(model);
+
+    expect(model.userData.detailTier).toBe('production-prop');
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.surfaced / report.meshes).toBeGreaterThanOrEqual(0.8);
+    expect(report.names.some((name) => /(finial|medal|maker-mark|edge-screw|arm-stud)/.test(name))).toBe(false);
+  });
+
+  it.each([
+    ['picnic', 'picnic_table_01', ['picnic-tabletop-plank', 'picnic-angled-trestle-leg']],
+    ['lab_bench', 'lab_bench_01', ['lab-chemical-resistant-worktop', 'lab-reagent-bottle']],
+    ['greenhouse_table', 'greenhouse_table_01', ['greenhouse-worktop-slat', 'greenhouse-terracotta-pot']],
+  ] as const)('builds %s as recognizable everyday equipment', (kind, assetId, requiredNames) => {
+    const report = inspect(buildModel(kind as PropKind, '#77899a', '#9e8669', assetId));
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.rounded / report.meshes).toBeLessThan(0.55);
+  });
 });
 
 function inspect(model: THREE.Object3D): {
   meshes: number;
   triangles: number;
   textured: number;
+  surfaced: number;
+  rounded: number;
   names: string[];
 } {
   let meshes = 0;
   let triangles = 0;
   let textured = 0;
+  let surfaced = 0;
+  let rounded = 0;
   const names: string[] = [];
 
   model.traverse((object) => {
@@ -80,15 +116,18 @@ function inspect(model: THREE.Object3D): {
     meshes += 1;
     names.push(object.name);
     const geometry = object.geometry;
+    if (/Sphere|Capsule|Torus/.test(geometry.type)) rounded += 1;
     triangles += geometry.index
       ? geometry.index.count / 3
       : geometry.getAttribute('position').count / 3;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
-    if (materials.some((material) => {
+    const hasTexture = materials.some((material) => {
       if (!(material instanceof THREE.MeshStandardMaterial)) return false;
       return Boolean(material.map || material.normalMap || material.roughnessMap);
-    })) textured += 1;
+    });
+    if (hasTexture) textured += 1;
+    if (hasTexture || materials.some((material) => material.transparent && material.opacity < 1)) surfaced += 1;
   });
 
-  return { meshes, triangles, textured, names };
+  return { meshes, triangles, textured, surfaced, rounded, names };
 }

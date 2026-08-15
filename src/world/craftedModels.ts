@@ -57,6 +57,9 @@ const CRAFTED_KINDS = new Set<string>([
   'table',
   'cafeteria_table',
   'folding_table',
+  'picnic',
+  'lab_bench',
+  'greenhouse_table',
   'cabinet',
   'filing_cabinet',
   'wardrobe',
@@ -160,6 +163,9 @@ export function buildCraftedModel(
     case 'table':
     case 'cafeteria_table':
     case 'folding_table': buildTable(root, bounds, p, variant); break;
+    case 'picnic': buildPicnicTable(root, bounds, p, variant); break;
+    case 'lab_bench': buildLabBench(root, bounds, p, variant); break;
+    case 'greenhouse_table': buildGreenhouseTable(root, bounds, p, variant); break;
     case 'coffee_table':
     case 'side_table': buildCoffeeTable(root, bounds, p, variant); break;
     case 'cabinet':
@@ -793,6 +799,77 @@ function buildTable(root: THREE.Group, b: Bounds, p: Palette, variant: number): 
   void variant;
 }
 
+function buildPicnicTable(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const h = b.h, w = b.w, d = b.d;
+  const plankColor = variant % 2 === 0 ? p.primary : p.secondary;
+
+  // Individual top and bench planks give the silhouette the gaps and grain
+  // direction expected from a real park table.
+  for (let plank = -2; plank <= 2; plank += 1) {
+    add([w * 0.9, h * 0.065, d * 0.105], [0, h * 0.82, plank * d * 0.105], plankColor, { name: 'picnic-tabletop-plank' });
+  }
+  for (const side of [-1, 1]) {
+    for (let plank = -1; plank <= 1; plank += 1) {
+      add([w * 0.92, h * 0.055, d * 0.09], [0, h * 0.49, side * d * (0.34 + plank * 0.045)], p.secondary, { name: 'picnic-bench-plank' });
+    }
+  }
+
+  // Two angled A-frame trestles and their cross braces carry all three decks.
+  for (const x of [-0.34, 0.34]) {
+    for (const side of [-1, 1]) {
+      add([w * 0.055, h * 0.7, d * 0.065], [x * w, h * 0.37, side * d * 0.19], p.dark, { rotation: [side * 0.32, 0, 0], name: 'picnic-angled-trestle-leg' });
+    }
+    add([w * 0.11, h * 0.08, d * 0.88], [x * w, h * 0.48, 0], p.trim, { name: 'picnic-bench-crossbeam' });
+  }
+  add([w * 0.72, h * 0.065, d * 0.065], [0, h * 0.3, 0], p.trim, { name: 'picnic-center-stretcher' });
+}
+
+function buildLabBench(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const h = b.h, w = b.w, d = b.d;
+
+  add([w * 0.96, h * 0.065, d * 0.9], [0, h * 0.58, 0], p.light, { roughness: 0.3, name: 'lab-chemical-resistant-worktop' });
+  for (const side of [-1, 1]) {
+    add([w * 0.31, h * 0.52, d * 0.75], [side * w * 0.31, h * 0.29, 0], p.primary, { name: 'lab-bench-cabinet' });
+    for (let drawer = 0; drawer < 3; drawer += 1) {
+      add([w * 0.27, h * 0.12, d * 0.025], [side * w * 0.31, h * (0.16 + drawer * 0.145), d * 0.39], p.secondary, { name: 'lab-bench-drawer-front' });
+      add([w * 0.09, h * 0.018, d * 0.018], [side * w * 0.31, h * (0.16 + drawer * 0.145), d * 0.415], p.metal, { name: 'lab-bench-drawer-pull', metalness: 0.55 });
+    }
+  }
+  add([w * 0.9, h * 0.36, d * 0.035], [0, h * 0.79, -d * 0.41], p.light, { name: 'lab-bench-backsplash' });
+  add([w * 0.86, h * 0.045, d * 0.3], [0, h * 0.94, -d * 0.27], p.metal, { name: 'lab-bench-reagent-shelf', metalness: 0.3 });
+  add([w * 0.25, h * 0.035, d * 0.3], [-w * 0.27, h * 0.605, d * 0.08], p.dark, { name: 'lab-bench-sink-basin' });
+  add([w * 0.035, h * 0.19, w * 0.035], [-w * 0.27, h * 0.72, -d * 0.08], p.metal, { shape: 'cylinder', name: 'lab-bench-faucet-riser', metalness: 0.62 });
+  add([w * 0.16, w * 0.025, w * 0.025], [-w * 0.2, h * 0.8, -d * 0.08], p.metal, { rotation: [0, 0, Math.PI / 2], name: 'lab-bench-faucet-spout', metalness: 0.62 });
+  for (let bottle = 0; bottle < 4; bottle += 1) {
+    add([w * 0.045, h * (0.1 + bottle % 2 * 0.035), w * 0.045], [w * (0.12 + bottle * 0.1), h * 0.68, -d * 0.16], bottle % 2 ? p.glow : p.secondary, { shape: 'cylinder', opacity: 0.82, name: 'lab-reagent-bottle' });
+  }
+  void variant;
+}
+
+function buildGreenhouseTable(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const h = b.h, w = b.w, d = b.d;
+
+  for (let slat = -3; slat <= 3; slat += 1) {
+    add([w * 0.92, h * 0.045, d * 0.09], [0, h * 0.6, slat * d * 0.11], p.primary, { name: 'greenhouse-worktop-slat' });
+    add([w * 0.82, h * 0.035, d * 0.075], [0, h * 0.25, slat * d * 0.1], p.secondary, { name: 'greenhouse-lower-shelf-slat' });
+  }
+  for (const x of [-0.4, 0.4]) for (const z of [-0.36, 0.36]) {
+    add([w * 0.055, h * 0.58, d * 0.055], [x * w, h * 0.3, z * d], p.dark, { name: 'greenhouse-table-square-leg' });
+  }
+  for (let pot = -2; pot <= 2; pot += 1) {
+    const x = pot * w * 0.17;
+    const potY = h * 0.69;
+    add([w * 0.12, h * 0.13, w * 0.12], [x, potY, 0], pot % 2 === 0 ? '#9a5639' : p.secondary, { shape: 'cone', name: 'greenhouse-terracotta-pot' });
+    add([w * 0.035, h * (0.22 + Math.abs(pot) * 0.025), w * 0.035], [x, h * 0.84, 0], p.dark, { shape: 'cylinder', name: 'greenhouse-plant-stem' });
+    for (const side of [-1, 1]) {
+      add([w * 0.13, h * 0.12, d * 0.035], [x + side * w * 0.055, h * (0.84 + (pot + 2) % 2 * 0.07), 0], (pot + side + variant) % 2 === 0 ? '#477c48' : '#35643a', { shape: 'cone', rotation: [0, 0, side * Math.PI / 2], name: 'greenhouse-plant-leaf' });
+    }
+  }
+}
+
 function buildCoffeeTable(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
   const add = partAdder(root);
   const h = b.h, w = b.w, d = b.d;
@@ -1106,7 +1183,7 @@ function buildTerminal(root: THREE.Group, b: Bounds, p: Palette, variant: number
   // Keypad.
   add([w * 0.5, h * 0.2, 0.03], [0, h * 0.3, d * 0.42], p.dark, { name: 'tm-keypad' });
   for (let i = 0; i < 12; i += 1) {
-    add([0.06, 0.06, 0.02], [((i % 4) - 1.5) * w * 0.09, h * (0.3 + Math.floor(i / 4) * 0.05), d * 0.44], p.light, { shape: 'sphere', name: 'tm-key' });
+    add([0.06, 0.045, 0.02], [((i % 4) - 1.5) * w * 0.09, h * (0.3 + Math.floor(i / 4) * 0.05), d * 0.44], p.light, { name: 'tm-key' });
   }
   void variant;
 }
@@ -1135,7 +1212,7 @@ function buildPayphone(root: THREE.Group, b: Bounds, p: Palette, variant: number
   // Handset + cradle.
   add([w * 0.24, h * 0.08, d * 0.14], [0, h * 0.82, d * 0.16], p.dark, { name: 'pp-handset' });
   add([w * 0.3, h * 0.3, 0.03], [0, h * 0.7, d * 0.3], p.dark, { name: 'pp-keypad' });
-  for (let i = 0; i < 12; i += 1) add([0.04, 0.04, 0.02], [((i % 3) - 1) * w * 0.07, h * (0.7 + Math.floor(i / 3) * 0.06), d * 0.31], p.light, { shape: 'sphere', name: 'pp-key' });
+  for (let i = 0; i < 12; i += 1) add([0.04, 0.035, 0.02], [((i % 3) - 1) * w * 0.07, h * (0.7 + Math.floor(i / 3) * 0.06), d * 0.31], p.light, { name: 'pp-key' });
   void variant;
 }
 
