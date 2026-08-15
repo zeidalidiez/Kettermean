@@ -147,6 +147,31 @@ describe('production model regressions', () => {
     expect(report.meshes).toBeLessThan(70);
     expect(report.rounded / report.meshes).toBeLessThan(0.55);
   });
+
+  it.each([
+    ['cine_prop_topiary_spiral', 'planter', ['planter-visible-soil', 'planter-leaf-cluster']],
+    ['cine_prop_water_feature', 'fountain', ['fountain-lower-basin-rim', 'fountain-center-water-jet']],
+    ['cine_prop_bus_stop_shelter', 'bus_shelter', ['bus-shelter-back-glass', 'bus-shelter-bench-seat']],
+    ['cine_prop_garden_swing', 'swing_set', ['swing-set-a-frame-leg', 'swing-set-seat']],
+    ['cine_prop_server_cabinet', 'server_rack', ['server-rack-blade', 'server-rack-status-led']],
+    ['cine_prop_grocery_trolley', 'shopping_cart', ['shopping-cart-basket-rib', 'shopping-cart-caster-wheel']],
+    ['cine_prop_printer_fleet', 'copy_machine', ['copier-scanner-glass', 'copier-output-tray']],
+    ['cine_prop_fare_gate', 'ticket_gate', ['ticket-gate-card-reader', 'ticket-gate-swing-arm']],
+    ['cine_prop_arrivals_board', 'departure_board', ['departure-board-black-display', 'departure-board-split-flap-character']],
+    ['cine_prop_jewelry_counter', 'display_case', ['display-case-front-glass', 'display-case-curated-object']],
+    ['cine_prop_tool_cart', 'tool_chest', ['tool-chest-drawer-front', 'tool-chest-caster']],
+    ['cine_prop_airport_luggage_trolley', 'luggage_cart', ['luggage-cart-suitcase', 'luggage-cart-overhead-rail']],
+    ['cine_prop_ticket_vending', 'snack_machine', ['snack-machine-product-bag', 'snack-machine-delivery-bin']],
+    ['cine_prop_laundry_stack', 'washer', ['washer-door-glass', 'washer-program-dial']],
+    ['cine_prop_imaging_cart', 'medical_cart', ['medical-cart-instrument-tray', 'medical-cart-supply-bottle']],
+    ['cine_prop_checkout_lane', 'checkout', ['checkout-conveyor-belt', 'checkout-register-display']],
+  ] as const)('routes %s through the verified %s production model', (kind, productionKind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#77899a', '#9e8669', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.reusedProductionKind).toBe(productionKind);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

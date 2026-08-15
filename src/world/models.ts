@@ -52,6 +52,7 @@ import {
 import { buildProductionAnimal, clearProductionAnimalGeometries } from './animalModels';
 import { buildProductionProp } from './productionPropModels';
 import { buildExpandedProductionProp } from './expandedPropModels';
+import { buildCinematicProductionProp } from './cinematicProductionProps';
 import {
   applyProductionMaterials,
   clearProductionMaterialCache,
@@ -2352,6 +2353,14 @@ function createModel(
     boundsForKind(kind),
   );
   if (expandedProductionProp) return expandedProductionProp;
+  const cinematicProductionProp = buildCinematicProductionProp(
+    String(kind),
+    assetVariant(assetId),
+    accent,
+    body,
+    boundsForKind(kind),
+  );
+  if (cinematicProductionProp) return cinematicProductionProp;
   const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
   if (cinematic) return cinematic;
   const crafted = buildCraftedModel(kind, assetVariant(assetId), accent, body, boundsForKind(kind));
