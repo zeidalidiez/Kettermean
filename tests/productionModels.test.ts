@@ -172,6 +172,32 @@ describe('production model regressions', () => {
     expect(model.userData.reusedProductionKind).toBe(productionKind);
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
   });
+
+  it.each([
+    ['cine_prop_forklift', ['forklift-lift-mast', 'forklift-load-fork']],
+    ['cine_prop_pallet_jack', ['pallet-jack-lifting-fork', 'pallet-jack-steering-handle']],
+    ['cine_prop_conveyor_section', ['conveyor-side-frame', 'conveyor-driven-roller']],
+    ['cine_prop_rooftop_ac_unit', ['rooftop-ac-weather-housing', 'rooftop-ac-condenser-fan']],
+    ['cine_prop_bbq_grill', ['bbq-grill-firebox', 'bbq-grill-cooking-grate']],
+    ['cine_prop_vacuum_stand', ['vacuum-motor-canister', 'vacuum-floor-head']],
+    ['cine_prop_scaffold_section', ['scaffold-vertical-tube', 'scaffold-work-platform']],
+    ['cine_prop_drill_press_stand', ['drill-press-column', 'drill-press-bit']],
+    ['cine_prop_pool_table', ['game-table-playing-surface', 'pool-table-ball']],
+    ['cine_prop_treadmill', ['treadmill-running-belt', 'treadmill-control-console']],
+    ['cine_prop_rowing_machine', ['rowing-machine-seat-rail', 'rowing-machine-pull-handle']],
+    ['cine_prop_basketball_hoop', ['basketball-backboard', 'basketball-rim']],
+    ['cine_prop_excavator_toy', ['toy-vehicle-chassis', 'toy-vehicle-lifting-boom']],
+    ['cine_prop_robot_toy', ['toy-robot-torso', 'toy-robot-eye']],
+    ['cine_prop_stuffed_rabbit', ['stuffed-animal-torso', 'stuffed-rabbit-ear']],
+  ] as const)('gives %s functional cinematic geometry', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#77899a', '#9e8669', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+    if (kind.includes('stuffed_')) expect(report.rounded / report.meshes).toBeLessThan(0.4);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

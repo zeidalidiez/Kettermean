@@ -2254,6 +2254,7 @@ export function buildModel(
     model.userData.productionCharacter === true ||
     model.userData.productionAnimal === true
     || model.userData.productionExpandedProp === true
+    || model.userData.productionCinematicProp === true
   ) {
     normalizeComposedModelToBounds(model, boundsForKind(kind));
   }
