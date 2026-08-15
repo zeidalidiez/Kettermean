@@ -40,6 +40,7 @@ const OUTLIER_OVERRIDE = /(fire_extinguisher_post|playpen|elevator_bank_doors|fi
 const RETAIL_OVERRIDE = /(concession_stand|ticket_booth|shop_mannequin|mannequin_pair|clothing_rack|produce_bin|freezer_island|soda_fountain|food_truck_counter|hat_rack|deli_warmer|coffee_bar)/;
 const KITCHEN_BATH_OVERRIDE = /(kitchen_appliance_suite|pedestal_sink|shower_stall|espresso_machine|bar_counter|kitchen_cart|microwave_cart|espresso_bar|bath_caddy|ironing_board|play_kitchen|dish_rack|changing_table|towel_rack)/;
 const CEREMONIAL_OVERRIDE = /(podium|pulpit|candle_rack|voting_booth|ballot_box|flag_stand|registry_desk|ceremonial_stage|lantern_post)/;
+const PUBLIC_SEATING_OVERRIDE = /(waiting_room_lounge|stadium_seat_row|transit_platform_seat|accent_chair|reception_chair|breakfast_nook|metro_seat_bank|gazebo_seat|beach_chair|kids_reading_nook|reading_bench|garden_pavilion_bench|airport_seating|tennis_bench|platform_bench_dual)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -106,6 +107,9 @@ export function buildCinematicProductionProp(
   } else if (CEREMONIAL_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildCeremonialProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (PUBLIC_SEATING_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildPublicSeatingProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1166,6 +1170,102 @@ function buildCeremonialProp(root: THREE.Group, key: string, b: Bounds, p: Palet
   if (pulpit) {
     add([b.w * 0.92, b.h * 0.08, b.d * 0.84], [0, b.h * 0.05, 0], p.wood, { name: 'pulpit-raised-platform', roughness: 0.76 });
     for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.46, b.d * 0.06], [side * b.w * 0.42, b.h * 0.32, -b.d * 0.25], p.wood, { name: 'pulpit-side-rail-post' });
+  }
+  void variant;
+}
+
+function buildPublicSeatingProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (/(accent_chair|reception_chair)/.test(key)) {
+    add([b.w * 0.58, b.h * 0.1, b.d * 0.58], [0, b.h * 0.48, 0], p.primary, { name: 'reception-chair-padded-seat', roughness: 0.9 });
+    add([b.w * 0.56, b.h * 0.48, b.d * 0.1], [0, b.h * 0.75, -b.d * 0.24], key.includes('accent') ? p.secondary : p.primary, { rotation: [-0.08, 0, 0], name: 'reception-chair-shaped-back', roughness: 0.9 });
+    for (const x of [-0.24, 0.24]) for (const z of [-0.22, 0.22]) add([b.w * 0.055, b.h * 0.44, b.d * 0.055], [x * b.w, b.h * 0.23, z * b.d], p.wood, { name: 'reception-chair-tapered-leg', roughness: 0.74 });
+    for (const side of [-1, 1]) {
+      add([b.w * 0.08, b.h * 0.08, b.d * 0.54], [side * b.w * 0.35, b.h * 0.68, 0], p.wood, { name: 'reception-chair-armrest', roughness: 0.74 });
+      add([b.w * 0.05, b.h * 0.2, b.d * 0.05], [side * b.w * 0.35, b.h * 0.57, b.d * 0.18], p.wood, { name: 'reception-chair-arm-support' });
+    }
+    return;
+  }
+  if (/(waiting_room_lounge|airport_seating)/.test(key)) {
+    const airport = key.includes('airport');
+    const seats = airport ? 4 : 3;
+    const spacing = b.w * (airport ? 0.22 : 0.28);
+    add([b.w * 0.9, b.h * 0.07, b.d * 0.07], [0, b.h * 0.4, 0], p.metal, { name: 'linked-seating-support-beam', metalness: 0.58 });
+    for (let seat = 0; seat < seats; seat += 1) {
+      const x = (seat - (seats - 1) / 2) * spacing;
+      add([b.w * (airport ? 0.2 : 0.25), b.h * 0.08, b.d * 0.54], [x, b.h * 0.48, 0], airport ? p.metal : p.primary, { name: airport ? 'airport-seating-contoured-seat' : 'waiting-lounge-padded-seat', metalness: airport ? 0.36 : 0.04, roughness: airport ? 0.42 : 0.9 });
+      add([b.w * (airport ? 0.19 : 0.24), b.h * 0.38, b.d * 0.07], [x, b.h * 0.7, -b.d * 0.24], airport ? p.metal : p.primary, { rotation: [-0.08, 0, 0], name: airport ? 'airport-seating-contoured-back' : 'waiting-lounge-padded-back', metalness: airport ? 0.34 : 0.04, roughness: airport ? 0.44 : 0.9 });
+      add([b.w * 0.025, b.h * 0.22, b.d * 0.025], [x + spacing * 0.46, b.h * 0.6, 0], p.dark, { name: 'linked-seating-arm-divider', metalness: 0.45 });
+    }
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.4, b.d * 0.34], [side * b.w * 0.38, b.h * 0.2, 0], p.metal, { name: 'linked-seating-floor-leg', metalness: 0.56 });
+    return;
+  }
+  if (key.includes('stadium_seat_row')) {
+    add([b.w * 0.92, b.h * 0.08, b.d * 0.08], [0, b.h * 0.25, -b.d * 0.22], p.metal, { name: 'stadium-row-support-beam', metalness: 0.58 });
+    for (let seat = 0; seat < 4; seat += 1) {
+      const x = (seat - 1.5) * b.w * 0.23;
+      add([b.w * 0.2, b.h * 0.07, b.d * 0.42], [x, b.h * 0.45, 0], seat % 2 ? p.primary : p.secondary, { rotation: [-0.04, 0, 0], name: 'stadium-row-folding-seat', roughness: 0.5 });
+      add([b.w * 0.2, b.h * 0.36, b.d * 0.06], [x, b.h * 0.69, -b.d * 0.19], seat % 2 ? p.primary : p.secondary, { name: 'stadium-row-molded-back', roughness: 0.5 });
+      add([b.w * 0.045, b.h * 0.18, b.d * 0.045], [x, b.h * 0.33, -b.d * 0.2], p.metal, { name: 'stadium-row-seat-hinge', metalness: 0.55 });
+    }
+    for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.5, b.d * 0.36], [side * b.w * 0.4, b.h * 0.25, -b.d * 0.18], p.metal, { name: 'stadium-row-riser-leg', metalness: 0.58 });
+    return;
+  }
+  if (/(transit_platform_seat|metro_seat_bank)/.test(key)) {
+    const metro = key.includes('metro');
+    add([b.w * 0.92, b.h * 0.07, b.d * 0.07], [0, b.h * 0.38, -b.d * 0.12], p.metal, { name: 'transit-seat-bank-support-beam', metalness: 0.62 });
+    for (let seat = -1; seat <= 1; seat += 1) {
+      add([b.w * 0.27, b.h * 0.08, b.d * 0.5], [seat * b.w * 0.29, b.h * 0.48, 0], metro ? p.primary : p.metal, { name: 'transit-seat-bank-seat-shell', metalness: metro ? 0.12 : 0.36, roughness: 0.48 });
+      add([b.w * 0.26, b.h * 0.35, b.d * 0.06], [seat * b.w * 0.29, b.h * 0.69, -b.d * 0.23], metro ? p.primary : p.metal, { rotation: [-0.06, 0, 0], name: 'transit-seat-bank-back-shell', metalness: metro ? 0.12 : 0.36, roughness: 0.48 });
+      for (let hole = -1; hole <= 1; hole += 1) add([b.w * 0.035, b.h * 0.025, b.d * 0.02], [seat * b.w * 0.29 + hole * b.w * 0.055, b.h * 0.7, -b.d * 0.2], p.dark, { name: 'transit-seat-bank-perforation' });
+    }
+    for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.4, b.d * 0.32], [side * b.w * 0.36, b.h * 0.2, -b.d * 0.1], p.metal, { name: 'transit-seat-bank-floor-leg', metalness: 0.6 });
+    return;
+  }
+  if (key.includes('breakfast_nook')) {
+    add([b.w * 0.84, b.h * 0.12, b.d * 0.32], [0, b.h * 0.42, -b.d * 0.27], p.primary, { name: 'breakfast-nook-long-bench-seat', roughness: 0.9 });
+    add([b.w * 0.34, b.h * 0.12, b.d * 0.72], [-b.w * 0.28, b.h * 0.42, 0], p.primary, { name: 'breakfast-nook-return-bench-seat', roughness: 0.9 });
+    add([b.w * 0.84, b.h * 0.42, b.d * 0.08], [0, b.h * 0.68, -b.d * 0.4], p.secondary, { name: 'breakfast-nook-long-padded-back', roughness: 0.9 });
+    add([b.w * 0.08, b.h * 0.42, b.d * 0.68], [-b.w * 0.43, b.h * 0.68, 0], p.secondary, { name: 'breakfast-nook-return-padded-back', roughness: 0.9 });
+    add([b.w * 0.46, b.h * 0.06, b.d * 0.48], [b.w * 0.2, b.h * 0.56, b.d * 0.08], p.wood, { name: 'breakfast-nook-tabletop', roughness: 0.72 });
+    add([b.w * 0.08, b.h * 0.52, b.d * 0.08], [b.w * 0.2, b.h * 0.28, b.d * 0.08], p.metal, { name: 'breakfast-nook-table-pedestal', metalness: 0.5 });
+    return;
+  }
+  if (key.includes('beach_chair')) {
+    for (const z of [-0.3, 0.3]) {
+      addBeamBetween(root, [-b.w * 0.3, 0, z * b.d], [b.w * 0.26, b.h * 0.84, z * b.d], b.w * 0.035, p.wood, 'beach-chair-folding-frame');
+      addBeamBetween(root, [b.w * 0.3, 0, z * b.d], [-b.w * 0.18, b.h * 0.62, z * b.d], b.w * 0.035, p.wood, 'beach-chair-folding-frame');
+    }
+    add([b.w * 0.56, b.h * 0.04, b.d * 0.58], [0, b.h * 0.38, 0], p.primary, { rotation: [0, 0, 0.18], name: 'beach-chair-sling-seat', roughness: 0.92 });
+    add([b.w * 0.5, b.h * 0.54, b.d * 0.04], [b.w * 0.16, b.h * 0.68, 0], p.secondary, { rotation: [0, 0, -0.18], name: 'beach-chair-sling-back', roughness: 0.92 });
+    return;
+  }
+  if (key.includes('kids_reading_nook')) {
+    add([b.w * 0.5, b.h * 0.12, b.d * 0.58], [0, b.h * 0.28, b.d * 0.05], p.primary, { name: 'kids-reading-nook-cushion', roughness: 0.94 });
+    add([b.w * 0.5, b.h * 0.4, b.d * 0.1], [0, b.h * 0.52, -b.d * 0.22], p.secondary, { name: 'kids-reading-nook-padded-back', roughness: 0.94 });
+    for (const side of [-1, 1]) {
+      add([b.w * 0.2, b.h * 0.72, b.d * 0.7], [side * b.w * 0.38, b.h * 0.38, 0], p.wood, { name: 'kids-reading-nook-side-bookcase', roughness: 0.76 });
+      for (let book = 0; book < 4; book += 1) add([b.w * 0.11, b.h * 0.16, b.d * 0.05], [side * b.w * 0.38, b.h * (0.14 + book * 0.15), b.d * 0.37], book % 2 ? p.primary : p.light, { name: 'kids-reading-nook-picture-book', roughness: 0.9 });
+    }
+    return;
+  }
+
+  const platformDual = key.includes('platform_bench_dual');
+  const reading = key.includes('reading_bench');
+  const seatDepths = platformDual ? [-0.24, 0.24] : [0];
+  for (const zCenter of seatDepths) {
+    for (let slat = -2; slat <= 2; slat += 1) add([b.w * 0.9, b.h * 0.045, b.d * 0.08], [0, b.h * 0.46, zCenter * b.d + slat * b.d * 0.075], reading ? p.primary : p.wood, { name: reading ? 'reading-bench-upholstered-seat-panel' : 'public-bench-seat-slat', roughness: reading ? 0.9 : 0.78 });
+    for (let slat = 0; slat < 4; slat += 1) add([b.w * 0.86, b.h * 0.07, b.d * 0.045], [0, b.h * (0.6 + slat * 0.09), zCenter * b.d - Math.sign(zCenter || 1) * b.d * 0.26], reading ? p.primary : p.wood, { name: reading ? 'reading-bench-upholstered-back-panel' : 'public-bench-back-slat', roughness: reading ? 0.9 : 0.78 });
+  }
+  for (const side of [-1, 1]) {
+    add([b.w * 0.055, b.h * 0.46, b.d * 0.5], [side * b.w * 0.38, b.h * 0.23, 0], p.metal, { name: 'public-bench-support-leg', metalness: 0.52 });
+    add([b.w * 0.1, b.h * 0.035, b.d * 0.72], [side * b.w * 0.38, b.h * 0.04, 0], p.metal, { name: 'public-bench-ground-foot', metalness: 0.52 });
+  }
+  if (reading) {
+    add([b.w * 0.28, b.h * 0.025, b.d * 0.22], [b.w * 0.18, b.h * 0.57, b.d * 0.04], p.light, { rotation: [-0.08, 0.08, 0], name: 'reading-bench-open-book', roughness: 0.94 });
+  } else if (key.includes('tennis_bench')) {
+    add([b.w * 0.34, b.w * 0.34, b.w * 0.025], [b.w * 0.28, b.h * 0.27, b.d * 0.32], p.dark, { shape: 'torus', name: 'tennis-bench-racquet-frame' });
+    addBeamBetween(root, [b.w * 0.28, b.h * 0.27, b.d * 0.32], [b.w * 0.38, b.h * 0.08, b.d * 0.32], b.w * 0.025, p.wood, 'tennis-bench-racquet-handle');
   }
   void variant;
 }

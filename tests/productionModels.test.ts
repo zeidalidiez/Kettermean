@@ -350,6 +350,31 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_waiting_room_lounge', ['waiting-lounge-padded-seat', 'linked-seating-arm-divider']],
+    ['cine_prop_airport_seating', ['airport-seating-contoured-seat', 'linked-seating-support-beam']],
+    ['cine_prop_stadium_seat_row', ['stadium-row-folding-seat', 'stadium-row-seat-hinge']],
+    ['cine_prop_transit_platform_seat', ['transit-seat-bank-seat-shell', 'transit-seat-bank-perforation']],
+    ['cine_prop_metro_seat_bank', ['transit-seat-bank-back-shell', 'transit-seat-bank-floor-leg']],
+    ['cine_prop_accent_chair', ['reception-chair-padded-seat', 'reception-chair-armrest']],
+    ['cine_prop_reception_chair', ['reception-chair-shaped-back', 'reception-chair-tapered-leg']],
+    ['cine_prop_breakfast_nook', ['breakfast-nook-return-bench-seat', 'breakfast-nook-tabletop']],
+    ['cine_prop_beach_chair', ['beach-chair-folding-frame', 'beach-chair-sling-back']],
+    ['cine_prop_kids_reading_nook', ['kids-reading-nook-cushion', 'kids-reading-nook-picture-book']],
+    ['cine_prop_reading_bench', ['reading-bench-upholstered-seat-panel', 'reading-bench-open-book']],
+    ['cine_prop_garden_pavilion_bench', ['public-bench-seat-slat', 'public-bench-back-slat']],
+    ['cine_prop_tennis_bench', ['public-bench-support-leg', 'tennis-bench-racquet-frame']],
+    ['cine_prop_gazebo_seat', ['public-bench-seat-slat', 'public-bench-ground-foot']],
+    ['cine_prop_platform_bench_dual', ['public-bench-seat-slat', 'public-bench-back-slat']],
+  ] as const)('replaces generic lounge geometry for seating fixture %s', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#667f68', '#826a50', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {
