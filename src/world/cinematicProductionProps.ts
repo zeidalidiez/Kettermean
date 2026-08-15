@@ -42,6 +42,7 @@ const KITCHEN_BATH_OVERRIDE = /(kitchen_appliance_suite|pedestal_sink|shower_sta
 const CEREMONIAL_OVERRIDE = /(podium|pulpit|candle_rack|voting_booth|ballot_box|flag_stand|registry_desk|ceremonial_stage|lantern_post)/;
 const PUBLIC_SEATING_OVERRIDE = /(waiting_room_lounge|stadium_seat_row|transit_platform_seat|accent_chair|reception_chair|breakfast_nook|metro_seat_bank|gazebo_seat|beach_chair|kids_reading_nook|reading_bench|garden_pavilion_bench|airport_seating|tennis_bench|platform_bench_dual)/;
 const WORK_TABLE_OVERRIDE = /(work_desk|executive_desk|standing_desk|conference_table|round_coffee_table|library_reading_room|planning_table|hot_desk_cluster|picnic_table|staff_desk_terrace|grill_side_table|puzzle_table|kids_table_set|bistro_table|wooden_dining_set|kitchen_island|vanity_desk)/;
+const SPECIALTY_STORAGE_OVERRIDE = /(bookshelf_wall|pantry_cabinet|pharmacy_shelving|clinic_instrument_cabinet|card_catalog|locker_row|lockers_lounge|shoe_rack|document_cabinet|wine_rack|pantry_shelving|safety_cabinet)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -114,6 +115,9 @@ export function buildCinematicProductionProp(
   } else if (WORK_TABLE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildWorkTableProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (SPECIALTY_STORAGE_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildSpecialtyStorageProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1398,6 +1402,94 @@ function buildWorkTableProp(root: THREE.Group, key: string, b: Bounds, p: Palett
     add([b.w * 0.76, b.h * 0.05, b.d * 0.62], [0, b.h * 0.24, 0], p.metal, { name: 'grill-side-lower-shelf', metalness: 0.5 });
     addBeamBetween(root, [b.w * 0.28, b.h * 0.64, b.d * 0.2], [b.w * 0.4, b.h * 0.45, b.d * 0.2], b.w * 0.016, p.dark, 'grill-side-hanging-tongs');
   }
+  void variant;
+}
+
+function buildSpecialtyStorageProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('bookshelf_wall')) {
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.96, b.d * 0.68], [side * b.w * 0.46, b.h * 0.5, 0], p.wood, { name: 'bookshelf-wall-side-panel', roughness: 0.76 });
+    for (const y of [0.08, 0.31, 0.54, 0.77, 0.98]) add([b.w * 0.92, b.h * 0.045, b.d * 0.68], [0, b.h * y, 0], p.wood, { name: 'bookshelf-wall-shelf', roughness: 0.76 });
+    for (let shelf = 0; shelf < 4; shelf += 1) for (let book = -5; book <= 5; book += 1) add([b.w * 0.06, b.h * (0.13 + (book + shelf) % 3 * 0.025), b.d * 0.34], [book * b.w * 0.075, b.h * (0.17 + shelf * 0.23), b.d * 0.14], (book + shelf) % 3 === 0 ? p.primary : (book + shelf) % 3 === 1 ? p.secondary : p.light, { rotation: [0, 0, ((book + shelf) % 3 - 1) * 0.035], name: 'bookshelf-wall-bound-book', roughness: 0.88 });
+    return;
+  }
+  if (/(pantry_cabinet|pantry_shelving|pharmacy_shelving)/.test(key)) {
+    const pharmacy = key.includes('pharmacy');
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.96, b.d * 0.68], [side * b.w * 0.46, b.h * 0.5, 0], pharmacy ? p.light : p.wood, { name: pharmacy ? 'pharmacy-shelf-side-panel' : 'pantry-shelf-side-panel', roughness: 0.66 });
+    for (const y of [0.08, 0.3, 0.52, 0.74, 0.96]) add([b.w * 0.92, b.h * 0.045, b.d * 0.68], [0, b.h * y, 0], pharmacy ? p.metal : p.wood, { name: pharmacy ? 'pharmacy-shelf-deck' : 'pantry-shelf-deck', metalness: pharmacy ? 0.36 : 0.05 });
+    for (let shelf = 0; shelf < 4; shelf += 1) for (let item = -4; item <= 4; item += 1) {
+      const productName = pharmacy ? 'pharmacy-labeled-medicine-box' : item % 2 ? 'pantry-canned-food' : 'pantry-boxed-food';
+      add([b.w * 0.075, b.h * (pharmacy ? 0.12 : 0.14), b.d * (pharmacy ? 0.26 : 0.3)], [item * b.w * 0.09, b.h * (0.17 + shelf * 0.22), b.d * 0.13], (item + shelf) % 3 === 0 ? p.primary : (item + shelf) % 3 === 1 ? p.secondary : p.light, { shape: !pharmacy && item % 2 ? 'cylinder' : 'box', name: productName, roughness: 0.7 });
+    }
+    return;
+  }
+  if (key.includes('clinic_instrument')) {
+    add([b.w * 0.84, b.h * 0.88, b.d * 0.04], [0, b.h * 0.48, -b.d * 0.34], p.light, { name: 'clinical-instrument-cabinet-back', metalness: 0.34, roughness: 0.36 });
+    for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.9, b.d * 0.68], [side * b.w * 0.43, b.h * 0.48, 0], p.light, { name: 'clinical-instrument-cabinet-side', metalness: 0.34, roughness: 0.36 });
+    for (const y of [0.04, 0.92]) add([b.w * 0.9, b.h * 0.06, b.d * 0.7], [0, b.h * y, 0], p.light, { name: 'clinical-instrument-cabinet-cap', metalness: 0.34, roughness: 0.36 });
+    for (const y of [0.2, 0.43, 0.66]) add([b.w * 0.76, b.h * 0.035, b.d * 0.58], [0, b.h * y, 0], p.metal, { name: 'clinical-instrument-cabinet-shelf', metalness: 0.5 });
+    add([b.w * 0.78, b.h * 0.7, b.d * 0.025], [0, b.h * 0.56, b.d * 0.36], p.glass, { name: 'clinical-instrument-cabinet-glass-door', opacity: 0.3, roughness: 0.08 });
+    for (let tray = -2; tray <= 2; tray += 1) add([b.w * 0.13, b.h * 0.05, b.d * 0.3], [tray * b.w * 0.14, b.h * (0.28 + (tray + 2) % 2 * 0.23), b.d * 0.08], p.metal, { name: 'clinical-instrument-sterile-tray', metalness: 0.56 });
+    for (let tool = -3; tool <= 3; tool += 1) add([b.w * 0.025, b.h * 0.22, b.d * 0.025], [tool * b.w * 0.1, b.h * 0.75, b.d * 0.12], p.metal, { rotation: [0, 0, tool * 0.04], name: 'clinical-instrument-hanging-tool', metalness: 0.68 });
+    return;
+  }
+  if (/(card_catalog|document_cabinet)/.test(key)) {
+    const catalog = key.includes('card_catalog');
+    add([b.w * 0.92, b.h * 0.92, b.d * 0.72], [0, b.h * 0.49, 0], catalog ? p.wood : p.metal, { name: catalog ? 'card-catalog-cabinet-body' : 'document-cabinet-fireproof-body', metalness: catalog ? 0.04 : 0.4, roughness: 0.64 });
+    const columns = catalog ? 5 : 3;
+    const rows = catalog ? 5 : 4;
+    for (let row = 0; row < rows; row += 1) for (let column = 0; column < columns; column += 1) {
+      const x = (column - (columns - 1) / 2) * b.w * (catalog ? 0.17 : 0.26);
+      const y = b.h * (0.15 + row * (catalog ? 0.16 : 0.19));
+      add([b.w * (catalog ? 0.15 : 0.23), b.h * (catalog ? 0.12 : 0.15), b.d * 0.025], [x, y, b.d * 0.37], catalog ? p.primary : p.light, { name: catalog ? 'card-catalog-index-drawer' : 'document-cabinet-file-drawer', metalness: catalog ? 0.04 : 0.32 });
+      add([b.w * 0.06, b.h * 0.025, b.d * 0.018], [x, y, b.d * 0.39], p.dark, { name: catalog ? 'card-catalog-label-pull' : 'document-cabinet-drawer-handle', metalness: 0.48 });
+    }
+    return;
+  }
+  if (/(locker_row|lockers_lounge)/.test(key)) {
+    const lounge = key.includes('lounge');
+    for (let locker = -2; locker <= 2; locker += 1) {
+      const x = locker * b.w * 0.18;
+      add([b.w * 0.17, b.h * (lounge ? 0.72 : 0.94), b.d * 0.66], [x, b.h * (lounge ? 0.62 : 0.5), 0], locker % 2 ? p.primary : p.light, { name: 'locker-row-steel-compartment', metalness: 0.38 });
+      add([b.w * 0.14, b.h * 0.025, b.d * 0.025], [x, b.h * (lounge ? 0.84 : 0.78), b.d * 0.34], p.dark, { name: 'locker-row-vent-slot' });
+      add([b.w * 0.025, b.h * 0.12, b.d * 0.025], [x + b.w * 0.05, b.h * (lounge ? 0.56 : 0.5), b.d * 0.35], p.metal, { name: 'locker-row-door-handle', metalness: 0.6 });
+    }
+    if (lounge) {
+      add([b.w * 0.86, b.h * 0.08, b.d * 0.46], [0, b.h * 0.22, b.d * 0.5], p.wood, { name: 'locker-lounge-changing-bench', roughness: 0.76 });
+      for (const side of [-1, 1]) add([b.w * 0.05, b.h * 0.22, b.d * 0.05], [side * b.w * 0.34, b.h * 0.11, b.d * 0.5], p.metal, { name: 'locker-lounge-bench-leg', metalness: 0.5 });
+    }
+    return;
+  }
+  if (key.includes('shoe_rack')) {
+    for (const side of [-1, 1]) add([b.w * 0.05, b.h * 0.86, b.d * 0.64], [side * b.w * 0.44, b.h * 0.45, 0], p.wood, { name: 'shoe-rack-side-frame', roughness: 0.76 });
+    for (const y of [0.12, 0.36, 0.6, 0.84]) {
+      add([b.w * 0.9, b.h * 0.045, b.d * 0.62], [0, b.h * y, 0], p.wood, { name: 'shoe-rack-slatted-shelf', roughness: 0.78 });
+      for (const side of [-1, 1]) {
+        add([b.w * 0.26, b.h * 0.1, b.d * 0.22], [side * b.w * 0.23, b.h * (y + 0.08), b.d * 0.06], side < 0 ? p.primary : p.secondary, { name: 'shoe-rack-shoe-sole', roughness: 0.86 });
+        add([b.w * 0.16, b.h * 0.12, b.d * 0.2], [side * b.w * 0.27, b.h * (y + 0.16), -b.d * 0.01], side < 0 ? p.primary : p.secondary, { rotation: [0, 0, side * 0.08], name: 'shoe-rack-shoe-upper', roughness: 0.88 });
+      }
+    }
+    return;
+  }
+  if (key.includes('wine_rack')) {
+    for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.92, b.d * 0.68], [side * b.w * 0.46, b.h * 0.49, 0], p.wood, { name: 'wine-rack-cabinet-frame', roughness: 0.76 });
+    for (const y of [0.05, 0.93]) add([b.w * 0.92, b.h * 0.06, b.d * 0.68], [0, b.h * y, 0], p.wood, { name: 'wine-rack-cabinet-frame', roughness: 0.76 });
+    add([b.w * 0.84, b.h * 0.84, b.d * 0.035], [0, b.h * 0.49, -b.d * 0.33], p.wood, { name: 'wine-rack-cabinet-back', roughness: 0.78 });
+    for (let row = 0; row < 4; row += 1) for (let column = -3; column <= 3; column += 1) {
+      const x = column * b.w * 0.12;
+      const y = b.h * (0.18 + row * 0.2);
+      add([b.w * 0.09, b.h * 0.09, b.d * 0.48], [x, y, b.d * 0.04], column % 2 ? '#526e4c' : '#6b4b3f', { name: 'wine-rack-horizontal-bottle', roughness: 0.5 });
+      add([b.w * 0.055, b.h * 0.055, b.d * 0.04], [x, y, b.d * 0.3], p.light, { name: 'wine-rack-bottle-label', roughness: 0.8 });
+    }
+    return;
+  }
+
+  // Safety cabinet is intentionally unmistakable and functional, not a wood sideboard.
+  add([b.w * 0.9, b.h * 0.94, b.d * 0.72], [0, b.h * 0.5, 0], '#c3a83f', { name: 'safety-cabinet-double-wall-body', metalness: 0.34, roughness: 0.48 });
+  for (const side of [-1, 1]) add([b.w * 0.42, b.h * 0.82, b.d * 0.025], [side * b.w * 0.215, b.h * 0.52, b.d * 0.37], '#d2b94d', { name: 'safety-cabinet-latching-door', metalness: 0.32 });
+  for (const side of [-1, 1]) add([b.w * 0.025, b.h * 0.22, b.d * 0.025], [side * b.w * 0.08, b.h * 0.52, b.d * 0.39], p.dark, { name: 'safety-cabinet-three-point-handle', metalness: 0.58 });
+  add([b.w * 0.28, b.h * 0.22, b.d * 0.025], [0, b.h * 0.72, b.d * 0.39], p.dark, { name: 'safety-cabinet-hazard-label' });
+  for (let vent = -3; vent <= 3; vent += 1) add([b.w * 0.06, b.h * 0.018, b.d * 0.02], [vent * b.w * 0.08, b.h * 0.24, b.d * 0.39], p.dark, { name: 'safety-cabinet-vent-slot' });
   void variant;
 }
 

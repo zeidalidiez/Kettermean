@@ -402,6 +402,28 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_bookshelf_wall', ['bookshelf-wall-shelf', 'bookshelf-wall-bound-book']],
+    ['cine_prop_pantry_cabinet', ['pantry-shelf-deck', 'pantry-boxed-food']],
+    ['cine_prop_pantry_shelving', ['pantry-canned-food', 'pantry-shelf-side-panel']],
+    ['cine_prop_pharmacy_shelving', ['pharmacy-shelf-deck', 'pharmacy-labeled-medicine-box']],
+    ['cine_prop_clinic_instrument_cabinet', ['clinical-instrument-cabinet-glass-door', 'clinical-instrument-sterile-tray']],
+    ['cine_prop_card_catalog', ['card-catalog-index-drawer', 'card-catalog-label-pull']],
+    ['cine_prop_document_cabinet', ['document-cabinet-fireproof-body', 'document-cabinet-file-drawer']],
+    ['cine_prop_locker_row', ['locker-row-steel-compartment', 'locker-row-vent-slot']],
+    ['cine_prop_lockers_lounge', ['locker-lounge-changing-bench', 'locker-row-door-handle']],
+    ['cine_prop_shoe_rack', ['shoe-rack-slatted-shelf', 'shoe-rack-shoe-upper']],
+    ['cine_prop_wine_rack', ['wine-rack-horizontal-bottle', 'wine-rack-bottle-label']],
+    ['cine_prop_safety_cabinet', ['safety-cabinet-latching-door', 'safety-cabinet-hazard-label']],
+  ] as const)('replaces generic cabinet geometry for specialty storage %s', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#657b69', '#80654b', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {
