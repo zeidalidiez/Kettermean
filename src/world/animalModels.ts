@@ -3,6 +3,19 @@ import { hashString } from '../core/rng';
 import { geometryForShape } from './modelQuality';
 
 type Bounds = { w: number; h: number; d: number };
+type AnimalShape =
+  | 'box'
+  | 'sphere'
+  | 'cylinder'
+  | 'cone'
+  | 'torus'
+  | 'capsule'
+  | 'body'
+  | 'head'
+  | 'muzzle'
+  | 'foot'
+  | 'wing'
+  | 'shell';
 
 interface AnimalPalette {
   primary: string;
@@ -32,6 +45,8 @@ type AnimalClass =
   | 'lizard'
   | 'turtle'
   | 'amphibian';
+
+const animalGeometries = new Map<string, THREE.BufferGeometry>();
 
 export function isProductionAnimalKind(kind: string): boolean {
   const value = kind.toLowerCase();
@@ -83,6 +98,11 @@ export function buildProductionAnimal(
   return root;
 }
 
+export function clearProductionAnimalGeometries(): void {
+  for (const geometry of animalGeometries.values()) geometry.dispose();
+  animalGeometries.clear();
+}
+
 function buildQuadruped(
   root: THREE.Group,
   kind: string,
@@ -92,55 +112,102 @@ function buildQuadruped(
   type: 'canine' | 'feline' | 'ungulate' | 'long-neck' | 'bulky',
 ): void {
   const h = b.h;
-  const bodyY = type === 'long-neck' ? h * 0.38 : type === 'bulky' ? h * 0.52 : h * 0.48;
-  const bodyH = type === 'bulky' ? h * 0.46 : type === 'long-neck' ? h * 0.28 : h * 0.36;
-  const bodyW = b.w * (type === 'bulky' ? 0.78 : 0.62);
-  const bodyD = b.d * (type === 'bulky' ? 0.72 : 0.66);
-  add(root, 'animal-ribcage-fur', 'sphere', [bodyW, bodyH, bodyD], [0, bodyY, -b.d * 0.06], p.primary);
-  add(root, 'animal-chest-fur', 'sphere', [bodyW * 0.82, bodyH * 0.92, bodyD * 0.46], [0, bodyY + bodyH * 0.08, b.d * 0.25], p.secondary);
-  add(root, 'animal-haunch-fur', 'sphere', [bodyW * 0.88, bodyH * 0.96, bodyD * 0.42], [0, bodyY, -b.d * 0.33], p.primary);
+  const juvenile = /(cub|calf|pup|kitten|foal)/.test(kind);
+  const bodyY = type === 'long-neck' ? h * 0.43 : type === 'bulky' ? h * 0.5 : h * 0.46;
+  const bodyH = type === 'bulky' ? h * 0.42 : type === 'long-neck' ? h * 0.27 : h * 0.34;
+  const bodyW = b.w * (type === 'bulky' ? 0.78 : 0.64);
+  const bodyD = b.d * (type === 'bulky' ? 0.74 : 0.7);
+  add(root, 'animal-torso-fur', 'body', [bodyW, bodyH, bodyD], [0, bodyY, -b.d * 0.06], p.primary);
+  add(root, 'animal-shoulder-fur', 'head', [bodyD * 0.3, bodyH * 0.9, bodyW * 0.82], [0, bodyY + bodyH * 0.025, b.d * 0.23], p.secondary, [0, Math.PI / 2, 0]);
 
-  const headY = type === 'long-neck' ? h * 0.83 : type === 'ungulate' ? h * 0.72 : h * 0.7;
+  const headY = type === 'long-neck' ? h * 0.84 : type === 'ungulate' ? h * 0.72 : h * (juvenile ? 0.69 : 0.67);
   const headZ = b.d * 0.36;
   if (type === 'long-neck') {
-    addBetween(root, 'animal-long-neck-fur', new THREE.Vector3(0, bodyY + bodyH * 0.1, b.d * 0.25), new THREE.Vector3(0, headY - h * 0.11, headZ), b.w * 0.22, b.w * 0.18, p.secondary);
+    addBetween(root, 'animal-long-neck-fur', new THREE.Vector3(0, bodyY + bodyH * 0.08, b.d * 0.2), new THREE.Vector3(0, headY - h * 0.1, headZ - b.d * 0.04), b.w * 0.2, b.w * 0.16, p.secondary);
   } else {
-    addBetween(root, 'animal-neck-fur', new THREE.Vector3(0, bodyY + bodyH * 0.16, b.d * 0.25), new THREE.Vector3(0, headY - h * 0.12, headZ - b.d * 0.06), b.w * (type === 'bulky' ? 0.32 : 0.24), b.w * 0.2, p.secondary);
+    addBetween(root, 'animal-neck-fur', new THREE.Vector3(0, bodyY + bodyH * 0.12, b.d * 0.2), new THREE.Vector3(0, headY - h * 0.1, headZ - b.d * 0.07), b.w * (type === 'bulky' ? 0.3 : 0.22), b.w * (type === 'bulky' ? 0.24 : 0.18), p.secondary);
   }
 
-  const headW = b.w * (type === 'bulky' ? 0.48 : type === 'long-neck' ? 0.32 : 0.42);
-  const headH = h * (type === 'long-neck' ? 0.18 : 0.27);
-  const headD = b.d * (type === 'feline' ? 0.27 : 0.31);
-  add(root, 'animal-head-fur', 'sphere', [headW, headH, headD], [0, headY, headZ], p.secondary);
-  const muzzleLong = type === 'ungulate' || type === 'long-neck' ? 0.28 : type === 'canine' ? 0.24 : 0.18;
-  add(root, 'animal-muzzle-fur', type === 'ungulate' || type === 'long-neck' ? 'cylinder' : 'sphere', [headW * 0.58, headH * 0.43, b.d * muzzleLong], [0, headY - headH * 0.13, headZ + headD * 0.53], p.light, type === 'ungulate' || type === 'long-neck' ? [Math.PI / 2, 0, 0] : undefined);
-  add(root, 'animal-nose-organic', 'sphere', [headW * 0.24, headH * 0.16, headD * 0.18], [0, headY - headH * 0.13, headZ + headD * 0.99], p.dark);
+  const headW = b.w * (type === 'bulky' ? 0.45 : type === 'long-neck' ? 0.3 : type === 'feline' && juvenile ? 0.41 : 0.37);
+  const headH = h * (type === 'long-neck' ? 0.17 : type === 'bulky' ? 0.25 : juvenile ? 0.25 : 0.23);
+  const headD = b.d * (type === 'feline' ? 0.25 : type === 'ungulate' || type === 'long-neck' ? 0.28 : 0.27);
+  add(root, 'animal-head-fur', 'head', [headW, headH, headD], [0, headY, headZ], p.secondary);
+  const muzzleDepth = b.d * (type === 'ungulate' || type === 'long-neck' ? 0.23 : type === 'canine' ? 0.2 : 0.15);
+  if (type === 'feline') {
+    for (const side of [-1, 1]) {
+      add(root, 'animal-muzzle-cheek-fur', 'muzzle', [headW * 0.34, headH * 0.32, muzzleDepth * 0.76], [side * headW * 0.13, headY - headH * 0.16, headZ + headD * 0.48], p.light, [0, side * 0.08, 0]);
+    }
+    add(root, 'animal-nose-organic', 'muzzle', [headW * 0.16, headH * 0.1, headD * 0.085], [0, headY - headH * 0.1, headZ + headD * 0.55 + muzzleDepth * 0.3], p.dark);
+  } else {
+    add(root, 'animal-muzzle-fur', 'muzzle', [headW * 0.56, headH * 0.38, muzzleDepth], [0, headY - headH * 0.16, headZ + headD * 0.48], p.light);
+    add(root, 'animal-nose-organic', 'muzzle', [headW * 0.19, headH * 0.12, headD * 0.1], [0, headY - headH * 0.16, headZ + headD * 0.55 + muzzleDepth * 0.45], p.dark);
+  }
 
-  addAnimalEyes(root, headW, headH, headD, headY, headZ, p, type === 'ungulate' || type === 'long-neck' ? 0.25 : 0.22);
+  addAnimalEyes(root, headW, headH, headD, headY, headZ, p, type === 'ungulate' || type === 'long-neck' ? 0.27 : 0.24);
   addQuadrupedEars(root, type, headW, headH, headD, headY, headZ, p);
 
-  const legTopY = bodyY - bodyH * 0.18;
-  const footY = h * 0.055;
-  const frontZ = b.d * 0.24;
-  const rearZ = -b.d * 0.31;
+  const legTopY = bodyY - bodyH * 0.27;
+  const footY = h * 0.038;
+  const frontZ = b.d * 0.23;
+  const rearZ = -b.d * 0.28;
   for (const side of [-1, 1]) {
     for (const front of [-1, 1]) {
       const z = front > 0 ? frontZ : rearZ;
-      const x = side * bodyW * 0.34;
-      const knee = new THREE.Vector3(x + side * (front > 0 ? 0.01 : -0.015) * b.w, h * 0.23, z + (front > 0 ? -0.02 : 0.025) * b.d);
-      addBetween(root, side < 0 ? 'rig-leg-left animal-upper-leg-fur' : 'rig-leg-right animal-upper-leg-fur', new THREE.Vector3(x, legTopY, z), knee, b.w * (type === 'bulky' ? 0.15 : 0.11), b.w * (type === 'bulky' ? 0.13 : 0.09), p.primary);
-      addBetween(root, 'animal-lower-leg-fur', knee, new THREE.Vector3(x, footY + h * 0.09, z + b.d * 0.025), b.w * (type === 'bulky' ? 0.12 : 0.085), b.w * (type === 'bulky' ? 0.11 : 0.075), p.secondary);
-      add(root, type === 'ungulate' || type === 'long-neck' ? 'animal-hoof-organic' : 'animal-paw-fur', 'box', [b.w * 0.18, h * 0.08, b.d * 0.14], [x, footY, z + b.d * 0.055], p.dark);
+      const x = side * bodyW * 0.36;
+      const knee = new THREE.Vector3(x + side * (front > 0 ? 0.006 : -0.012) * b.w, h * 0.22, z + (front > 0 ? -0.018 : 0.02) * b.d);
+      const ankle = new THREE.Vector3(x, footY + h * 0.045, z + b.d * 0.025);
+      addBetween(root, side < 0 ? 'rig-leg-left animal-upper-leg-fur' : 'rig-leg-right animal-upper-leg-fur', new THREE.Vector3(x, legTopY, z), knee, b.w * (type === 'bulky' ? 0.15 : 0.12), b.w * (type === 'bulky' ? 0.13 : 0.1), p.primary);
+      addBetween(root, 'animal-lower-leg-fur', knee, ankle, b.w * (type === 'bulky' ? 0.115 : 0.09), b.w * (type === 'bulky' ? 0.1 : 0.075), p.primary);
+      const hoofed = type === 'ungulate' || type === 'long-neck';
+      add(root, hoofed ? 'animal-hoof-organic' : 'animal-paw-fur', 'foot', [b.w * (hoofed ? 0.12 : 0.135), h * 0.1, b.d * (hoofed ? 0.1 : 0.115)], [x, h * 0.045, z + b.d * 0.045], hoofed ? p.dark : p.primary);
     }
   }
 
-  const tailStart = new THREE.Vector3(0, bodyY + bodyH * 0.12, -b.d * 0.43);
-  const tailEnd = type === 'feline'
-    ? new THREE.Vector3(b.w * 0.18, bodyY + h * 0.12, -b.d * 0.58)
-    : new THREE.Vector3(0, bodyY + (variant % 2 ? h * 0.13 : -h * 0.08), -b.d * 0.58);
-  addBetween(root, 'animal-tail-fur', tailStart, tailEnd, b.w * (type === 'bulky' ? 0.11 : 0.075), b.w * 0.065, p.primary);
+  const tailStart = new THREE.Vector3(0, bodyY + bodyH * 0.08, -b.d * 0.42);
+  const tailMid = new THREE.Vector3(type === 'feline' ? b.w * 0.13 : 0, bodyY + (variant % 2 ? h * 0.09 : -h * 0.04), -b.d * 0.53);
+  const tailEnd = new THREE.Vector3(type === 'feline' ? b.w * 0.22 : b.w * 0.04, tailMid.y + (type === 'feline' ? h * 0.05 : -h * 0.04), -b.d * 0.63);
+  addBetween(root, 'animal-tail-fur', tailStart, tailMid, b.w * (type === 'bulky' ? 0.1 : 0.07), b.w * 0.06, p.primary);
+  addBetween(root, 'animal-tail-tip-fur', tailMid, tailEnd, b.w * 0.06, b.w * 0.035, p.primary);
 
   if (type === 'ungulate' || type === 'long-neck') addHorns(root, kind, headW, headH, headY, headZ, p);
+  addQuadrupedIdentity(root, kind, b, bodyY, bodyH, headW, headH, headD, headY, headZ, p);
+}
+
+function addQuadrupedIdentity(
+  root: THREE.Group,
+  kind: string,
+  b: Bounds,
+  bodyY: number,
+  bodyH: number,
+  headW: number,
+  headH: number,
+  headD: number,
+  headY: number,
+  headZ: number,
+  p: AnimalPalette,
+): void {
+  if (/elephant/.test(kind)) {
+    for (const side of [-1, 1]) {
+      add(root, 'animal-elephant-ear-organic', 'wing', [headW * 0.72, headH * 1.05, headD * 0.18], [side * headW * 0.48, headY, headZ - headD * 0.12], p.primary, [0, side * 0.12, side * -0.08]);
+    }
+    const trunkTop = new THREE.Vector3(0, headY - headH * 0.2, headZ + headD * 0.55);
+    const trunkMid = new THREE.Vector3(0, headY - headH * 0.75, headZ + headD * 0.64);
+    const trunkTip = new THREE.Vector3(0, headY - headH * 1.0, headZ + headD * 0.78);
+    addBetween(root, 'animal-elephant-trunk-organic', trunkTop, trunkMid, headW * 0.2, headW * 0.16, p.secondary);
+    addBetween(root, 'animal-elephant-trunk-tip-organic', trunkMid, trunkTip, headW * 0.15, headW * 0.1, p.secondary);
+  } else if (/rhino/.test(kind)) {
+    add(root, 'animal-rhino-horn-organic', 'cone', [headW * 0.16, headH * 0.62, headW * 0.14], [0, headY + headH * 0.04, headZ + headD * 0.68], p.light, [Math.PI * 0.36, 0, 0]);
+  }
+
+  if (/(camel|bison|buffalo|yak)/.test(kind)) {
+    const twoHumps = /camel/.test(kind) && hashString(kind) % 2 === 0;
+    const humps = twoHumps ? [-0.16, 0.13] : [-0.04];
+    for (const z of humps) add(root, 'animal-back-hump-fur', 'head', [b.w * 0.38, bodyH * 0.7, b.d * 0.25], [0, bodyY + bodyH * 0.48, b.d * z], p.primary);
+  }
+
+  if (/(bear|panda|koala)/.test(kind)) {
+    for (const side of [-1, 1]) add(root, 'animal-round-ear-fur', 'head', [headW * 0.24, headH * 0.28, headD * 0.14], [side * headW * 0.4, headY + headH * 0.42, headZ - headD * 0.12], p.dark);
+  }
 }
 
 function addQuadrupedEars(
@@ -159,7 +226,7 @@ function addQuadrupedEars(
     } else if (type === 'canine') {
       add(root, 'animal-ear-fur', 'cone', [headW * 0.3, headH * 0.58, headD * 0.22], [side * headW * 0.36, headY + headH * 0.35, headZ - headD * 0.06], p.dark, [0, 0, side * 0.2]);
     } else {
-      add(root, 'animal-ear-fur', 'sphere', [headW * 0.42, headH * 0.24, headD * 0.18], [side * headW * 0.5, headY + headH * 0.18, headZ - headD * 0.03], p.primary, [0, 0, side * 0.2]);
+      add(root, 'animal-ear-fur', 'wing', [headW * 0.42, headH * 0.24, headD * 0.15], [side * headW * 0.5, headY + headH * 0.18, headZ - headD * 0.03], p.primary, [0, 0, side * 0.2]);
     }
   }
 }
@@ -187,14 +254,15 @@ function buildSmallMammal(root: THREE.Group, kind: string, variant: number, b: B
   const rabbit = /(rabbit|hare)/.test(kind);
   const upright = /(meerkat|kangaroo|wallaby)/.test(kind);
   const bodyY = b.h * (upright ? 0.48 : 0.4);
-  add(root, 'animal-small-body-fur', 'sphere', [b.w * 0.62, b.h * (upright ? 0.52 : 0.46), b.d * 0.58], [0, bodyY, -b.d * 0.06], p.primary);
-  add(root, 'animal-small-head-fur', 'sphere', [b.w * 0.48, b.h * 0.36, b.d * 0.42], [0, b.h * (upright ? 0.78 : 0.68), b.d * 0.25], p.secondary);
-  add(root, 'animal-small-muzzle-fur', 'sphere', [b.w * 0.3, b.h * 0.16, b.d * 0.24], [0, b.h * (upright ? 0.72 : 0.62), b.d * 0.45], p.light);
-  add(root, 'animal-nose-organic', 'sphere', [b.w * 0.1, b.h * 0.07, b.d * 0.07], [0, b.h * (upright ? 0.73 : 0.63), b.d * 0.58], p.dark);
+  add(root, 'animal-small-body-fur', 'body', [b.w * 0.62, b.h * (upright ? 0.52 : 0.46), b.d * 0.58], [0, bodyY, -b.d * 0.06], p.primary);
+  add(root, 'animal-small-head-fur', 'head', [b.w * 0.46, b.h * 0.34, b.d * 0.4], [0, b.h * (upright ? 0.78 : 0.68), b.d * 0.25], p.secondary);
+  add(root, 'animal-small-muzzle-fur', 'muzzle', [b.w * 0.27, b.h * 0.14, b.d * 0.22], [0, b.h * (upright ? 0.72 : 0.62), b.d * 0.45], p.light);
+  add(root, 'animal-nose-organic', 'muzzle', [b.w * 0.075, b.h * 0.05, b.d * 0.045], [0, b.h * (upright ? 0.73 : 0.63), b.d * 0.57], p.dark);
   addAnimalEyes(root, b.w * 0.48, b.h * 0.36, b.d * 0.42, b.h * (upright ? 0.78 : 0.68), b.d * 0.25, p, 0.25);
   for (const side of [-1, 1]) {
-    add(root, 'animal-small-ear-fur', rabbit ? 'capsule' : 'sphere', [b.w * (rabbit ? 0.16 : 0.2), b.h * (rabbit ? 0.5 : 0.2), b.d * 0.12], [side * b.w * 0.19, b.h * (rabbit ? 1.0 : upright ? 0.94 : 0.84), b.d * 0.18], p.primary, [0, 0, side * (rabbit ? 0.12 : 0.24)]);
+    add(root, 'animal-small-ear-fur', rabbit ? 'wing' : 'head', [b.w * (rabbit ? 0.16 : 0.18), b.h * (rabbit ? 0.5 : 0.18), b.d * 0.1], [side * b.w * 0.19, b.h * (rabbit ? 1.0 : upright ? 0.94 : 0.84), b.d * 0.18], p.primary, [0, 0, side * (rabbit ? 0.12 : 0.24)]);
     addBetween(root, 'animal-small-leg-fur', new THREE.Vector3(side * b.w * 0.22, bodyY - b.h * 0.08, 0), new THREE.Vector3(side * b.w * 0.24, b.h * 0.08, b.d * (variant % 2 ? 0.05 : -0.03)), b.w * 0.12, b.w * 0.09, p.secondary);
+    add(root, 'animal-small-paw-fur', 'foot', [b.w * 0.16, b.h * 0.07, b.d * 0.18], [side * b.w * 0.24, b.h * 0.04, b.d * 0.08], p.light);
   }
   if (!rabbit) addBetween(root, 'animal-small-tail-fur', new THREE.Vector3(0, bodyY, -b.d * 0.32), new THREE.Vector3(b.w * 0.26, bodyY + b.h * 0.06, -b.d * 0.48), b.w * 0.11, b.w * 0.08, p.primary);
   else add(root, 'animal-rabbit-tail-fur', 'sphere', [b.w * 0.22, b.h * 0.19, b.d * 0.18], [0, bodyY + b.h * 0.03, -b.d * 0.38], p.light);
@@ -202,26 +270,26 @@ function buildSmallMammal(root: THREE.Group, kind: string, variant: number, b: B
 
 function buildBird(root: THREE.Group, kind: string, variant: number, b: Bounds, p: AnimalPalette, wading: boolean): void {
   const bodyY = b.h * (wading ? 0.62 : 0.48);
-  add(root, 'animal-bird-body-feather', 'sphere', [b.w * 0.58, b.h * (wading ? 0.38 : 0.52), b.d * 0.58], [0, bodyY, -b.d * 0.06], p.primary);
+  add(root, 'animal-bird-body-feather', 'body', [b.w * 0.58, b.h * (wading ? 0.38 : 0.52), b.d * 0.58], [0, bodyY, -b.d * 0.06], p.primary);
   const neckTop = b.h * (wading ? 0.82 : 0.68);
   if (wading) addBetween(root, 'animal-bird-neck-feather', new THREE.Vector3(0, bodyY + b.h * 0.06, b.d * 0.16), new THREE.Vector3(0, neckTop, b.d * 0.24), b.w * 0.15, b.w * 0.12, p.light);
-  add(root, 'animal-bird-head-feather', 'sphere', [b.w * 0.34, b.h * 0.28, b.d * 0.32], [0, neckTop, b.d * 0.28], p.secondary);
+  add(root, 'animal-bird-head-feather', 'head', [b.w * 0.34, b.h * 0.28, b.d * 0.32], [0, neckTop, b.d * 0.28], p.secondary);
   const beakLength = /(toucan|pelican|stork|heron|egret|crane|albatross)/.test(kind) ? 0.42 : 0.25;
   add(root, 'animal-bird-beak-organic', 'cone', [b.w * 0.15, b.h * 0.11, b.d * beakLength], [0, neckTop - b.h * 0.02, b.d * (0.47 + beakLength * 0.2)], p.accent, [Math.PI / 2, 0, 0]);
   addAnimalEyes(root, b.w * 0.34, b.h * 0.28, b.d * 0.32, neckTop, b.d * 0.28, p, 0.28);
   for (const side of [-1, 1]) {
-    add(root, side < 0 ? 'rig-wing-left animal-wing-feather' : 'rig-wing-right animal-wing-feather', 'sphere', [b.w * 0.18, b.h * 0.38, b.d * 0.5], [side * b.w * 0.31, bodyY, -b.d * 0.08], p.secondary, [0, 0, side * (0.12 + variant * 0.01)]);
+    add(root, side < 0 ? 'rig-wing-left animal-wing-feather' : 'rig-wing-right animal-wing-feather', 'wing', [b.w * 0.2, b.h * 0.4, b.d * 0.5], [side * b.w * 0.3, bodyY, -b.d * 0.08], p.secondary, [0, 0, side * (0.12 + variant * 0.01)]);
     const legStart = new THREE.Vector3(side * b.w * 0.14, bodyY - b.h * 0.15, 0);
     const legEnd = new THREE.Vector3(side * b.w * 0.16, b.h * 0.08, b.d * 0.03);
     addBetween(root, side < 0 ? 'rig-leg-left animal-bird-leg-organic' : 'rig-leg-right animal-bird-leg-organic', legStart, legEnd, b.w * 0.055, b.w * 0.045, p.dark);
-    add(root, 'animal-bird-foot-organic', 'box', [b.w * 0.19, b.h * 0.035, b.d * 0.15], [side * b.w * 0.16, b.h * 0.045, b.d * 0.08], p.dark);
+    add(root, 'animal-bird-foot-organic', 'foot', [b.w * 0.16, b.h * 0.035, b.d * 0.17], [side * b.w * 0.16, b.h * 0.025, b.d * 0.08], p.dark);
   }
   for (const side of [-1, 0, 1]) add(root, 'animal-bird-tail-feather', 'cone', [b.w * 0.13, b.h * 0.18, b.d * 0.34], [side * b.w * 0.13, bodyY, -b.d * 0.39], side === 0 ? p.primary : p.secondary, [-Math.PI / 2, 0, side * 0.1]);
 }
 
 function buildFish(root: THREE.Group, _kind: string, variant: number, b: Bounds, p: AnimalPalette, shark: boolean): void {
-  add(root, 'animal-fish-body-organic', 'sphere', [b.w * 0.78, b.h * 0.68, b.d * 0.66], [0, b.h * 0.52, 0], p.primary, [0, Math.PI / 2, 0]);
-  add(root, 'animal-fish-head-organic', 'sphere', [b.w * 0.38, b.h * 0.58, b.d * 0.58], [0, b.h * 0.52, b.d * 0.3], p.secondary);
+  add(root, 'animal-fish-body-organic', 'body', [b.w * 0.78, b.h * 0.68, b.d * 0.72], [0, b.h * 0.52, -b.d * 0.03], p.primary);
+  add(root, 'animal-fish-head-organic', 'head', [b.w * 0.38, b.h * 0.56, b.d * 0.54], [0, b.h * 0.52, b.d * 0.3], p.secondary);
   add(root, 'animal-fish-tail-organic', 'cone', [b.w * 0.42, b.h * 0.58, b.d * 0.24], [0, b.h * 0.52, -b.d * 0.45], p.secondary, [-Math.PI / 2, 0, variant % 2 ? 0.08 : -0.08]);
   add(root, 'animal-fish-dorsal-fin-organic', 'cone', [b.w * 0.12, b.h * (shark ? 0.48 : 0.28), b.d * 0.25], [0, b.h * 0.87, -b.d * 0.04], p.dark, [0, 0, shark ? 0 : 0.12]);
   for (const side of [-1, 1]) {
@@ -231,17 +299,17 @@ function buildFish(root: THREE.Group, _kind: string, variant: number, b: Bounds,
 }
 
 function buildRay(root: THREE.Group, b: Bounds, p: AnimalPalette): void {
-  add(root, 'animal-ray-body-organic', 'sphere', [b.w * 0.76, b.h * 0.34, b.d * 0.58], [0, b.h * 0.5, b.d * 0.05], p.primary);
-  for (const side of [-1, 1]) add(root, 'animal-ray-wing-organic', 'cone', [b.w * 0.62, b.h * 0.18, b.d * 0.52], [side * b.w * 0.34, b.h * 0.5, 0], p.secondary, [0, 0, side * -Math.PI / 2]);
+  add(root, 'animal-ray-body-organic', 'shell', [b.w * 0.76, b.h * 0.3, b.d * 0.58], [0, b.h * 0.5, b.d * 0.05], p.primary);
+  for (const side of [-1, 1]) add(root, 'animal-ray-wing-organic', 'wing', [b.w * 0.62, b.h * 0.16, b.d * 0.52], [side * b.w * 0.34, b.h * 0.5, 0], p.secondary, [0, 0, side * -Math.PI / 2]);
   addBetween(root, 'animal-ray-tail-organic', new THREE.Vector3(0, b.h * 0.5, -b.d * 0.24), new THREE.Vector3(0, b.h * 0.46, -b.d * 0.58), b.w * 0.05, b.w * 0.025, p.dark);
   addAnimalEyes(root, b.w * 0.32, b.h * 0.2, b.d * 0.28, b.h * 0.58, b.d * 0.18, p, 0.3);
 }
 
 function buildMarineMammal(root: THREE.Group, kind: string, b: Bounds, p: AnimalPalette): void {
   const seal = /(seal|sea_lion|manatee)/.test(kind);
-  add(root, 'animal-marine-body-organic', 'sphere', [b.w * 0.66, b.h * (seal ? 0.62 : 0.5), b.d * 0.74], [0, b.h * 0.5, -b.d * 0.04], p.primary, [0, 0, 0]);
-  add(root, 'animal-marine-head-organic', 'sphere', [b.w * 0.45, b.h * 0.4, b.d * 0.4], [0, b.h * 0.62, b.d * 0.33], p.secondary);
-  add(root, 'animal-marine-snout-organic', 'sphere', [b.w * 0.28, b.h * 0.18, b.d * 0.22], [0, b.h * 0.56, b.d * 0.53], p.light);
+  add(root, 'animal-marine-body-organic', 'body', [b.w * 0.66, b.h * (seal ? 0.62 : 0.5), b.d * 0.74], [0, b.h * 0.5, -b.d * 0.04], p.primary);
+  add(root, 'animal-marine-head-organic', 'head', [b.w * 0.45, b.h * 0.4, b.d * 0.4], [0, b.h * 0.62, b.d * 0.33], p.secondary);
+  add(root, 'animal-marine-snout-organic', 'muzzle', [b.w * 0.28, b.h * 0.18, b.d * 0.22], [0, b.h * 0.56, b.d * 0.53], p.light);
   addAnimalEyes(root, b.w * 0.45, b.h * 0.4, b.d * 0.4, b.h * 0.62, b.d * 0.33, p, 0.24);
   if (!seal) {
     add(root, 'animal-marine-tail-organic', 'cone', [b.w * 0.5, b.h * 0.36, b.d * 0.25], [0, b.h * 0.46, -b.d * 0.47], p.secondary, [-Math.PI / 2, 0, 0]);
@@ -251,8 +319,8 @@ function buildMarineMammal(root: THREE.Group, kind: string, b: Bounds, p: Animal
 }
 
 function buildCephalopod(root: THREE.Group, b: Bounds, p: AnimalPalette, variant: number): void {
-  add(root, 'animal-octopus-mantle-organic', 'sphere', [b.w * 0.52, b.h * 0.56, b.d * 0.48], [0, b.h * 0.7, 0], p.primary);
-  add(root, 'animal-octopus-head-organic', 'sphere', [b.w * 0.58, b.h * 0.3, b.d * 0.54], [0, b.h * 0.5, b.d * 0.05], p.secondary);
+  add(root, 'animal-octopus-mantle-organic', 'head', [b.w * 0.52, b.h * 0.56, b.d * 0.48], [0, b.h * 0.7, 0], p.primary, [Math.PI / 2, 0, 0]);
+  add(root, 'animal-octopus-head-organic', 'body', [b.w * 0.58, b.h * 0.3, b.d * 0.54], [0, b.h * 0.5, b.d * 0.05], p.secondary);
   addAnimalEyes(root, b.w * 0.58, b.h * 0.3, b.d * 0.54, b.h * 0.52, b.d * 0.05, p, 0.3);
   for (let arm = 0; arm < 8; arm += 1) {
     const angle = arm / 8 * Math.PI * 2 + variant * 0.04;
@@ -272,7 +340,7 @@ function buildCrustacean(root: THREE.Group, kind: string, b: Bounds, p: AnimalPa
     }
     return;
   }
-  add(root, 'animal-crustacean-shell-organic', 'sphere', [b.w * 0.62, b.h * 0.42, b.d * 0.55], [0, b.h * 0.46, 0], p.primary);
+  add(root, 'animal-crustacean-shell-organic', 'shell', [b.w * 0.62, b.h * 0.42, b.d * 0.55], [0, b.h * 0.46, 0], p.primary);
   for (const side of [-1, 1]) {
     for (let leg = 0; leg < 4; leg += 1) {
       const z = (leg - 1.5) * b.d * 0.15;
@@ -292,14 +360,14 @@ function buildSnake(root: THREE.Group, b: Bounds, p: AnimalPalette, variant: num
   }
   for (let index = 0; index < points.length - 1; index += 1) addBetween(root, 'animal-snake-body-organic', points[index]!, points[index + 1]!, b.w * (0.14 - index * 0.009), b.w * (0.12 - index * 0.008), index % 2 ? p.primary : p.secondary);
   const head = points[points.length - 1]!;
-  add(root, 'animal-snake-head-organic', 'sphere', [b.w * 0.3, b.h * 0.22, b.d * 0.22], [head.x, head.y + b.h * 0.04, head.z + b.d * 0.06], p.secondary);
+  add(root, 'animal-snake-head-organic', 'head', [b.w * 0.3, b.h * 0.22, b.d * 0.22], [head.x, head.y + b.h * 0.04, head.z + b.d * 0.06], p.secondary);
   for (const side of [-1, 1]) add(root, 'animal-eye-organic', 'sphere', [b.w * 0.055, b.h * 0.06, b.d * 0.04], [head.x + side * b.w * 0.1, head.y + b.h * 0.09, head.z + b.d * 0.16], p.eye);
 }
 
 function buildLizard(root: THREE.Group, kind: string, b: Bounds, p: AnimalPalette): void {
   const crocodilian = /(alligator|crocodile)/.test(kind);
-  add(root, 'animal-lizard-body-organic', 'sphere', [b.w * 0.58, b.h * 0.42, b.d * 0.58], [0, b.h * 0.42, -b.d * 0.05], p.primary);
-  add(root, 'animal-lizard-head-organic', crocodilian ? 'box' : 'sphere', [b.w * 0.42, b.h * 0.28, b.d * (crocodilian ? 0.45 : 0.32)], [0, b.h * 0.48, b.d * 0.36], p.secondary);
+  add(root, 'animal-lizard-body-organic', 'body', [b.w * 0.58, b.h * 0.42, b.d * 0.58], [0, b.h * 0.42, -b.d * 0.05], p.primary);
+  add(root, 'animal-lizard-head-organic', crocodilian ? 'muzzle' : 'head', [b.w * 0.42, b.h * 0.28, b.d * (crocodilian ? 0.45 : 0.32)], [0, b.h * 0.48, b.d * 0.36], p.secondary);
   addAnimalEyes(root, b.w * 0.42, b.h * 0.28, b.d * 0.36, b.h * 0.48, b.d * 0.36, p, 0.3);
   for (const side of [-1, 1]) for (const front of [-1, 1]) {
     addBetween(root, 'animal-lizard-leg-organic', new THREE.Vector3(side * b.w * 0.25, b.h * 0.4, front * b.d * 0.18), new THREE.Vector3(side * b.w * 0.45, b.h * 0.1, front * b.d * 0.28), b.w * 0.075, b.w * 0.05, p.secondary);
@@ -308,16 +376,16 @@ function buildLizard(root: THREE.Group, kind: string, b: Bounds, p: AnimalPalett
 }
 
 function buildTurtle(root: THREE.Group, b: Bounds, p: AnimalPalette): void {
-  add(root, 'animal-turtle-shell-organic', 'sphere', [b.w * 0.72, b.h * 0.56, b.d * 0.68], [0, b.h * 0.48, -b.d * 0.05], p.dark);
-  add(root, 'animal-turtle-plastron-organic', 'sphere', [b.w * 0.58, b.h * 0.24, b.d * 0.54], [0, b.h * 0.3, -b.d * 0.02], p.light);
-  add(root, 'animal-turtle-head-organic', 'sphere', [b.w * 0.32, b.h * 0.3, b.d * 0.28], [0, b.h * 0.42, b.d * 0.4], p.secondary);
+  add(root, 'animal-turtle-shell-organic', 'shell', [b.w * 0.72, b.h * 0.56, b.d * 0.68], [0, b.h * 0.48, -b.d * 0.05], p.dark);
+  add(root, 'animal-turtle-plastron-organic', 'shell', [b.w * 0.58, b.h * 0.24, b.d * 0.54], [0, b.h * 0.3, -b.d * 0.02], p.light, [Math.PI, 0, 0]);
+  add(root, 'animal-turtle-head-organic', 'head', [b.w * 0.32, b.h * 0.3, b.d * 0.28], [0, b.h * 0.42, b.d * 0.4], p.secondary);
   addAnimalEyes(root, b.w * 0.32, b.h * 0.3, b.d * 0.28, b.h * 0.42, b.d * 0.4, p, 0.3);
   for (const side of [-1, 1]) for (const front of [-1, 1]) add(root, 'animal-turtle-leg-organic', 'sphere', [b.w * 0.24, b.h * 0.16, b.d * 0.22], [side * b.w * 0.36, b.h * 0.22, front * b.d * 0.28], p.secondary, [0, 0, side * 0.1]);
 }
 
 function buildAmphibian(root: THREE.Group, _kind: string, b: Bounds, p: AnimalPalette): void {
-  add(root, 'animal-amphibian-body-organic', 'sphere', [b.w * 0.6, b.h * 0.45, b.d * 0.58], [0, b.h * 0.38, -b.d * 0.06], p.primary);
-  add(root, 'animal-amphibian-head-organic', 'sphere', [b.w * 0.58, b.h * 0.42, b.d * 0.42], [0, b.h * 0.55, b.d * 0.26], p.secondary);
+  add(root, 'animal-amphibian-body-organic', 'body', [b.w * 0.6, b.h * 0.45, b.d * 0.58], [0, b.h * 0.38, -b.d * 0.06], p.primary);
+  add(root, 'animal-amphibian-head-organic', 'head', [b.w * 0.58, b.h * 0.42, b.d * 0.42], [0, b.h * 0.55, b.d * 0.26], p.secondary);
   for (const side of [-1, 1]) {
     add(root, 'animal-amphibian-eye-organic', 'sphere', [b.w * 0.18, b.h * 0.18, b.d * 0.14], [side * b.w * 0.22, b.h * 0.72, b.d * 0.32], p.light);
     add(root, 'animal-eye-organic', 'sphere', [b.w * 0.075, b.h * 0.08, b.d * 0.05], [side * b.w * 0.22, b.h * 0.74, b.d * 0.4], p.eye);
@@ -337,22 +405,22 @@ function addAnimalEyes(
   spacing: number,
 ): void {
   for (const side of [-1, 1]) {
-    add(root, 'animal-eye-sclera-organic', 'sphere', [headW * 0.16, headH * 0.14, headD * 0.08], [side * headW * spacing, headY + headH * 0.12, headZ + headD * 0.49], p.light);
-    add(root, 'animal-eye-organic', 'sphere', [headW * 0.075, headH * 0.08, headD * 0.045], [side * headW * spacing, headY + headH * 0.12, headZ + headD * 0.55], p.eye);
+    add(root, 'animal-eye-organic', 'head', [headW * 0.105, headH * 0.095, headD * 0.03], [side * headW * spacing, headY + headH * 0.1, headZ + headD * 0.49], p.eye);
+    add(root, 'animal-pupil-organic', 'head', [headW * 0.038, headH * 0.065, headD * 0.016], [side * headW * spacing, headY + headH * 0.1, headZ + headD * 0.51], '#101113');
   }
 }
 
 function add(
   parent: THREE.Object3D,
   name: string,
-  shape: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'capsule',
+  shape: AnimalShape,
   scale: [number, number, number],
   position: [number, number, number],
   color: string,
   rotation: [number, number, number] = [0, 0, 0],
 ): THREE.Mesh {
-  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0 });
-  const mesh = new THREE.Mesh(geometryForShape(shape), material);
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, flatShading: shape === 'shell' });
+  const mesh = new THREE.Mesh(animalGeometry(shape), material);
   mesh.name = name;
   mesh.scale.set(...scale);
   mesh.position.set(...position);
@@ -362,6 +430,118 @@ function add(
   mesh.receiveShadow = true;
   parent.add(mesh);
   return mesh;
+}
+
+function animalGeometry(shape: AnimalShape): THREE.BufferGeometry {
+  if (shape === 'box' || shape === 'sphere' || shape === 'cylinder' || shape === 'cone' || shape === 'torus' || shape === 'capsule') {
+    return geometryForShape(shape);
+  }
+  const cached = animalGeometries.get(shape);
+  if (cached) return cached;
+  const profiles: Record<Exclude<AnimalShape, 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'capsule'>, Array<[number, number, number]>> = {
+    body: [
+      [-0.5, 0.58, 0.68],
+      [-0.34, 0.88, 0.92],
+      [0, 1, 1],
+      [0.34, 0.9, 0.94],
+      [0.5, 0.62, 0.72],
+    ],
+    head: [
+      [-0.5, 0.74, 0.82],
+      [-0.22, 0.96, 1],
+      [0.24, 0.9, 0.9],
+      [0.5, 0.64, 0.62],
+    ],
+    muzzle: [
+      [-0.5, 0.96, 0.9],
+      [0.5, 0.66, 0.58],
+    ],
+    foot: [
+      [-0.5, 0.72, 0.68],
+      [0.5, 0.98, 0.56],
+    ],
+    wing: [
+      [-0.5, 0.34, 0.2],
+      [-0.08, 1, 0.86],
+      [0.5, 0.25, 0.12],
+    ],
+    shell: [
+      [-0.5, 0.48, 0.42],
+      [-0.24, 0.86, 0.78],
+      [0.08, 1, 1],
+      [0.38, 0.78, 0.68],
+      [0.5, 0.38, 0.28],
+    ],
+  };
+  const geometry = profileGeometry(profiles[shape], shape === 'muzzle' || shape === 'foot' ? 8 : 10);
+  geometry.userData.cacheOwned = true;
+  animalGeometries.set(shape, geometry);
+  return geometry;
+}
+
+/** Build a compact faceted volume along local Z from authored cross-sections. */
+function profileGeometry(rings: Array<[number, number, number]>, segments: number): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  for (let ringIndex = 0; ringIndex < rings.length; ringIndex += 1) {
+    const [z, width, height] = rings[ringIndex]!;
+    for (let segment = 0; segment < segments; segment += 1) {
+      const angle = segment / segments * Math.PI * 2;
+      positions.push(Math.cos(angle) * width * 0.5, Math.sin(angle) * height * 0.5, z);
+      uvs.push(segment / segments, ringIndex / Math.max(1, rings.length - 1));
+    }
+  }
+  // Cap vertices need planar UVs. Reusing the side-strip UVs made albedo
+  // patterns collapse into fingerprint-like concentric wedges on faces/chests.
+  const firstCapStart = positions.length / 3;
+  const [firstZ, firstW, firstH] = rings[0]!;
+  const lastCapStart = firstCapStart + segments;
+  const [lastZ, lastW, lastH] = rings[rings.length - 1]!;
+  for (let segment = 0; segment < segments; segment += 1) {
+    const angle = segment / segments * Math.PI * 2;
+    const u = Math.cos(angle) * 0.5 + 0.5;
+    const v = Math.sin(angle) * 0.5 + 0.5;
+    positions.push(Math.cos(angle) * firstW * 0.5, Math.sin(angle) * firstH * 0.5, firstZ);
+    uvs.push(u, v);
+  }
+  for (let segment = 0; segment < segments; segment += 1) {
+    const angle = segment / segments * Math.PI * 2;
+    const u = Math.cos(angle) * 0.5 + 0.5;
+    const v = Math.sin(angle) * 0.5 + 0.5;
+    positions.push(Math.cos(angle) * lastW * 0.5, Math.sin(angle) * lastH * 0.5, lastZ);
+    uvs.push(u, v);
+  }
+  const firstCenter = positions.length / 3;
+  positions.push(0, 0, firstZ);
+  uvs.push(0.5, 0.5);
+  const lastCenter = positions.length / 3;
+  positions.push(0, 0, lastZ);
+  uvs.push(0.5, 0.5);
+
+  const indices: number[] = [];
+  for (let ringIndex = 0; ringIndex < rings.length - 1; ringIndex += 1) {
+    const nextRing = ringIndex + 1;
+    for (let segment = 0; segment < segments; segment += 1) {
+      const next = (segment + 1) % segments;
+      const a = ringIndex * segments + segment;
+      const b = ringIndex * segments + next;
+      const c = nextRing * segments + next;
+      const d = nextRing * segments + segment;
+      indices.push(a, b, c, a, c, d);
+    }
+  }
+  for (let segment = 0; segment < segments; segment += 1) {
+    const next = (segment + 1) % segments;
+    indices.push(firstCenter, firstCapStart + next, firstCapStart + segment);
+    indices.push(lastCenter, lastCapStart + segment, lastCapStart + next);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function addBetween(
@@ -428,7 +608,9 @@ function paletteFor(kind: string, variant: number, accent: string, body: string)
     secondary: mix(primary, secondary, 0.36),
     light: mix(primary, '#ece4d2', 0.58),
     dark: mix(primary, '#17191b', 0.7),
-    eye: variant % 4 === 0 ? '#747f43' : '#17191c',
+    eye: /(cat|lynx|bobcat|puma|cheetah|leopard|tiger|lion|fox|wolf)/.test(value)
+      ? '#8b7939'
+      : variant % 4 === 0 ? '#747f43' : '#17191c',
     accent: /(bird|duck|goose|toucan|parrot|flamingo)/.test(value) ? '#d49a3e' : secondary,
   };
 }

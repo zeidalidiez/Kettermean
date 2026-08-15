@@ -76,8 +76,8 @@ export function buildProductionHumanoid(
     const ankle = new THREE.Vector3(x + side * stance * h, h * 0.09, 0);
     const knee = new THREE.Vector3(x, h * 0.265, side * stance * h * 0.3);
     const hip = new THREE.Vector3(side * bodyWidth * 0.17, hipY, 0);
-    addLimb(root, side < 0 ? 'rig-leg-left' : 'rig-leg-right', hip, knee, bodyWidth * 0.19, bodyDepth * 0.38, palette.trousers);
-    addLimb(root, side < 0 ? 'character-calf-left' : 'character-calf-right', knee, ankle, bodyWidth * 0.155, bodyDepth * 0.33, palette.shirtDark);
+    addLimb(root, side < 0 ? 'rig-leg-left' : 'rig-leg-right', hip, knee, bodyWidth * 0.25, bodyDepth * 0.46, palette.trousers);
+    addLimb(root, side < 0 ? 'character-calf-left' : 'character-calf-right', knee, ankle, bodyWidth * 0.2, bodyDepth * 0.4, palette.trousers);
     addPart(
       root,
       side < 0 ? 'character-shoe-left' : 'character-shoe-right',
@@ -93,7 +93,17 @@ export function buildProductionHumanoid(
 
   // Collar and belt are broad construction cues. They remain legible at normal
   // game distance and replace dozens of decorative spheres.
-  addPart(root, 'character-collar', collarGeometry(), [bodyWidth * 0.76, h * 0.08, bodyDepth * 1.02], [0, h * 0.755, bodyDepth * 0.03], palette.light);
+  for (const side of [-1, 1]) {
+    addPart(
+      root,
+      'character-collar-point-fabric',
+      lapelGeometry(),
+      [bodyWidth * 0.16, h * 0.075, bodyDepth * 0.1],
+      [side * bodyWidth * 0.09, h * 0.748, bodyDepth * 0.53],
+      palette.light,
+      [0, 0, side * -0.28],
+    );
+  }
   addPart(root, 'character-belt', geometryForShape('box'), [bodyWidth * 0.9, h * 0.045, bodyDepth * 1.04], [0, h * 0.475, 0], palette.leather);
   addPart(root, 'character-belt-buckle', geometryForShape('box'), [bodyWidth * 0.12, h * 0.055, bodyDepth * 0.08], [0, h * 0.477, bodyDepth * 0.54], palette.metal);
 
@@ -111,13 +121,13 @@ export function buildProductionHumanoid(
       h * sidePose.wristY,
       bodyDepth * sidePose.wristZ,
     );
-    addLimb(root, side < 0 ? 'rig-arm-left' : 'rig-arm-right', shoulder, elbow, bodyWidth * 0.17, bodyDepth * 0.34, palette.shirt);
-    addLimb(root, side < 0 ? 'character-forearm-left' : 'character-forearm-right', elbow, wrist, bodyWidth * 0.145, bodyDepth * 0.3, role === 'medical' || role === 'science' ? palette.light : palette.shirtDark);
+    addLimb(root, side < 0 ? 'rig-arm-left' : 'rig-arm-right', shoulder, elbow, bodyWidth * 0.23, bodyDepth * 0.44, palette.shirt);
+    addLimb(root, side < 0 ? 'character-forearm-left' : 'character-forearm-right', elbow, wrist, bodyWidth * 0.19, bodyDepth * 0.38, role === 'medical' || role === 'science' ? palette.light : palette.shirtDark);
     addPart(
       root,
       side < 0 ? 'character-hand-left' : 'character-hand-right',
       handGeometry(),
-      [bodyWidth * 0.19, h * 0.085, bodyDepth * 0.44],
+      [bodyWidth * 0.155, h * 0.07, bodyDepth * 0.37],
       [wrist.x, wrist.y - h * 0.018, wrist.z],
       palette.skin,
       [0, 0, side * 0.08],
@@ -141,7 +151,7 @@ export function buildProductionHumanoid(
 
   const face = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), faceDecalMaterial(kind, variant, accent));
   face.name = 'character-face-texture';
-  face.scale.set(headW * 0.72, headH * 0.73, 1);
+  face.scale.set(headW * 0.82, headH * 0.82, 1);
   face.position.set(0, headY - headH * 0.01, bodyDepth * 0.035 + headD * 0.335);
   face.userData.preserveMaterial = true;
   face.castShadow = false;
@@ -149,8 +159,10 @@ export function buildProductionHumanoid(
   root.add(face);
 
   addHair(root, kind, variant, headW, headH, headD, headY, bodyDepth * 0.035, palette);
-  addGarmentDecal(root, kind, variant, accent, bodyWidth, bodyDepth, h);
   addRoleClothing(root, kind, variant, bounds, bodyWidth, bodyDepth, palette, role);
+  // Garment construction belongs over aprons, vests and coat fronts. Adding
+  // this panel first hid its useful seams and pockets inside those meshes.
+  addGarmentDecal(root, kind, variant, accent, bodyWidth, bodyDepth, h);
   addRoleEquipment(root, kind, variant, bounds, bodyWidth, bodyDepth, palette, role, pose);
 
   root.name = `${kind}-${variant}`;
@@ -179,7 +191,7 @@ function addGarmentDecal(
   const decal = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), garmentDecalMaterial(kind, variant, accent));
   decal.name = 'character-garment-texture';
   decal.scale.set(bodyWidth * 0.78, h * 0.265, 1);
-  decal.position.set(0, h * 0.625, bodyDepth * 0.515);
+  decal.position.set(0, h * 0.625, bodyDepth * 0.625);
   decal.userData.preserveMaterial = true;
   decal.castShadow = false;
   decal.renderOrder = 1;
@@ -267,8 +279,8 @@ function addHeadwear(
   const h = b.h;
   const value = kind.toLowerCase();
   if (/(chef|cook|baker|butcher)/.test(value)) {
-    addPart(root, 'character-chef-hat-band-fabric', geometryForShape('cylinder'), [bodyWidth * 0.5, h * 0.075, bodyWidth * 0.5], [0, h * 1.005, bodyDepth * 0.02], p.light);
-    addPart(root, 'character-chef-hat-crown-fabric', chefHatGeometry(), [bodyWidth * 0.56, h * 0.16, bodyWidth * 0.54], [0, h * 1.065, bodyDepth * 0.01], p.light);
+    addPart(root, 'character-chef-hat-band-fabric', geometryForShape('cylinder'), [bodyWidth * 0.48, h * 0.058, bodyWidth * 0.48], [0, h * 0.992, bodyDepth * 0.02], p.light);
+    addPart(root, 'character-chef-hat-crown-fabric', chefHatGeometry(), [bodyWidth * 0.53, h * 0.115, bodyWidth * 0.51], [0, h * 1.035, bodyDepth * 0.01], p.light);
     return;
   }
   if (/(hazmat|firefighter|security|guard|worker|operator|driver|pilot|technician|electrician|plumber|carpenter|roofer)/.test(value)) {
@@ -309,10 +321,10 @@ function addRoleEquipment(
     return;
   }
   if (role === 'food' || /(server|waiter|bartender|barista)/.test(value)) {
-    const trayY = h * Math.max(pose.right.wristY, pose.left.wristY) + h * 0.035;
-    addPart(root, 'character-serving-tray-bare-metal', geometryForShape('cylinder'), [bodyWidth * 0.58, h * 0.025, bodyWidth * 0.58], [bodyWidth * 0.42, trayY, bodyDepth * 0.52], p.metal);
+    const trayY = h * Math.max(pose.right.wristY, pose.left.wristY) + h * 0.025;
+    addPart(root, 'character-serving-tray-bare-metal', geometryForShape('cylinder'), [bodyWidth * 0.62, h * 0.025, bodyWidth * 0.62], [0, trayY, bodyDepth * 0.72], p.metal);
     if (/(barista|bartender|server|waiter)/.test(value)) {
-      addPart(root, 'character-serving-cup-ceramic', cupGeometry(), [bodyWidth * 0.14, h * 0.1, bodyWidth * 0.14], [bodyWidth * 0.42, trayY + h * 0.06, bodyDepth * 0.52], p.light);
+      addPart(root, 'character-serving-cup-ceramic', cupGeometry(), [bodyWidth * 0.14, h * 0.1, bodyWidth * 0.14], [bodyWidth * 0.12, trayY + h * 0.06, bodyDepth * 0.72], p.light);
     }
     return;
   }
@@ -345,11 +357,16 @@ function addRoleEquipment(
 
 function armPoseFor(kind: string, variant: number) {
   const value = kind.toLowerCase();
-  const carrying = /(server|waiter|barista|bartender|medical|doctor|nurse|scient|research|clerk|librarian|teacher|photograph|artist|musician)/.test(value);
-  const left = carrying
+  const food = /(chef|cook|baker|butcher|cashier|vendor|sommelier|food|server|waiter|barista|bartender)/.test(value);
+  const carrying = /(chef|cook|baker|butcher|cashier|vendor|sommelier|food|server|waiter|barista|bartender|medical|doctor|nurse|scient|research|clerk|librarian|teacher|photograph|artist|musician)/.test(value);
+  const left = food
+    ? { elbowX: 0.54, elbowY: 0.6, elbowZ: 0.18, wristX: 0.27, wristY: 0.58, wristZ: 0.72 }
+    : carrying
     ? { elbowX: 0.48, elbowY: 0.59, elbowZ: 0.2, wristX: 0.42, wristY: 0.58, wristZ: 0.62 }
     : { elbowX: 0.58, elbowY: 0.55, elbowZ: 0.03, wristX: 0.55, wristY: 0.39, wristZ: 0.08 };
-  const right = carrying
+  const right = food
+    ? { elbowX: 0.54, elbowY: 0.6, elbowZ: 0.18, wristX: 0.27, wristY: 0.58, wristZ: 0.72 }
+    : carrying
     ? { elbowX: 0.5, elbowY: 0.62, elbowZ: 0.28, wristX: 0.42, wristY: 0.66, wristZ: 0.68 }
     : { elbowX: 0.58, elbowY: 0.55, elbowZ: -0.02, wristX: 0.54, wristY: 0.39 + (variant % 2) * 0.015, wristZ: 0.06 };
   return { left, right };
@@ -460,7 +477,12 @@ function cachedGeometry(key: string, build: () => THREE.BufferGeometry): THREE.B
 }
 
 function torsoGeometry(): THREE.BufferGeometry {
-  return cachedGeometry('torso', () => new THREE.CylinderGeometry(0.52, 0.38, 1, 8, 2, false));
+  return cachedGeometry('torso', () => profileYGeometry([
+    [-0.5, 0.72, 0.8],
+    [0.1, 0.84, 0.9],
+    [0.34, 1, 1],
+    [0.5, 0.48, 0.62],
+  ], 10));
 }
 
 function pelvisGeometry(): THREE.BufferGeometry {
@@ -531,10 +553,6 @@ function wedgeGeometry(): THREE.BufferGeometry {
   return cachedGeometry('wedge', () => taperedBoxGeometry(0.78, 1, 0.72, 1));
 }
 
-function collarGeometry(): THREE.BufferGeometry {
-  return cachedGeometry('collar', () => new THREE.CylinderGeometry(0.42, 0.5, 1, 8, 1, false));
-}
-
 function vestGeometry(): THREE.BufferGeometry {
   return cachedGeometry('vest', () => new THREE.CylinderGeometry(0.52, 0.4, 1, 8, 1, true));
 }
@@ -556,7 +574,13 @@ function lapelGeometry(): THREE.BufferGeometry {
 }
 
 function chefHatGeometry(): THREE.BufferGeometry {
-  return cachedGeometry('chef-hat', () => new THREE.CylinderGeometry(0.52, 0.4, 1, 10, 2, false));
+  return cachedGeometry('chef-hat', () => profileYGeometry([
+    [-0.5, 0.7, 0.7],
+    [-0.28, 1, 1],
+    [0.08, 0.94, 0.94],
+    [0.4, 0.8, 0.8],
+    [0.5, 0.66, 0.66],
+  ], 10));
 }
 
 function helmetGeometry(): THREE.BufferGeometry {
@@ -588,6 +612,51 @@ function instrumentGeometry(): THREE.BufferGeometry {
 
 function briefcaseGeometry(): THREE.BufferGeometry {
   return cachedGeometry('briefcase', () => taperedBoxGeometry(0.92, 1, 0.88, 1));
+}
+
+function profileYGeometry(rings: Array<[number, number, number]>, segments: number): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  for (let ringIndex = 0; ringIndex < rings.length; ringIndex += 1) {
+    const [y, width, depth] = rings[ringIndex]!;
+    for (let segment = 0; segment < segments; segment += 1) {
+      const angle = segment / segments * Math.PI * 2;
+      positions.push(Math.cos(angle) * width * 0.5, y, Math.sin(angle) * depth * 0.5);
+      uvs.push(segment / segments, ringIndex / Math.max(1, rings.length - 1));
+    }
+  }
+  const bottomCenter = positions.length / 3;
+  positions.push(0, rings[0]![0], 0);
+  uvs.push(0.5, 0.5);
+  const topCenter = positions.length / 3;
+  positions.push(0, rings[rings.length - 1]![0], 0);
+  uvs.push(0.5, 0.5);
+
+  const indices: number[] = [];
+  for (let ringIndex = 0; ringIndex < rings.length - 1; ringIndex += 1) {
+    const nextRing = ringIndex + 1;
+    for (let segment = 0; segment < segments; segment += 1) {
+      const next = (segment + 1) % segments;
+      const a = ringIndex * segments + segment;
+      const b = ringIndex * segments + next;
+      const c = nextRing * segments + next;
+      const d = nextRing * segments + segment;
+      indices.push(a, b, c, a, c, d);
+    }
+  }
+  for (let segment = 0; segment < segments; segment += 1) {
+    const next = (segment + 1) % segments;
+    indices.push(bottomCenter, segment, next);
+    const topStart = (rings.length - 1) * segments;
+    indices.push(topCenter, topStart + next, topStart + segment);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function taperedBoxGeometry(topX: number, bottomX: number, topZ: number, bottomZ: number): THREE.BufferGeometry {

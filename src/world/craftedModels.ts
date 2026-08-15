@@ -624,8 +624,8 @@ function buildOfficeChair(root: THREE.Group, b: Bounds, p: Palette, variant: num
     const angle = (i / 5) * Math.PI * 2;
     const x = Math.cos(angle) * w * 0.36;
     const z = Math.sin(angle) * d * 0.36;
-    add([0.04, h * 0.05, 0.04], [x, h * 0.018, z], p.metal, { shape: 'cylinder', name: 'oc-arm' });
-    add([0.05, 0.06, 0.05], [x * 1.18, h * 0.012, z * 1.18], p.dark, { shape: 'sphere', name: 'oc-caster' });
+    add([w * 0.42, h * 0.028, 0.045], [x * 0.54, h * 0.055, z * 0.54], p.metal, { rotation: [0, -angle, 0], name: 'oc-base-spoke' });
+    add([0.055, 0.025, 0.055], [x * 1.08, h * 0.025, z * 1.08], p.dark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, angle], name: 'oc-caster-wheel' });
   }
   // Hub + gas cylinder.
   add([w * 0.12, 0.06, w * 0.12], [0, h * 0.05, 0], p.metal, { shape: 'cylinder', name: 'oc-hub' });

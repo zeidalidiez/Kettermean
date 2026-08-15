@@ -46,21 +46,21 @@ const materialCache = new Map<string, THREE.MeshStandardMaterial>();
 const decalMaterialCache = new Map<string, THREE.MeshStandardMaterial>();
 
 const SURFACE_PROPERTIES: Record<ModelSurface, { roughness: number; metalness: number; normal: number }> = {
-  fabric: { roughness: 0.88, metalness: 0, normal: 0.32 },
-  wood: { roughness: 0.72, metalness: 0, normal: 0.24 },
-  'painted-metal': { roughness: 0.5, metalness: 0.08, normal: 0.18 },
-  'bare-metal': { roughness: 0.3, metalness: 0.92, normal: 0.16 },
-  plastic: { roughness: 0.58, metalness: 0, normal: 0.1 },
-  skin: { roughness: 0.78, metalness: 0, normal: 0.12 },
-  hair: { roughness: 0.7, metalness: 0, normal: 0.28 },
-  fur: { roughness: 0.9, metalness: 0, normal: 0.36 },
-  rubber: { roughness: 0.92, metalness: 0, normal: 0.2 },
-  ceramic: { roughness: 0.34, metalness: 0, normal: 0.06 },
+  fabric: { roughness: 0.88, metalness: 0, normal: 0.08 },
+  wood: { roughness: 0.72, metalness: 0, normal: 0.1 },
+  'painted-metal': { roughness: 0.5, metalness: 0.08, normal: 0.06 },
+  'bare-metal': { roughness: 0.38, metalness: 0.58, normal: 0.07 },
+  plastic: { roughness: 0.58, metalness: 0, normal: 0.04 },
+  skin: { roughness: 0.78, metalness: 0, normal: 0.03 },
+  hair: { roughness: 0.7, metalness: 0, normal: 0.08 },
+  fur: { roughness: 0.9, metalness: 0, normal: 0.1 },
+  rubber: { roughness: 0.92, metalness: 0, normal: 0.08 },
+  ceramic: { roughness: 0.34, metalness: 0, normal: 0.02 },
   glass: { roughness: 0.12, metalness: 0.05, normal: 0.02 },
-  paper: { roughness: 0.94, metalness: 0, normal: 0.13 },
-  foliage: { roughness: 0.83, metalness: 0, normal: 0.3 },
-  stone: { roughness: 0.96, metalness: 0, normal: 0.42 },
-  organic: { roughness: 0.82, metalness: 0, normal: 0.25 },
+  paper: { roughness: 0.94, metalness: 0, normal: 0.05 },
+  foliage: { roughness: 0.83, metalness: 0, normal: 0.11 },
+  stone: { roughness: 0.96, metalness: 0, normal: 0.16 },
+  organic: { roughness: 0.82, metalness: 0, normal: 0.09 },
 };
 
 /** Replace flat placeholder materials across every procedural model builder. */
@@ -156,6 +156,10 @@ export function faceDecalMaterial(
   }
 
   const map = dataTexture(pixels, size, true, `face:${key}`);
+  // Raster helpers use ordinary top-left image coordinates; DataTexture's
+  // default orientation would otherwise swap brows/mouth and garment pockets.
+  map.flipY = true;
+  map.needsUpdate = true;
   const material = new THREE.MeshStandardMaterial({
     map,
     color: '#ffffff',
@@ -188,37 +192,50 @@ export function garmentDecalMaterial(
   const sx = size / 128;
   const px = (value: number): number => Math.round(value * sx);
   const accentColor = new THREE.Color(accent);
+  const accentHex = accentColor.getHex();
   const accentRgba: Rgba = [
-    Math.round(accentColor.r * 255),
-    Math.round(accentColor.g * 255),
-    Math.round(accentColor.b * 255),
+    (accentHex >> 16) & 255,
+    (accentHex >> 8) & 255,
+    accentHex & 255,
     230,
   ];
-  const seam: Rgba = [28, 31, 34, 185];
-
-  drawLine(pixels, size, px(64), px(14), px(64), px(116), seam, Math.max(1, px(2)));
-  drawLine(pixels, size, px(27), px(22), px(54), px(45), seam, Math.max(1, px(3)));
-  drawLine(pixels, size, px(101), px(22), px(74), px(45), seam, Math.max(1, px(3)));
+  const seam: Rgba = [38, 41, 43, 125];
 
   if (role === 'medical' || role === 'science') {
+    drawLine(pixels, size, px(64), px(18), px(64), px(116), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(30), px(22), px(55), px(47), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(98), px(22), px(73), px(47), seam, Math.max(1, px(2)));
     drawRect(pixels, size, px(75), px(51), px(22), px(14), [229, 233, 225, 215]);
     drawLine(pixels, size, px(86), px(53), px(86), px(63), accentRgba, Math.max(1, px(2)));
     drawLine(pixels, size, px(81), px(58), px(91), px(58), accentRgba, Math.max(1, px(2)));
   } else if (role === 'service' || role === 'food') {
-    drawLine(pixels, size, px(38), px(36), px(38), px(112), [224, 218, 203, 205], Math.max(1, px(4)));
-    drawLine(pixels, size, px(90), px(36), px(90), px(112), [224, 218, 203, 205], Math.max(1, px(4)));
-    drawRect(pixels, size, px(42), px(77), px(44), px(31), [220, 213, 196, 72]);
+    drawLine(pixels, size, px(38), px(20), px(29), px(114), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(90), px(20), px(99), px(114), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(29), px(66), px(99), px(66), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(45), px(79), px(83), px(79), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(45), px(79), px(45), px(108), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(83), px(79), px(83), px(108), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(45), px(108), px(83), px(108), seam, Math.max(1, px(2)));
+    if (variant === 2 || variant === 3) {
+      drawEllipse(pixels, size, px(72), px(49), px(5), px(3), [111, 58, 40, 58]);
+      drawEllipse(pixels, size, px(55), px(93), px(3), px(5), [111, 58, 40, 42]);
+    }
   } else if (role === 'trade' || role === 'security') {
+    drawLine(pixels, size, px(31), px(20), px(31), px(116), seam, Math.max(1, px(2)));
+    drawLine(pixels, size, px(97), px(20), px(97), px(116), seam, Math.max(1, px(2)));
     drawRect(pixels, size, px(23), px(67), px(24), px(27), [25, 29, 32, 120]);
     drawRect(pixels, size, px(81), px(67), px(24), px(27), [25, 29, 32, 120]);
     drawRect(pixels, size, px(72), px(43), px(20), px(12), accentRgba);
   } else {
+    drawLine(pixels, size, px(64), px(16), px(64), px(116), seam, Math.max(1, px(2)));
     drawLine(pixels, size, px(50), px(40), px(64), px(62), accentRgba, Math.max(1, px(3)));
     drawLine(pixels, size, px(78), px(40), px(64), px(62), accentRgba, Math.max(1, px(3)));
     drawRect(pixels, size, px(77), px(70), px(24), px(18), [31, 34, 37, 95]);
   }
 
   const map = dataTexture(pixels, size, true, `garment:${key}`);
+  map.flipY = true;
+  map.needsUpdate = true;
   const material = new THREE.MeshStandardMaterial({
     map,
     color: '#ffffff',
@@ -343,6 +360,8 @@ function surfaceMaps(surface: ModelSurface, pattern: string, variant: number): S
     normal: dataTexture(normal, size, false, `${key}:normal`),
     roughness: dataTexture(roughness, size, false, `${key}:roughness`),
   };
+  const repeat = surface === 'fabric' || surface === 'hair' ? 2 : surface === 'wood' || surface === 'stone' ? 1.5 : 1;
+  for (const texture of [maps.color, maps.normal, maps.roughness]) texture.repeat.set(repeat, repeat);
   mapsCache.set(key, maps);
   return maps;
 }
@@ -363,16 +382,16 @@ function surfaceSample(
   switch (surface) {
     case 'fabric': {
       const weave = ((x + variant) % 4 === 0 ? 1 : -0.25) + ((y + variant * 2) % 4 === 0 ? 1 : -0.25);
-      value = clampByte(231 + weave * 7 + noise * 10);
-      height = weave * 0.16 + noise * 0.06;
+      value = clampByte(236 + weave * 3 + noise * 5);
+      height = weave * 0.08 + noise * 0.035;
       roughness = weave * 5 + noise * 10;
       break;
     }
     case 'wood': {
       const grain = Math.sin(x * 0.22 + Math.sin(y * 0.055 + variant) * 2.4 + smooth * 2.2);
       const seam = (y + variant * 11) % Math.max(18, Math.round(size * 0.34)) < 1 ? -1 : 0;
-      value = clampByte(225 + grain * 15 + seam * 26 + noise * 5);
-      height = grain * 0.16 + seam * 0.28;
+      value = clampByte(232 + grain * 7 + seam * 14 + noise * 4);
+      height = grain * 0.08 + seam * 0.16;
       roughness = grain * 8 + noise * 8;
       break;
     }
@@ -402,8 +421,8 @@ function surfaceSample(
     case 'fur': {
       const direction = Math.sin((x + Math.sin(y * 0.09) * 4) * (surface === 'fur' ? 0.7 : 0.42) + variant);
       const marking = animalMark(pattern, x, y, size, variant);
-      value = clampByte(229 + direction * 12 + marking + noise * 7);
-      height = direction * 0.2 + noise * 0.08;
+      value = clampByte(235 + direction * 5 + marking + noise * 4);
+      height = direction * 0.08 + noise * 0.04;
       roughness = direction * 6 + noise * 8;
       break;
     }
@@ -463,7 +482,9 @@ function surfaceSample(
 
 function animalMark(pattern: string, x: number, y: number, size: number, variant: number): number {
   if (pattern === 'striped') {
-    return Math.sin((x + Math.sin(y * 0.08) * 9) * 0.17 + variant) > 0.62 ? -55 : 5;
+    const band = Math.sin(y * 0.38 + Math.sin(x * 0.1 + variant) * 2.2 + variant);
+    const brokenEdge = Math.sin(x * 0.17 - y * 0.025 + variant * 1.7) + Math.sin(x * 0.07 + y * 0.11);
+    return band > 0.46 + brokenEdge * 0.13 ? -105 : 4;
   }
   if (pattern === 'spotted') {
     const cell = Math.max(9, Math.round(size / 8));
@@ -486,7 +507,8 @@ function inferSurface(
   material: THREE.MeshStandardMaterial,
 ): ModelSurface {
   const text = `${kind} ${meshName}`.toLowerCase();
-  if (material.opacity < 0.72 || /(glass|window|lens|water|tank)/.test(text)) return 'glass';
+  if (material.opacity < 0.72 || /(glass|window|lens|water|tank|\beye\b|pupil)/.test(text)) return 'glass';
+  if (/(nose|beak|hoof|claw|talon|horn|antler|trunk)/.test(text)) return 'organic';
   if (/(skin|head|face|hand|neck|ear|nose|cheek|jaw|muzzle)/.test(text) && !/(mechanical|mask|animal|creature)/.test(text)) return 'skin';
   if (/(hair|brow|beard|mustache)/.test(text)) return 'hair';
   if (/(fur|animal|creature|mane|tail|paw|hoof|feather|wing|shell|scale|fish|bird|deer|dog|cat|horse|rabbit)/.test(text)) {

@@ -49,7 +49,7 @@ import {
   buildProductionHumanoid,
   clearProductionCharacterGeometries,
 } from './characterModels';
-import { buildProductionAnimal } from './animalModels';
+import { buildProductionAnimal, clearProductionAnimalGeometries } from './animalModels';
 import {
   applyProductionMaterials,
   clearProductionMaterialCache,
@@ -279,6 +279,7 @@ export function clearModelMaterialCache(): void {
   matCache.clear();
   clearModelQualityGeometries();
   clearProductionCharacterGeometries();
+  clearProductionAnimalGeometries();
   clearProductionMaterialCache();
 }
 
