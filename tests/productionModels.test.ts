@@ -284,6 +284,28 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_concession_stand', ['concession-stand-striped-canopy', 'concession-stand-packaged-snack']],
+    ['cine_prop_ticket_booth', ['ticket-booth-service-window', 'ticket-booth-ticket-slot']],
+    ['cine_prop_shop_mannequin', ['retail-mannequin-garment-torso', 'retail-mannequin-articulated-leg']],
+    ['cine_prop_mannequin_pair', ['retail-mannequin-display-base', 'retail-mannequin-head']],
+    ['cine_prop_clothing_rack', ['clothing-rack-hanger', 'clothing-rack-hanging-garment']],
+    ['cine_prop_produce_bin', ['produce-display-sloped-crate', 'produce-display-fresh-item']],
+    ['cine_prop_freezer_island', ['freezer-island-sliding-glass-lid', 'freezer-island-compressor-vent']],
+    ['cine_prop_soda_fountain', ['soda-fountain-flavor-tap', 'soda-fountain-drip-tray']],
+    ['cine_prop_food_truck_counter', ['food-truck-open-service-window', 'food-truck-window-awning']],
+    ['cine_prop_hat_rack', ['hat-rack-display-hook', 'hat-rack-hat-crown']],
+    ['cine_prop_deli_warmer', ['deli-warmer-sloped-glass', 'deli-warmer-food-tray']],
+    ['cine_prop_coffee_bar', ['coffee-bar-espresso-machine', 'coffee-bar-cup']],
+  ] as const)('gives retail fixture %s a dedicated silhouette', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#8c5b46', '#725a43', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

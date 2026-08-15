@@ -37,6 +37,7 @@ const GREENSPACE_DISPLAY_OVERRIDE = /(bonsai_table|herb_garden_shelf|greenhouse_
 const GREENSPACE_STRUCTURE_OVERRIDE = /(rose_arbor|garden_obelisk|beach_umbrella|hammock_stand|greenhouse_frame|cold_frame|potting_shed)/;
 const GREENSPACE_UTILITY_OVERRIDE = /(watering_cart|compost_bin|compost_tumbler|rain_barrel|garden_tool_rack|wheelbarrow|sprinkler|soaker_hose_rack|sundial|garden_gnome|thermometer_post)/;
 const OUTLIER_OVERRIDE = /(fire_extinguisher_post|playpen|elevator_bank_doors|fish_tank_stand|umbrella_table|high_chair|soaking_tub|rocking_chair)/;
+const RETAIL_OVERRIDE = /(concession_stand|ticket_booth|shop_mannequin|mannequin_pair|clothing_rack|produce_bin|freezer_island|soda_fountain|food_truck_counter|hat_rack|deli_warmer|coffee_bar)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -94,6 +95,9 @@ export function buildCinematicProductionProp(
   } else if (OUTLIER_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildOutlierProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (RETAIL_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildRetailProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -848,6 +852,116 @@ function buildOutlierProp(root: THREE.Group, key: string, b: Bounds, p: Palette,
   for (const side of [-1, 1]) add([b.w * 0.07, b.h * 0.44, b.d * 0.07], [side * b.w * 0.25, b.h * 0.72, -b.d * 0.23], p.wood, { rotation: [0, 0, -side * 0.08], name: 'rocking-chair-back-post' });
   for (let slat = -2; slat <= 2; slat += 1) add([b.w * 0.065, b.h * 0.38, b.d * 0.04], [slat * b.w * 0.1, b.h * 0.76, -b.d * 0.23], p.wood, { rotation: [0, 0, slat * 0.025], name: 'rocking-chair-back-slat', roughness: 0.78 });
   for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.08, b.d * 0.58], [side * b.w * 0.34, b.h * 0.68, 0], p.wood, { name: 'rocking-chair-armrest', roughness: 0.76 });
+  void variant;
+}
+
+function buildRetailProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (/(shop_mannequin|mannequin_pair)/.test(key)) {
+    const count = key.includes('pair') ? 2 : 1;
+    for (let figure = 0; figure < count; figure += 1) {
+      const x = count === 2 ? (figure ? 1 : -1) * b.w * 0.23 : 0;
+      add([b.w * 0.3, b.h * 0.04, b.d * 0.3], [x, b.h * 0.03, 0], p.dark, { shape: 'cylinder', name: 'retail-mannequin-display-base', metalness: 0.42 });
+      add([b.w * 0.035, b.h * 0.34, b.d * 0.035], [x, b.h * 0.2, 0], p.metal, { shape: 'cylinder', name: 'retail-mannequin-support-pole', metalness: 0.58 });
+      add([b.w * 0.25, b.h * 0.32, b.d * 0.18], [x, b.h * 0.66, 0], figure ? p.secondary : p.primary, { name: 'retail-mannequin-garment-torso', roughness: 0.82 });
+      add([b.w * 0.14, b.h * 0.14, b.d * 0.14], [x, b.h * 0.91, 0], p.light, { shape: 'sphere', name: 'retail-mannequin-head', roughness: 0.7 });
+      for (const side of [-1, 1]) {
+        add([b.w * 0.055, b.h * 0.34, b.d * 0.055], [x + side * b.w * 0.17, b.h * 0.65, 0], p.light, { shape: 'cylinder', rotation: [0, 0, side * 0.2], name: 'retail-mannequin-articulated-arm', roughness: 0.72 });
+        add([b.w * 0.06, b.h * 0.4, b.d * 0.07], [x + side * b.w * 0.08, b.h * 0.35, 0], p.light, { shape: 'cylinder', rotation: [0, 0, side * 0.06], name: 'retail-mannequin-articulated-leg', roughness: 0.72 });
+      }
+    }
+    return;
+  }
+  if (key.includes('clothing_rack')) {
+    for (const side of [-1, 1]) {
+      add([b.w * 0.06, b.h * 0.82, b.d * 0.06], [side * b.w * 0.42, b.h * 0.44, 0], p.metal, { name: 'clothing-rack-upright', metalness: 0.58 });
+      add([b.w * 0.25, b.h * 0.05, b.d * 0.58], [side * b.w * 0.36, b.h * 0.04, 0], p.metal, { name: 'clothing-rack-stable-foot', metalness: 0.54 });
+    }
+    add([b.w * 0.86, b.h * 0.045, b.d * 0.045], [0, b.h * 0.84, 0], p.metal, { name: 'clothing-rack-hanging-rail', metalness: 0.62 });
+    for (let garment = -4; garment <= 4; garment += 1) {
+      const x = garment * b.w * 0.09;
+      addBeamBetween(root, [x, b.h * 0.82, 0], [x - b.w * 0.07, b.h * 0.72, 0], b.w * 0.012, p.dark, 'clothing-rack-hanger');
+      addBeamBetween(root, [x, b.h * 0.82, 0], [x + b.w * 0.07, b.h * 0.72, 0], b.w * 0.012, p.dark, 'clothing-rack-hanger');
+      add([b.w * 0.16, b.h * (0.34 + (garment + 4) % 3 * 0.06), b.d * 0.055], [x, b.h * 0.53, 0], garment % 2 ? p.primary : p.secondary, { name: 'clothing-rack-hanging-garment', roughness: 0.9 });
+    }
+    return;
+  }
+  if (key.includes('hat_rack')) {
+    add([b.w * 0.62, b.h * 0.06, b.d * 0.62], [0, b.h * 0.04, 0], p.dark, { shape: 'cylinder', name: 'hat-rack-weighted-base' });
+    add([b.w * 0.08, b.h * 0.9, b.d * 0.08], [0, b.h * 0.5, 0], p.wood, { shape: 'cylinder', name: 'hat-rack-center-post', roughness: 0.74 });
+    for (let hook = 0; hook < 6; hook += 1) {
+      const angle = hook / 6 * Math.PI * 2;
+      const y = b.h * (0.52 + (hook % 3) * 0.14);
+      addBeamBetween(root, [0, y, 0], [Math.cos(angle) * b.w * 0.28, y + b.h * 0.08, Math.sin(angle) * b.d * 0.28], b.w * 0.025, p.wood, 'hat-rack-display-hook');
+      add([b.w * 0.25, b.h * 0.05, b.d * 0.25], [Math.cos(angle) * b.w * 0.31, y + b.h * 0.06, Math.sin(angle) * b.d * 0.31], hook % 2 ? p.primary : p.secondary, { shape: 'cylinder', name: 'hat-rack-hat-brim', roughness: 0.86 });
+      add([b.w * 0.15, b.h * 0.12, b.d * 0.15], [Math.cos(angle) * b.w * 0.31, y + b.h * 0.12, Math.sin(angle) * b.d * 0.31], hook % 2 ? p.primary : p.secondary, { shape: 'cylinder', name: 'hat-rack-hat-crown', roughness: 0.86 });
+    }
+    return;
+  }
+  if (key.includes('produce_bin')) {
+    for (let tier = 0; tier < 3; tier += 1) {
+      const y = b.h * (0.18 + tier * 0.23);
+      const z = -b.d * (0.18 - tier * 0.13);
+      add([b.w * 0.88, b.h * 0.18, b.d * 0.32], [0, y, z], p.wood, { rotation: [-0.14, 0, 0], name: 'produce-display-sloped-crate', roughness: 0.86 });
+      for (let item = -4; item <= 4; item += 1) add([b.w * 0.075, b.h * 0.07, b.d * 0.075], [item * b.w * 0.085, y + b.h * 0.12, z + (item % 2) * b.d * 0.06], tier === 0 ? '#ba4b3c' : tier === 1 ? '#d3a944' : '#56834d', { shape: tier === 2 ? 'cone' : 'sphere', name: 'produce-display-fresh-item', roughness: 0.9 });
+    }
+    add([b.w * 0.32, b.h * 0.18, b.d * 0.04], [0, b.h * 0.84, -b.d * 0.22], p.dark, { name: 'produce-display-price-sign' });
+    return;
+  }
+  if (key.includes('freezer_island')) {
+    add([b.w * 0.94, b.h * 0.66, b.d * 0.86], [0, b.h * 0.35, 0], p.light, { name: 'freezer-island-insulated-body', roughness: 0.38 });
+    for (const side of [-1, 1]) add([b.w * 0.42, b.h * 0.025, b.d * 0.74], [side * b.w * 0.23, b.h * 0.7, 0], p.glass, { name: 'freezer-island-sliding-glass-lid', opacity: 0.3, roughness: 0.08 });
+    add([b.w * 0.025, b.h * 0.03, b.d * 0.5], [0, b.h * 0.73, 0], p.metal, { name: 'freezer-island-lid-handle', metalness: 0.55 });
+    for (let vent = -4; vent <= 4; vent += 1) add([b.w * 0.055, b.h * 0.025, b.d * 0.025], [vent * b.w * 0.09, b.h * 0.12, b.d * 0.44], p.dark, { name: 'freezer-island-compressor-vent' });
+    return;
+  }
+  if (key.includes('soda_fountain')) {
+    add([b.w * 0.88, b.h * 0.88, b.d * 0.68], [0, b.h * 0.46, 0], p.primary, { name: 'soda-fountain-machine-body', metalness: 0.18 });
+    add([b.w * 0.76, b.h * 0.18, b.d * 0.04], [0, b.h * 0.8, b.d * 0.35], p.glow, { name: 'soda-fountain-brand-panel', emissive: p.glow, emissiveIntensity: 0.16 });
+    for (let tap = -3; tap <= 3; tap += 1) {
+      add([b.w * 0.08, b.h * 0.16, b.d * 0.12], [tap * b.w * 0.1, b.h * 0.58, b.d * 0.38], tap % 2 ? p.secondary : p.light, { name: 'soda-fountain-flavor-tap' });
+      add([b.w * 0.025, b.h * 0.1, b.d * 0.025], [tap * b.w * 0.1, b.h * 0.46, b.d * 0.4], p.dark, { name: 'soda-fountain-dispensing-nozzle' });
+    }
+    add([b.w * 0.72, b.h * 0.05, b.d * 0.3], [0, b.h * 0.32, b.d * 0.28], p.metal, { name: 'soda-fountain-drip-tray', metalness: 0.58 });
+    return;
+  }
+  if (key.includes('deli_warmer')) {
+    add([b.w * 0.94, b.h * 0.44, b.d * 0.8], [0, b.h * 0.24, 0], p.primary, { name: 'deli-warmer-heated-base' });
+    add([b.w * 0.88, b.h * 0.42, b.d * 0.035], [0, b.h * 0.63, b.d * 0.39], p.glass, { rotation: [-0.16, 0, 0], name: 'deli-warmer-sloped-glass', opacity: 0.28, roughness: 0.08 });
+    for (let tray = -2; tray <= 2; tray += 1) add([b.w * 0.16, b.h * 0.04, b.d * 0.42], [tray * b.w * 0.17, b.h * 0.49, 0], p.metal, { name: 'deli-warmer-food-tray', metalness: 0.54 });
+    for (const side of [-1, 1]) add([b.w * 0.42, b.h * 0.035, b.d * 0.035], [side * b.w * 0.24, b.h * 0.82, 0], '#e6a048', { name: 'deli-warmer-heat-lamp', emissive: '#e6a048', emissiveIntensity: 0.42 });
+    return;
+  }
+  if (key.includes('coffee_bar')) {
+    add([b.w * 0.96, b.h * 0.52, b.d * 0.84], [0, b.h * 0.28, 0], p.wood, { name: 'coffee-bar-counter-base', roughness: 0.76 });
+    add([b.w * 1.0, b.h * 0.06, b.d * 0.9], [0, b.h * 0.57, 0], p.light, { name: 'coffee-bar-work-surface', roughness: 0.32 });
+    add([b.w * 0.5, b.h * 0.3, b.d * 0.34], [-b.w * 0.16, b.h * 0.75, 0], p.metal, { name: 'coffee-bar-espresso-machine', metalness: 0.54 });
+    for (const side of [-1, 1]) add([b.w * 0.05, b.h * 0.12, b.d * 0.05], [-b.w * 0.16 + side * b.w * 0.11, b.h * 0.56, b.d * 0.2], p.dark, { shape: 'cylinder', name: 'coffee-bar-group-head' });
+    for (let cup = 0; cup < 4; cup += 1) add([b.w * 0.09, b.h * 0.1, b.d * 0.09], [b.w * (0.16 + cup * 0.09), b.h * 0.66, b.d * 0.12], cup % 2 ? p.primary : p.secondary, { shape: 'cylinder', name: 'coffee-bar-cup' });
+    return;
+  }
+  if (key.includes('food_truck_counter')) {
+    add([b.w * 0.96, b.h * 0.72, b.d * 0.82], [0, b.h * 0.38, 0], p.primary, { name: 'food-truck-service-body', metalness: 0.18 });
+    add([b.w * 0.7, b.h * 0.42, b.d * 0.04], [0, b.h * 0.65, b.d * 0.42], p.dark, { name: 'food-truck-open-service-window' });
+    add([b.w * 0.76, b.h * 0.06, b.d * 0.36], [0, b.h * 0.45, b.d * 0.52], p.light, { name: 'food-truck-serving-counter' });
+    add([b.w * 0.82, b.h * 0.08, b.d * 0.5], [0, b.h * 0.94, b.d * 0.24], p.secondary, { rotation: [-0.14, 0, 0], name: 'food-truck-window-awning', roughness: 0.8 });
+    for (let bottle = -2; bottle <= 2; bottle += 1) add([b.w * 0.055, b.h * 0.13, b.d * 0.055], [bottle * b.w * 0.09, b.h * 0.54, b.d * 0.54], bottle % 2 ? '#c74c37' : '#d2ad42', { shape: 'cylinder', name: 'food-truck-condiment-bottle' });
+    return;
+  }
+
+  const ticketBooth = key.includes('ticket_booth');
+  add([b.w * 0.94, b.h * 0.72, b.d * 0.82], [0, b.h * 0.38, 0], ticketBooth ? p.primary : p.wood, { name: ticketBooth ? 'ticket-booth-enclosure' : 'concession-stand-counter-base', roughness: 0.7 });
+  if (ticketBooth) {
+    add([b.w * 0.58, b.h * 0.4, b.d * 0.03], [0, b.h * 0.66, b.d * 0.42], p.glass, { name: 'ticket-booth-service-window', opacity: 0.28, roughness: 0.08 });
+    add([b.w * 0.64, b.h * 0.06, b.d * 0.28], [0, b.h * 0.45, b.d * 0.5], p.light, { name: 'ticket-booth-transaction-ledge' });
+    add([b.w * 0.2, b.h * 0.03, b.d * 0.08], [0, b.h * 0.49, b.d * 0.57], p.dark, { name: 'ticket-booth-ticket-slot' });
+    add([b.w * 0.74, b.h * 0.15, b.d * 0.04], [0, b.h * 0.92, b.d * 0.42], p.glow, { name: 'ticket-booth-lit-sign', emissive: p.glow, emissiveIntensity: 0.22 });
+  } else {
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.52, b.d * 0.055], [side * b.w * 0.42, b.h * 0.74, -b.d * 0.3], p.metal, { name: 'concession-stand-canopy-post', metalness: 0.45 });
+    add([b.w * 0.98, b.h * 0.09, b.d * 0.92], [0, b.h * 0.98, 0], p.secondary, { name: 'concession-stand-striped-canopy', roughness: 0.82 });
+    add([b.w * 0.84, b.h * 0.06, b.d * 0.36], [0, b.h * 0.62, b.d * 0.4], p.light, { name: 'concession-stand-serving-counter' });
+    for (let snack = -3; snack <= 3; snack += 1) add([b.w * 0.08, b.h * 0.12, b.d * 0.08], [snack * b.w * 0.1, b.h * 0.71, b.d * 0.4], snack % 2 ? '#d7a341' : '#c9513c', { name: 'concession-stand-packaged-snack' });
+  }
   void variant;
 }
 
