@@ -424,6 +424,28 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_sideboard_buffet', ['sideboard-serving-top', 'sideboard-cutlery-drawer']],
+    ['cine_prop_credenza', ['sideboard-paneled-door', 'sideboard-raised-leg']],
+    ['cine_prop_sideboard_modern', ['sideboard-cabinet-carcass', 'sideboard-serving-top']],
+    ['cine_prop_dresser_wardrobe', ['wardrobe-hanging-rail', 'wardrobe-lower-drawer']],
+    ['cine_prop_wardrobe_armoire', ['wardrobe-hanging-garment', 'wardrobe-open-door']],
+    ['cine_prop_closet_organizer', ['closet-organizer-side-panel', 'closet-organizer-basket-front']],
+    ['cine_prop_media_console', ['media-console-flat-screen', 'media-console-component-bay']],
+    ['cine_prop_tv_stand', ['media-console-screen-glass', 'media-console-speaker']],
+    ['cine_prop_entertainment_center', ['entertainment-center-side-tower', 'entertainment-center-display-shelf']],
+    ['cine_prop_nightstand_pair', ['nightstand-pair-drawer-front', 'nightstand-pair-lamp-shade']],
+    ['cine_prop_bathroom_vanity', ['bathroom-vanity-sink-basin', 'bathroom-vanity-mirror']],
+    ['cine_prop_linen_tower', ['linen-tower-shelf', 'linen-tower-folded-towel']],
+  ] as const)('gives domestic storage %s visible use-specific parts', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#667d6c', '#82644a', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

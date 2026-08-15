@@ -43,6 +43,7 @@ const CEREMONIAL_OVERRIDE = /(podium|pulpit|candle_rack|voting_booth|ballot_box|
 const PUBLIC_SEATING_OVERRIDE = /(waiting_room_lounge|stadium_seat_row|transit_platform_seat|accent_chair|reception_chair|breakfast_nook|metro_seat_bank|gazebo_seat|beach_chair|kids_reading_nook|reading_bench|garden_pavilion_bench|airport_seating|tennis_bench|platform_bench_dual)/;
 const WORK_TABLE_OVERRIDE = /(work_desk|executive_desk|standing_desk|conference_table|round_coffee_table|library_reading_room|planning_table|hot_desk_cluster|picnic_table|staff_desk_terrace|grill_side_table|puzzle_table|kids_table_set|bistro_table|wooden_dining_set|kitchen_island|vanity_desk)/;
 const SPECIALTY_STORAGE_OVERRIDE = /(bookshelf_wall|pantry_cabinet|pharmacy_shelving|clinic_instrument_cabinet|card_catalog|locker_row|lockers_lounge|shoe_rack|document_cabinet|wine_rack|pantry_shelving|safety_cabinet)/;
+const DOMESTIC_STORAGE_OVERRIDE = /(sideboard_buffet|credenza|dresser_wardrobe|media_console|nightstand_pair|wardrobe_armoire|bathroom_vanity|sideboard_modern|tv_stand|entertainment_center|linen_tower|closet_organizer)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -118,6 +119,9 @@ export function buildCinematicProductionProp(
   } else if (SPECIALTY_STORAGE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildSpecialtyStorageProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (DOMESTIC_STORAGE_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildDomesticStorageProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1490,6 +1494,67 @@ function buildSpecialtyStorageProp(root: THREE.Group, key: string, b: Bounds, p:
   for (const side of [-1, 1]) add([b.w * 0.025, b.h * 0.22, b.d * 0.025], [side * b.w * 0.08, b.h * 0.52, b.d * 0.39], p.dark, { name: 'safety-cabinet-three-point-handle', metalness: 0.58 });
   add([b.w * 0.28, b.h * 0.22, b.d * 0.025], [0, b.h * 0.72, b.d * 0.39], p.dark, { name: 'safety-cabinet-hazard-label' });
   for (let vent = -3; vent <= 3; vent += 1) add([b.w * 0.06, b.h * 0.018, b.d * 0.02], [vent * b.w * 0.08, b.h * 0.24, b.d * 0.39], p.dark, { name: 'safety-cabinet-vent-slot' });
+  void variant;
+}
+
+function buildDomesticStorageProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (/(sideboard_buffet|credenza|sideboard_modern)/.test(key)) {
+    add([b.w * 0.94, b.h * 0.68, b.d * 0.72], [0, b.h * 0.4, 0], p.wood, { name: 'sideboard-cabinet-carcass', roughness: 0.7 });
+    add([b.w * 1.0, b.h * 0.07, b.d * 0.78], [0, b.h * 0.77, 0], p.light, { name: 'sideboard-serving-top', roughness: 0.34 });
+    for (let door = -1; door <= 1; door += 1) add([b.w * 0.27, b.h * 0.42, b.d * 0.025], [door * b.w * 0.3, b.h * 0.37, b.d * 0.37], door === 0 ? p.primary : p.secondary, { name: 'sideboard-paneled-door', roughness: 0.66 });
+    for (let drawer = -2; drawer <= 2; drawer += 1) add([b.w * 0.16, b.h * 0.12, b.d * 0.025], [drawer * b.w * 0.19, b.h * 0.67, b.d * 0.37], p.primary, { name: 'sideboard-cutlery-drawer' });
+    for (const side of [-1, 1]) add([b.w * 0.07, b.h * 0.22, b.d * 0.07], [side * b.w * 0.4, b.h * 0.11, 0], p.dark, { name: 'sideboard-raised-leg', roughness: 0.72 });
+    return;
+  }
+  if (/(dresser_wardrobe|wardrobe_armoire|closet_organizer)/.test(key)) {
+    const closet = key.includes('closet');
+    for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.96, b.d * 0.74], [side * b.w * 0.46, b.h * 0.5, 0], p.wood, { name: closet ? 'closet-organizer-side-panel' : 'wardrobe-side-panel', roughness: 0.74 });
+    for (const y of [0.04, 0.96]) add([b.w * 0.94, b.h * 0.06, b.d * 0.74], [0, b.h * y, 0], p.wood, { name: closet ? 'closet-organizer-cap' : 'wardrobe-cap', roughness: 0.74 });
+    add([b.w * 0.88, b.h * 0.9, b.d * 0.035], [0, b.h * 0.5, -b.d * 0.36], p.wood, { name: closet ? 'closet-organizer-back' : 'wardrobe-back', roughness: 0.76 });
+    add([b.w * 0.82, b.h * 0.04, b.d * 0.04], [0, b.h * 0.82, 0], p.metal, { name: 'wardrobe-hanging-rail', metalness: 0.56 });
+    for (let garment = -3; garment <= 3; garment += 1) add([b.w * 0.1, b.h * 0.42, b.d * 0.08], [garment * b.w * 0.11, b.h * 0.59, 0], garment % 2 ? p.primary : p.secondary, { name: 'wardrobe-hanging-garment', roughness: 0.9 });
+    for (let drawer = 0; drawer < 3; drawer += 1) add([b.w * 0.72, b.h * 0.12, b.d * 0.025], [0, b.h * (0.13 + drawer * 0.14), b.d * 0.38], p.primary, { name: closet ? 'closet-organizer-basket-front' : 'wardrobe-lower-drawer' });
+    if (!closet) for (const side of [-1, 1]) add([b.w * 0.38, b.h * 0.48, b.d * 0.035], [side * b.w * 0.34, b.h * 0.7, b.d * 0.34], p.wood, { rotation: [0, side * 0.58, 0], name: 'wardrobe-open-door', roughness: 0.7 });
+    return;
+  }
+  if (/(media_console|tv_stand|entertainment_center)/.test(key)) {
+    const center = key.includes('entertainment');
+    add([b.w * 0.94, b.h * (center ? 0.42 : 0.36), b.d * 0.72], [0, b.h * (center ? 0.23 : 0.2), 0], p.wood, { name: 'media-console-cabinet-base', roughness: 0.7 });
+    for (let bay = -2; bay <= 2; bay += 1) add([b.w * 0.16, b.h * 0.2, b.d * 0.025], [bay * b.w * 0.18, b.h * 0.22, b.d * 0.37], bay % 2 ? p.primary : p.secondary, { name: 'media-console-component-bay' });
+    add([b.w * 0.64, b.h * 0.42, b.d * 0.05], [0, b.h * 0.66, -b.d * 0.06], p.dark, { name: 'media-console-flat-screen' });
+    add([b.w * 0.58, b.h * 0.35, b.d * 0.025], [0, b.h * 0.66, -b.d * 0.025], p.glass, { name: 'media-console-screen-glass', opacity: 0.7, emissive: p.glow, emissiveIntensity: 0.08 });
+    for (const side of [-1, 1]) add([b.w * 0.1, b.h * 0.36, b.d * 0.16], [side * b.w * 0.4, b.h * 0.52, 0], p.dark, { name: 'media-console-speaker' });
+    if (center) for (const side of [-1, 1]) {
+      add([b.w * 0.18, b.h * 0.92, b.d * 0.68], [side * b.w * 0.42, b.h * 0.5, 0], p.wood, { name: 'entertainment-center-side-tower', roughness: 0.72 });
+      for (const y of [0.3, 0.56, 0.82]) add([b.w * 0.15, b.h * 0.04, b.d * 0.58], [side * b.w * 0.42, b.h * y, 0], p.light, { name: 'entertainment-center-display-shelf' });
+    }
+    return;
+  }
+  if (key.includes('nightstand_pair')) {
+    for (const side of [-1, 1]) {
+      const x = side * b.w * 0.3;
+      add([b.w * 0.34, b.h * 0.46, b.d * 0.58], [x, b.h * 0.25, 0], p.wood, { name: 'nightstand-pair-cabinet', roughness: 0.72 });
+      for (let drawer = 0; drawer < 2; drawer += 1) add([b.w * 0.28, b.h * 0.13, b.d * 0.025], [x, b.h * (0.18 + drawer * 0.16), b.d * 0.3], p.primary, { name: 'nightstand-pair-drawer-front' });
+      add([b.w * 0.28, b.h * 0.18, b.d * 0.28], [x, b.h * 0.69, 0], p.light, { shape: 'cone', rotation: [Math.PI, 0, 0], name: 'nightstand-pair-lamp-shade', emissive: '#dfbd78', emissiveIntensity: 0.16 });
+      add([b.w * 0.04, b.h * 0.25, b.d * 0.04], [x, b.h * 0.56, 0], p.metal, { name: 'nightstand-pair-lamp-stem', metalness: 0.5 });
+    }
+    return;
+  }
+  if (key.includes('bathroom_vanity')) {
+    add([b.w * 0.9, b.h * 0.54, b.d * 0.68], [0, b.h * 0.3, 0], p.wood, { name: 'bathroom-vanity-cabinet', roughness: 0.66 });
+    for (const side of [-1, 1]) add([b.w * 0.4, b.h * 0.38, b.d * 0.025], [side * b.w * 0.21, b.h * 0.3, b.d * 0.35], p.primary, { name: 'bathroom-vanity-cabinet-door' });
+    add([b.w * 0.96, b.h * 0.07, b.d * 0.76], [0, b.h * 0.6, 0], p.light, { name: 'bathroom-vanity-stone-counter', roughness: 0.26 });
+    add([b.w * 0.46, b.h * 0.04, b.d * 0.38], [0, b.h * 0.65, 0], p.metal, { name: 'bathroom-vanity-sink-basin', metalness: 0.4 });
+    addBeamBetween(root, [0, b.h * 0.67, -b.d * 0.12], [0, b.h * 0.84, b.d * 0.02], b.w * 0.025, p.metal, 'bathroom-vanity-faucet');
+    add([b.w * 0.64, b.h * 0.34, b.d * 0.04], [0, b.h * 0.86, -b.d * 0.28], p.glass, { name: 'bathroom-vanity-mirror', opacity: 0.42, roughness: 0.06 });
+    return;
+  }
+
+  // Linen tower uses open shelving so folded textiles remain visible.
+  for (const side of [-1, 1]) add([b.w * 0.07, b.h * 0.96, b.d * 0.7], [side * b.w * 0.43, b.h * 0.5, 0], p.wood, { name: 'linen-tower-side-panel', roughness: 0.74 });
+  for (const y of [0.06, 0.27, 0.48, 0.69, 0.9]) add([b.w * 0.88, b.h * 0.05, b.d * 0.68], [0, b.h * y, 0], p.wood, { name: 'linen-tower-shelf', roughness: 0.74 });
+  for (let shelf = 0; shelf < 4; shelf += 1) for (let towel = -1; towel <= 1; towel += 1) add([b.w * 0.22, b.h * 0.08, b.d * 0.38], [towel * b.w * 0.24, b.h * (0.14 + shelf * 0.21), b.d * 0.1], (towel + shelf) % 2 ? p.primary : p.light, { name: 'linen-tower-folded-towel', roughness: 0.94 });
   void variant;
 }
 
