@@ -198,6 +198,31 @@ describe('production model regressions', () => {
     expect(report.meshes).toBeLessThan(80);
     if (kind.includes('stuffed_')) expect(report.rounded / report.meshes).toBeLessThan(0.4);
   });
+
+  it.each([
+    ['cine_prop_wheelchair', ['wheelchair-drive-wheel', 'wheelchair-footrest']],
+    ['cine_prop_lab_fume_hood', ['fume-hood-sliding-sash', 'fume-hood-exhaust-duct']],
+    ['cine_prop_microscope_station', ['microscope-optical-tube', 'microscope-specimen-stage']],
+    ['cine_prop_centrifuge_bench', ['centrifuge-machine-body', 'centrifuge-sample-tube']],
+    ['cine_prop_icu_monitor_stand', ['icu-monitor-vital-display', 'icu-monitor-waveform']],
+    ['cine_prop_baggage_carousel', ['baggage-carousel-moving-belt', 'baggage-carousel-suitcase']],
+    ['cine_prop_security_scanner', ['security-scanner-arch-column', 'security-scanner-sensor-array']],
+    ['cine_prop_escalator_end', ['escalator-visible-step', 'escalator-balustrade']],
+    ['cine_prop_pinball_machine', ['pinball-playfield-glass', 'pinball-backbox']],
+    ['cine_prop_stage_lighting_rig', ['lighting-rig-top-truss', 'stage-light-can']],
+    ['cine_prop_concert_speaker_stack', ['speaker-stack-cabinet', 'speaker-stack-driver']],
+    ['cine_prop_drone_dock', ['drone-cross-arm', 'drone-rotor']],
+    ['cine_prop_rooftop_solar_rig', ['solar-rig-photovoltaic-panel', 'solar-rig-cell-divider']],
+    ['cine_prop_whiteboard', ['whiteboard-writing-surface', 'whiteboard-marker-tray']],
+    ['cine_prop_pool_lane_marker', ['pool-lane-tension-rope', 'pool-lane-divider-float']],
+  ] as const)('gives %s an object-specific production silhouette', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#77899a', '#9e8669', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

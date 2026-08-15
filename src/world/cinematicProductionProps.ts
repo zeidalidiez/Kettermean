@@ -29,6 +29,10 @@ interface Palette {
 
 const INDUSTRIAL_OVERRIDE = /(bbq_grill|vacuum_stand|fireplace_logs|forklift|conveyor_section|workbench|pegboard|material_lift|recycling_bin|street_cleaner|rooftop_ac_unit|rooftop_water_tank|cargo_cart|pallet_jack|scale_weigh_station|packing_table|shrink_wrap_machine|cooler_chest|picnic_cooler|patio_heater|bench_vise|table_saw_stand|miter_saw_bench|drill_press_stand|sanding_station|tool_shadow_board|clamp_storage|paint_station|spray_booth|floodlight_tripod|scaffold_section)/;
 const LEISURE_OVERRIDE = /(gym_bench_press|treadmill|lifeguard_stand|foosball_table|pool_table|air_hockey|dartboard|exercise_mat|dumbbell_rack|kettlebell|rowing_machine|yoga_blocks|basketball_hoop|golf_bag|inflatable_ring|beach_towel_rack|volleyball_net|excavator_toy|crane_toy|steamroller_toy|dump_truck_toy|fire_truck_toy|digging_dino_toy|robot_toy|dollhouse_toy|train_set_toy|building_blocks|marble_run|puppet_theater|rocking_boat|stuffed_bear|stuffed_rabbit|dinosaur_puppet|baby_bouncer|nursery_rocking_horse)/;
+const CLINICAL_OVERRIDE = /(lab_fume_hood|microscope_station|centrifuge_bench|nurse_station|icu_monitor_stand|wheelchair|pharmacy_counter|eye_wash_station|first_aid_station)/;
+const TRANSPORT_OVERRIDE = /(terminal_check_in|baggage_carousel|security_scanner|bike_rack|escalator_end|staircase_landing|handrail_run)/;
+const TECHNOLOGY_OVERRIDE = /(photo_booth|arcade_cabinet_pair|pinball_machine|stage_lighting_rig|concert_speaker_stack|phone_charging_kiosk|charging_station|smart_home_hub|drone_dock|rooftop_solar_rig|rooftop_antennas|weather_station_post|emergency_light|exit_sign_post)/;
+const OFFICE_OVERRIDE = /(reception_counter|desk_organizer_set|whiteboard)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -62,6 +66,21 @@ export function buildCinematicProductionProp(
   } else if (LEISURE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildLeisureProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (CLINICAL_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildClinicalProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (TRANSPORT_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildTransportProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (TECHNOLOGY_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildTechnologyProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (OFFICE_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildOfficeProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (key === 'pool_lane_marker') {
+    model = new THREE.Group();
+    buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
   }
   if (!model) return null;
   model.name = `${kind}-${variant}`;
@@ -424,6 +443,244 @@ function buildToy(root: THREE.Group, key: string, b: Bounds, p: Palette, variant
     } else add([b.w * 0.68, b.h * 0.14, b.d * 0.58], [0, b.h * 0.38, 0], p.secondary, { rotation: [-0.18, 0, 0], name: 'baby-bouncer-fabric-seat' });
   }
   void variant;
+}
+
+function buildClinicalProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('wheelchair')) {
+    add([b.w * 0.56, b.h * 0.1, b.d * 0.56], [0, b.h * 0.48, 0], p.primary, { name: 'wheelchair-padded-seat' });
+    add([b.w * 0.54, b.h * 0.48, b.d * 0.08], [0, b.h * 0.75, -b.d * 0.24], p.primary, { name: 'wheelchair-padded-back' });
+    for (const side of [-1, 1]) {
+      add([b.w * 0.74, b.w * 0.74, b.w * 0.075], [side * b.w * 0.36, b.h * 0.34, 0], p.dark, { shape: 'torus', rotation: [0, Math.PI / 2, 0], name: 'wheelchair-drive-wheel', metalness: 0.35 });
+      add([b.w * 0.04, b.h * 0.54, b.d * 0.04], [side * b.w * 0.27, b.h * 0.55, 0], p.metal, { name: 'wheelchair-side-frame', metalness: 0.58 });
+      add([b.w * 0.24, b.h * 0.045, b.d * 0.24], [side * b.w * 0.2, b.h * 0.08, b.d * 0.28], p.metal, { name: 'wheelchair-footrest', metalness: 0.5 });
+      add([b.w * 0.1, b.w * 0.05, b.w * 0.1], [side * b.w * 0.22, b.h * 0.08, b.d * 0.33], p.dark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'wheelchair-front-caster' });
+    }
+    return;
+  }
+  if (key.includes('fume_hood')) {
+    add([b.w * 0.92, b.h * 0.45, b.d * 0.82], [0, b.h * 0.24, 0], p.light, { name: 'fume-hood-base-cabinet' });
+    add([b.w * 0.96, b.h * 0.06, b.d * 0.88], [0, b.h * 0.5, 0], p.metal, { name: 'fume-hood-chemical-worktop', metalness: 0.35 });
+    add([b.w * 0.88, b.h * 0.43, b.d * 0.7], [0, b.h * 0.73, -b.d * 0.04], p.dark, { name: 'fume-hood-ventilated-chamber' });
+    add([b.w * 0.76, b.h * 0.36, b.d * 0.025], [0, b.h * 0.72, b.d * 0.34], p.glass, { name: 'fume-hood-sliding-sash', opacity: 0.3, roughness: 0.08 });
+    add([b.w * 0.24, b.h * 0.18, b.d * 0.24], [0, b.h * 0.96, -b.d * 0.12], p.metal, { name: 'fume-hood-exhaust-duct', metalness: 0.5 });
+    return;
+  }
+  if (key.includes('microscope')) {
+    buildClinicalBench(root, b, p);
+    add([b.w * 0.28, b.h * 0.06, b.d * 0.32], [0, b.h * 0.62, 0], p.dark, { name: 'microscope-weighted-base' });
+    addBeamBetween(root, [-b.w * 0.08, b.h * 0.64, 0], [b.w * 0.04, b.h * 0.9, -b.d * 0.05], b.w * 0.045, p.metal, 'microscope-curved-arm');
+    add([b.w * 0.11, b.h * 0.28, b.d * 0.11], [b.w * 0.06, b.h * 0.86, b.d * 0.04], p.light, { shape: 'cylinder', rotation: [0.18, 0, 0], name: 'microscope-optical-tube' });
+    add([b.w * 0.34, b.h * 0.035, b.d * 0.28], [0, b.h * 0.73, b.d * 0.04], p.metal, { name: 'microscope-specimen-stage', metalness: 0.5 });
+    return;
+  }
+  if (key.includes('centrifuge')) {
+    buildClinicalBench(root, b, p);
+    add([b.w * 0.48, b.h * 0.28, b.d * 0.45], [0, b.h * 0.7, 0], p.primary, { shape: 'cylinder', name: 'centrifuge-machine-body' });
+    add([b.w * 0.42, b.h * 0.06, b.d * 0.42], [0, b.h * 0.86, 0], p.glass, { shape: 'cylinder', name: 'centrifuge-clear-lid', opacity: 0.48 });
+    for (let tube = 0; tube < 6; tube += 1) {
+      const angle = tube / 6 * Math.PI * 2;
+      add([b.w * 0.035, b.h * 0.12, b.d * 0.035], [Math.cos(angle) * b.w * 0.12, b.h * 0.86, Math.sin(angle) * b.d * 0.12], tube % 2 ? p.secondary : p.glow, { shape: 'cylinder', name: 'centrifuge-sample-tube', opacity: 0.7 });
+    }
+    return;
+  }
+  if (key.includes('icu_monitor')) {
+    add([b.w * 0.56, b.h * 0.06, b.d * 0.56], [0, b.h * 0.05, 0], p.dark, { name: 'icu-monitor-wheeled-base' });
+    add([b.w * 0.07, b.h * 0.66, b.d * 0.07], [0, b.h * 0.4, 0], p.metal, { shape: 'cylinder', name: 'icu-monitor-height-pole', metalness: 0.58 });
+    add([b.w * 0.72, b.h * 0.42, b.d * 0.18], [0, b.h * 0.72, 0], p.dark, { name: 'icu-monitor-screen-housing' });
+    add([b.w * 0.62, b.h * 0.31, b.d * 0.025], [0, b.h * 0.73, b.d * 0.1], p.glass, { name: 'icu-monitor-vital-display', opacity: 0.8, emissive: p.glow, emissiveIntensity: 0.25 });
+    for (let line = 0; line < 3; line += 1) add([b.w * 0.48, b.h * 0.012, b.d * 0.012], [0, b.h * (0.65 + line * 0.09), b.d * 0.12], line === variant % 3 ? p.glow : p.light, { name: 'icu-monitor-waveform', emissive: p.glow, emissiveIntensity: 0.4 });
+    return;
+  }
+  if (key.includes('eye_wash')) {
+    add([b.w * 0.36, b.h * 0.72, b.d * 0.36], [0, b.h * 0.4, 0], p.light, { name: 'eyewash-pedestal' });
+    add([b.w * 0.72, b.h * 0.14, b.d * 0.64], [0, b.h * 0.78, 0], p.metal, { shape: 'cylinder', name: 'eyewash-catch-basin', metalness: 0.46 });
+    for (const side of [-1, 1]) {
+      add([b.w * 0.05, b.h * 0.16, b.d * 0.05], [side * b.w * 0.14, b.h * 0.91, 0], p.metal, { shape: 'cylinder', name: 'eyewash-spray-nozzle', metalness: 0.58 });
+      add([b.w * 0.025, b.h * 0.12, b.d * 0.025], [side * b.w * 0.14, b.h * 0.99, 0], p.glass, { shape: 'cylinder', name: 'eyewash-water-jet', opacity: 0.56, emissive: p.glow, emissiveIntensity: 0.08 });
+    }
+    return;
+  }
+  if (key.includes('first_aid')) {
+    add([b.w * 0.78, b.h * 0.82, b.d * 0.28], [0, b.h * 0.5, 0], p.light, { name: 'first-aid-wall-cabinet' });
+    add([b.w * 0.58, b.h * 0.13, b.d * 0.025], [0, b.h * 0.55, b.d * 0.16], '#b9443f', { name: 'first-aid-horizontal-cross-bar' });
+    add([b.w * 0.14, b.h * 0.55, b.d * 0.025], [0, b.h * 0.55, b.d * 0.165], '#b9443f', { name: 'first-aid-vertical-cross-bar' });
+    add([b.w * 0.2, b.h * 0.04, b.d * 0.04], [0, b.h * 0.16, b.d * 0.17], p.metal, { name: 'first-aid-cabinet-handle', metalness: 0.5 });
+    return;
+  }
+  // Nurse and pharmacy stations use a wraparound work counter rather than a cart.
+  add([b.w * 0.94, b.h * 0.54, b.d * 0.74], [0, b.h * 0.3, 0], p.light, { name: 'clinical-station-cabinet-bank' });
+  add([b.w * 0.98, b.h * 0.06, b.d * 0.86], [0, b.h * 0.6, 0], p.metal, { name: 'clinical-station-worktop', metalness: 0.32 });
+  add([b.w * 0.34, b.h * 0.28, b.d * 0.05], [b.w * 0.18, b.h * 0.81, -b.d * 0.18], p.dark, { name: 'clinical-station-monitor' });
+  add([b.w * 0.28, b.h * 0.18, b.d * 0.05], [b.w * 0.18, b.h * 0.81, -b.d * 0.145], p.glass, { name: 'clinical-station-display', opacity: 0.78, emissive: p.glow, emissiveIntensity: 0.18 });
+  for (let drawer = 0; drawer < 4; drawer += 1) add([b.w * 0.3, b.h * 0.09, b.d * 0.025], [-b.w * 0.25, b.h * (0.18 + drawer * 0.11), b.d * 0.38], drawer % 2 ? p.primary : p.secondary, { name: 'clinical-station-supply-drawer' });
+}
+
+function buildClinicalBench(root: THREE.Group, b: Bounds, p: Palette): void {
+  const add = partAdder(root);
+  add([b.w * 0.92, b.h * 0.07, b.d * 0.78], [0, b.h * 0.54, 0], p.light, { name: 'clinical-lab-worktop' });
+  for (const x of [-0.4, 0.4]) for (const z of [-0.3, 0.3]) add([b.w * 0.045, b.h * 0.5, b.d * 0.045], [x * b.w, b.h * 0.26, z * b.d], p.metal, { name: 'clinical-lab-square-leg', metalness: 0.52 });
+}
+
+function buildTransportProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('baggage_carousel')) {
+    add([b.w * 0.88, b.h * 0.28, b.d * 0.78], [0, b.h * 0.18, 0], p.dark, { shape: 'cylinder', name: 'baggage-carousel-drive-base', metalness: 0.34 });
+    add([b.w * 0.9, b.w * 0.9, b.w * 0.14], [0, b.h * 0.38, 0], p.metal, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], name: 'baggage-carousel-moving-belt', metalness: 0.5 });
+    for (let bag = 0; bag < 8; bag += 1) {
+      const angle = bag / 8 * Math.PI * 2;
+      add([b.w * 0.15, b.h * 0.22, b.d * 0.18], [Math.cos(angle) * b.w * 0.34, b.h * 0.5, Math.sin(angle) * b.d * 0.32], bag % 2 ? p.primary : p.secondary, { rotation: [0, -angle, 0], name: 'baggage-carousel-suitcase' });
+    }
+    return;
+  }
+  if (key.includes('security_scanner')) {
+    for (const side of [-1, 1]) add([b.w * 0.17, b.h * 0.88, b.d * 0.72], [side * b.w * 0.39, b.h * 0.48, 0], p.primary, { name: 'security-scanner-arch-column' });
+    add([b.w * 0.94, b.h * 0.16, b.d * 0.72], [0, b.h * 0.92, 0], p.primary, { name: 'security-scanner-arch-header' });
+    add([b.w * 0.54, b.h * 0.055, b.d * 0.82], [0, b.h * 0.09, 0], p.dark, { name: 'security-scanner-conveyor-belt' });
+    for (const side of [-1, 1]) add([b.w * 0.05, b.h * 0.52, b.d * 0.05], [side * b.w * 0.26, b.h * 0.42, 0], p.glow, { name: 'security-scanner-sensor-array', emissive: p.glow, emissiveIntensity: 0.18 });
+    return;
+  }
+  if (key.includes('bike_rack')) {
+    add([b.w * 0.92, b.h * 0.08, b.d * 0.72], [0, b.h * 0.04, 0], p.metal, { name: 'bike-rack-floor-rail', metalness: 0.58 });
+    for (let slot = -3; slot <= 3; slot += 1) {
+      add([b.w * 0.035, b.h * 0.6, b.d * 0.035], [slot * b.w * 0.12, b.h * 0.34, -b.d * 0.2], p.metal, { shape: 'cylinder', name: 'bike-rack-upright', metalness: 0.62 });
+      add([b.w * 0.035, b.h * 0.035, b.d * 0.4], [slot * b.w * 0.12, b.h * 0.65, 0], p.metal, { name: 'bike-rack-wheel-slot', metalness: 0.62 });
+    }
+    return;
+  }
+  if (key.includes('escalator_end')) {
+    for (let step = 0; step < 7; step += 1) add([b.w * 0.62, b.h * 0.1, b.d * 0.16], [0, b.h * (0.1 + step * 0.11), b.d * (0.35 - step * 0.11)], p.metal, { name: 'escalator-visible-step', metalness: 0.5 });
+    for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.72, b.d * 0.72], [side * b.w * 0.38, b.h * 0.45, 0], p.secondary, { rotation: [-0.45, 0, 0], name: 'escalator-balustrade' });
+    return;
+  }
+  if (key.includes('staircase_landing')) {
+    for (let step = 0; step < 6; step += 1) add([b.w * 0.82, b.h * 0.1, b.d * 0.18], [0, b.h * (0.05 + step * 0.11), b.d * (0.38 - step * 0.14)], step % 2 ? p.light : p.primary, { name: 'staircase-landing-step' });
+    for (const side of [-1, 1]) addBeamBetween(root, [side * b.w * 0.4, b.h * 0.22, b.d * 0.44], [side * b.w * 0.4, b.h * 0.92, -b.d * 0.35], b.w * 0.035, p.metal, 'staircase-handrail');
+    return;
+  }
+  if (key.includes('handrail_run')) {
+    for (let post = -3; post <= 3; post += 1) add([b.w * 0.035, b.h * 0.72, b.d * 0.035], [post * b.w * 0.13, b.h * 0.36, 0], p.metal, { shape: 'cylinder', name: 'handrail-support-post', metalness: 0.6 });
+    add([b.w * 0.92, b.h * 0.05, b.d * 0.05], [0, b.h * 0.74, 0], p.metal, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'handrail-grab-rail', metalness: 0.62 });
+    return;
+  }
+  // Check-in station combines a luggage belt, agent counter, and monitor.
+  add([b.w * 0.6, b.h * 0.12, b.d * 0.72], [-b.w * 0.15, b.h * 0.22, 0], p.dark, { name: 'check-in-luggage-conveyor' });
+  for (let roller = -3; roller <= 3; roller += 1) add([b.w * 0.035, b.h * 0.035, b.d * 0.62], [-b.w * 0.15 + roller * b.w * 0.075, b.h * 0.3, 0], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'check-in-conveyor-roller', metalness: 0.55 });
+  add([b.w * 0.32, b.h * 0.56, b.d * 0.68], [b.w * 0.32, b.h * 0.32, 0], p.primary, { name: 'check-in-agent-counter' });
+  add([b.w * 0.26, b.h * 0.22, b.d * 0.05], [b.w * 0.31, b.h * 0.75, -b.d * 0.16], p.dark, { name: 'check-in-agent-monitor' });
+  void variant;
+}
+
+function buildTechnologyProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('photo_booth')) {
+    add([b.w * 0.92, b.h * 0.95, b.d * 0.88], [0, b.h * 0.5, 0], p.primary, { name: 'photo-booth-enclosure' });
+    add([b.w * 0.5, b.h * 0.76, b.d * 0.025], [-b.w * 0.18, b.h * 0.49, b.d * 0.45], p.secondary, { name: 'photo-booth-curtain' });
+    add([b.w * 0.28, b.h * 0.18, b.d * 0.3], [b.w * 0.16, b.h * 0.28, 0], p.light, { name: 'photo-booth-seat' });
+    add([b.w * 0.12, b.w * 0.04, b.w * 0.12], [b.w * 0.16, b.h * 0.72, -b.d * 0.3], p.glass, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'photo-booth-camera-lens', opacity: 0.7 });
+    return;
+  }
+  if (key.includes('arcade_cabinet')) {
+    for (const side of [-1, 1]) {
+      add([b.w * 0.4, b.h * 0.9, b.d * 0.76], [side * b.w * 0.23, b.h * 0.48, 0], side < 0 ? p.primary : p.secondary, { name: 'arcade-cabinet-body' });
+      add([b.w * 0.3, b.h * 0.28, b.d * 0.025], [side * b.w * 0.23, b.h * 0.65, b.d * 0.39], p.glass, { name: 'arcade-cabinet-screen', opacity: 0.78, emissive: p.glow, emissiveIntensity: 0.24 });
+      add([b.w * 0.3, b.h * 0.06, b.d * 0.22], [side * b.w * 0.23, b.h * 0.44, b.d * 0.3], p.dark, { rotation: [-0.18, 0, 0], name: 'arcade-control-deck' });
+    }
+    return;
+  }
+  if (key.includes('pinball')) {
+    for (const x of [-0.32, 0.32]) for (const z of [-0.28, 0.28]) add([b.w * 0.045, b.h * 0.5, b.d * 0.045], [x * b.w, b.h * 0.25, z * b.d], p.metal, { name: 'pinball-machine-leg', metalness: 0.5 });
+    add([b.w * 0.78, b.h * 0.22, b.d * 0.82], [0, b.h * 0.56, 0], p.primary, { rotation: [-0.08, 0, 0], name: 'pinball-playfield-cabinet' });
+    add([b.w * 0.68, b.h * 0.025, b.d * 0.7], [0, b.h * 0.68, 0], p.glass, { rotation: [-0.08, 0, 0], name: 'pinball-playfield-glass', opacity: 0.45 });
+    add([b.w * 0.7, b.h * 0.48, b.d * 0.16], [0, b.h * 0.83, -b.d * 0.32], p.secondary, { name: 'pinball-backbox' });
+    add([b.w * 0.56, b.h * 0.3, b.d * 0.025], [0, b.h * 0.85, -b.d * 0.225], p.glow, { name: 'pinball-score-display', emissive: p.glow, emissiveIntensity: 0.22 });
+    return;
+  }
+  if (key.includes('stage_lighting')) {
+    for (const x of [-0.43, 0.43]) add([b.w * 0.045, b.h * 0.88, b.d * 0.045], [x * b.w, b.h * 0.46, 0], p.metal, { name: 'lighting-rig-truss-upright', metalness: 0.62 });
+    add([b.w * 0.9, b.h * 0.055, b.d * 0.055], [0, b.h * 0.9, 0], p.metal, { name: 'lighting-rig-top-truss', metalness: 0.62 });
+    for (let lamp = -3; lamp <= 3; lamp += 1) {
+      add([b.w * 0.12, b.h * 0.18, b.d * 0.14], [lamp * b.w * 0.12, b.h * 0.76, 0], p.dark, { shape: 'cone', rotation: [Math.PI, 0, 0], name: 'stage-light-can' });
+      add([b.w * 0.07, b.h * 0.025, b.d * 0.07], [lamp * b.w * 0.12, b.h * 0.66, 0], lamp % 2 ? p.glow : p.secondary, { shape: 'cylinder', name: 'stage-light-lens', emissive: lamp % 2 ? p.glow : p.secondary, emissiveIntensity: 0.42 });
+    }
+    return;
+  }
+  if (key.includes('speaker_stack')) {
+    for (let cabinet = 0; cabinet < 4; cabinet += 1) {
+      const x = (cabinet % 2 ? 1 : -1) * b.w * 0.23;
+      const y = b.h * (0.25 + Math.floor(cabinet / 2) * 0.48);
+      add([b.w * 0.42, b.h * 0.42, b.d * 0.72], [x, y, 0], p.dark, { name: 'speaker-stack-cabinet' });
+      for (const woofer of [-0.1, 0.1]) add([b.w * 0.22, b.w * 0.035, b.w * 0.22], [x, y + woofer * b.h, b.d * 0.37], p.primary, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'speaker-stack-driver' });
+    }
+    return;
+  }
+  if (/(charging_station|phone_charging_kiosk|smart_home_hub)/.test(key)) {
+    add([b.w * 0.7, b.h * 0.9, b.d * 0.58], [0, b.h * 0.48, 0], p.primary, { name: 'charging-hub-pedestal' });
+    add([b.w * 0.52, b.h * 0.24, b.d * 0.025], [0, b.h * 0.68, b.d * 0.3], p.glass, { name: 'charging-hub-touchscreen', opacity: 0.78, emissive: p.glow, emissiveIntensity: 0.2 });
+    for (let port = -2; port <= 2; port += 1) add([b.w * 0.07, b.h * 0.035, b.d * 0.025], [port * b.w * 0.11, b.h * 0.42, b.d * 0.31], port === variant - 2 ? p.glow : p.dark, { name: 'charging-hub-device-port', emissive: port === variant - 2 ? p.glow : '#000000', emissiveIntensity: 0.3 });
+    return;
+  }
+  if (key.includes('drone_dock')) {
+    add([b.w * 0.86, b.h * 0.08, b.d * 0.82], [0, b.h * 0.06, 0], p.light, { name: 'drone-dock-landing-pad' });
+    for (const diagonal of [-1, 1]) add([b.w * 0.72, b.h * 0.045, b.d * 0.045], [0, b.h * 0.3, 0], p.dark, { rotation: [0, diagonal * Math.PI / 4, 0], name: 'drone-cross-arm' });
+    add([b.w * 0.28, b.h * 0.16, b.d * 0.28], [0, b.h * 0.34, 0], p.primary, { name: 'drone-control-body' });
+    for (const x of [-0.27, 0.27]) for (const z of [-0.27, 0.27]) add([b.w * 0.22, b.h * 0.025, b.d * 0.22], [x * b.w, b.h * 0.34, z * b.d], p.metal, { shape: 'cylinder', name: 'drone-rotor', metalness: 0.5 });
+    return;
+  }
+  if (key.includes('solar_rig')) {
+    for (const side of [-1, 1]) {
+      add([b.w * 0.42, b.h * 0.05, b.d * 0.82], [side * b.w * 0.24, b.h * 0.58, 0], '#334c66', { rotation: [-0.42, 0, 0], name: 'solar-rig-photovoltaic-panel', metalness: 0.26 });
+      for (let cell = -2; cell <= 2; cell += 1) add([b.w * 0.055, b.h * 0.018, b.d * 0.7], [side * b.w * 0.24 + cell * b.w * 0.065, b.h * 0.59, 0], p.glass, { rotation: [-0.42, 0, 0], name: 'solar-rig-cell-divider', opacity: 0.6 });
+    }
+    for (const x of [-0.35, 0.35]) add([b.w * 0.05, b.h * 0.5, b.d * 0.05], [x * b.w, b.h * 0.26, 0], p.metal, { name: 'solar-rig-support-leg', metalness: 0.58 });
+    return;
+  }
+  if (/(antennas|weather_station)/.test(key)) {
+    add([b.w * 0.6, b.h * 0.07, b.d * 0.6], [0, b.h * 0.04, 0], p.dark, { name: 'sensor-mast-base' });
+    add([b.w * 0.06, b.h * 0.86, b.d * 0.06], [0, b.h * 0.48, 0], p.metal, { shape: 'cylinder', name: 'sensor-mast-pole', metalness: 0.62 });
+    for (let arm = 0; arm < 4; arm += 1) {
+      const angle = arm / 4 * Math.PI * 2;
+      add([b.w * 0.36, b.h * 0.03, b.d * 0.03], [Math.cos(angle) * b.w * 0.18, b.h * (0.65 + arm * 0.07), Math.sin(angle) * b.d * 0.18], p.metal, { rotation: [0, -angle, 0], name: 'sensor-mast-cross-arm', metalness: 0.6 });
+      add([b.w * 0.11, b.h * 0.13, b.d * 0.11], [Math.cos(angle) * b.w * 0.35, b.h * (0.65 + arm * 0.07), Math.sin(angle) * b.d * 0.35], arm % 2 ? p.glass : p.secondary, { shape: arm % 2 ? 'cylinder' : 'cone', name: 'sensor-mast-instrument', opacity: arm % 2 ? 0.7 : 1 });
+    }
+    return;
+  }
+  // Emergency and exit fixtures are wall-mounted luminous units.
+  add([b.w * 0.88, b.h * 0.48, b.d * 0.3], [0, b.h * 0.56, 0], p.light, { name: key.includes('exit') ? 'exit-sign-housing' : 'emergency-light-housing' });
+  add([b.w * 0.72, b.h * 0.3, b.d * 0.025], [0, b.h * 0.56, b.d * 0.16], key.includes('exit') ? '#4bc77b' : p.glow, { name: key.includes('exit') ? 'exit-sign-luminous-face' : 'emergency-light-luminous-face', emissive: key.includes('exit') ? '#4bc77b' : p.glow, emissiveIntensity: 0.45 });
+  for (const side of [-1, 1]) add([b.w * 0.18, b.h * 0.16, b.d * 0.14], [side * b.w * 0.28, b.h * 0.84, 0], p.light, { shape: 'cone', rotation: [Math.PI / 2, 0, side * 0.18], name: 'emergency-light-adjustable-head' });
+}
+
+function buildOfficeProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('whiteboard')) {
+    add([b.w * 0.94, b.h * 0.75, b.d * 0.16], [0, b.h * 0.55, 0], p.metal, { name: 'whiteboard-aluminum-frame', metalness: 0.48 });
+    add([b.w * 0.86, b.h * 0.64, b.d * 0.025], [0, b.h * 0.55, b.d * 0.09], p.light, { name: 'whiteboard-writing-surface', roughness: 0.22 });
+    add([b.w * 0.72, b.h * 0.035, b.d * 0.18], [0, b.h * 0.18, b.d * 0.14], p.metal, { name: 'whiteboard-marker-tray', metalness: 0.42 });
+    for (let marker = -2; marker <= 2; marker += 1) add([b.w * 0.1, b.h * 0.025, b.d * 0.025], [marker * b.w * 0.12, b.h * 0.21, b.d * 0.19], marker % 2 ? p.primary : p.secondary, { name: 'whiteboard-marker' });
+    return;
+  }
+  if (key.includes('organizer')) {
+    add([b.w * 0.9, b.h * 0.07, b.d * 0.8], [0, b.h * 0.05, 0], p.wood, { name: 'desk-organizer-base-tray' });
+    for (let slot = -3; slot <= 3; slot += 1) add([b.w * 0.08, b.h * (0.25 + (slot + 3) % 3 * 0.08), b.d * 0.65], [slot * b.w * 0.12, b.h * 0.2, 0], slot % 2 ? p.primary : p.secondary, { rotation: [0, 0, slot * 0.025], name: 'desk-organizer-file-divider' });
+    for (let paper = 0; paper < 4; paper += 1) add([b.w * 0.32, b.h * 0.018, b.d * 0.38], [b.w * 0.22, b.h * (0.12 + paper * 0.025), b.d * 0.12], p.light, { rotation: [0, paper * 0.025, 0], name: 'desk-organizer-paper-stack' });
+    return;
+  }
+  add([b.w * 0.94, b.h * 0.62, b.d * 0.78], [0, b.h * 0.34, 0], p.primary, { name: 'reception-counter-front-panel' });
+  add([b.w * 0.98, b.h * 0.07, b.d * 0.86], [0, b.h * 0.67, 0], p.light, { name: 'reception-counter-work-surface' });
+  add([b.w * 0.7, b.h * 0.28, b.d * 0.2], [0, b.h * 0.84, -b.d * 0.28], p.secondary, { name: 'reception-counter-raised-transaction-top' });
+  add([b.w * 0.26, b.h * 0.23, b.d * 0.05], [b.w * 0.2, b.h * 0.82, 0], p.dark, { name: 'reception-counter-monitor' });
+  void variant;
+}
+
+function buildPoolLaneMarker(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const side of [-1, 1]) {
+    add([b.w * 0.12, b.h * 0.82, b.d * 0.12], [side * b.w * 0.43, b.h * 0.43, 0], p.metal, { shape: 'cylinder', name: 'pool-lane-anchor-post', metalness: 0.56 });
+    add([b.w * 0.26, b.h * 0.06, b.d * 0.26], [side * b.w * 0.43, b.h * 0.04, 0], p.metal, { shape: 'cylinder', name: 'pool-lane-anchor-base', metalness: 0.5 });
+  }
+  add([b.w * 0.82, b.h * 0.025, b.d * 0.025], [0, b.h * 0.58, 0], p.dark, { name: 'pool-lane-tension-rope' });
+  for (let float = -7; float <= 7; float += 1) add([b.w * 0.07, b.w * 0.025, b.w * 0.07], [float * b.w * 0.055, b.h * 0.58, 0], (float + variant) % 4 < 2 ? p.primary : p.light, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'pool-lane-divider-float' });
 }
 
 function addBeamBetween(
