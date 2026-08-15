@@ -6,7 +6,7 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 
 ## Features
 
-- Three.js first-person rooms assembled from a curated all-3D catalog with 3,228 composed furniture, fixture, animal, and NPC variants across 441 multi-variant families, plus the original one-off kit pieces
+- Three.js first-person rooms assembled from a curated all-3D catalog with 7,863 furniture, fixture, animal, and NPC assets across 1,044 model kinds
 - Fifteen semantic scene sets keep rooms visually coherent while reserving a small, curated budget for deliberate contradictions
 - Nine architecture systems ranging from tight chambers to 128-unit atriums, arenas, concourses, courtyards, causeways, fields, and basins
 - Seeded continuum and randomized dream modes
@@ -20,10 +20,10 @@ Walk rooms that feel slightly wrong, then press **R** when you are ready for the
 - Opt-in comfort controls for static lighting and consistently well-lit rooms
 - A player flashlight on **F**, gamepad X, and touch, independent of room lighting
 - Billboards that interleave model-authored notices with longer tagged procedural notices from an 860-entry semantic lexicon and seventy-two caption endings, so neither writing source replaces the other
-- Four high-detail expansion rounds contribute 1,208 props and 604 NPC/animal variants across 264 artisan families, with geometry changes—not palette swaps—between variants in every family
+- All 308 cinematic prop families route through verified production construction with object-specific functional geometry rather than a shared decorative chassis
 - Every selectable actor and prop is built as 3D geometry; the former prerendered character cutouts are excluded from the catalog and production bundle
 - Deliberately cheap low-poly forms and room-scale voxel giants remain as intentional contrasts to the increasingly intricate catalog
-- Twenty-three body-independent face-kit archetypes with separately seeded eyes, brows, noses, mouths, hair, markings, and accessories; animal faces cross-mount on people, human faces on animals, and both kinds appear on furniture, fixtures, and other objects
+- Production humanoids use articulated, role-equipped anatomy and coherent facial construction; production animals use species-specific skeletal silhouettes and markings rather than interchangeable face kits
 - Keyboard/mouse, gamepad, and complete touch controls
 - WebLLM with the lightweight SmolLM2 360M model by default, plus procedural-only, OpenAI-compatible, OpenRouter, and Anthropic options behind AI settings
 - Persisted Light, Standard, and Deep AI direction levels with adaptive passes for room language, signs, inhabitants, and strange room rules
@@ -48,6 +48,12 @@ npm run check
 ```
 
 It runs TypeScript, ESLint, Vitest, and the production build. Other useful commands are `npm test`, `npm run test:watch`, and `npm run preview`.
+
+## Model quality
+
+`npm run audit:models` builds every catalog asset and rejects empty models, invalid bounds, excessive triangle or mesh counts, banned generic decoration, and non-semantic overuse of rounded primitives. The current audit covers all 7,863 assets across 1,044 model kinds, with 24–6,600 triangles per asset and 100% median procedural texture coverage.
+
+Production materials generate albedo, normal, and roughness maps locally. Furniture, appliances, architecture, and equipment retain planar faces and readable edges; spheres, capsules, and toruses are reserved for parts whose function calls for them. Character and animal families share consistent articulated foundations while retaining role- and species-specific anatomy, clothing, tools, and markings.
 
 ## How room generation works
 

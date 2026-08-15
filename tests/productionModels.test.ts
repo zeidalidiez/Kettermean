@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { afterAll, describe, expect, it } from 'vitest';
+import { CINEMATIC_PROP_KINDS } from '../src/world/cinematicAssets';
 import { geometryForShape } from '../src/world/modelQuality';
 import { buildModel, clearModelMaterialCache, type PropKind } from '../src/world/models';
 
@@ -10,6 +11,18 @@ describe('production model regressions', () => {
     const box = geometryForShape('box');
     expect(box.type).toBe('BoxGeometry');
     expect(box.getAttribute('position').count).toBe(24);
+  });
+
+  it('keeps every cinematic prop family on the production path', () => {
+    const missing: string[] = [];
+    for (const kind of CINEMATIC_PROP_KINDS) {
+      const model = buildModel(kind as PropKind, '#6a7a8a', '#c4b59a', `${kind}_coverage`);
+      if (model.userData.detailTier !== 'cinematic-production-prop' || model.userData.productionCinematicProp !== true) {
+        missing.push(kind);
+      }
+    }
+    expect(CINEMATIC_PROP_KINDS).toHaveLength(308);
+    expect(missing).toEqual([]);
   });
 
   it('builds a readable textured character without ornamental scatter', () => {
