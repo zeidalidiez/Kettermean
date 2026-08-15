@@ -223,6 +223,28 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_bonsai_table', ['bonsai-contorted-trunk', 'bonsai-clipped-foliage-pad']],
+    ['cine_prop_herb_garden_shelf', ['herb-shelf-slatted-deck', 'herb-shelf-edible-leaf']],
+    ['cine_prop_greenhouse_bench', ['greenhouse-bench-worktop-slat', 'greenhouse-bench-seedling']],
+    ['cine_prop_terrarium_table', ['terrarium-front-glass', 'terrarium-climbing-branch']],
+    ['cine_prop_picnic_basket', ['picnic-basket-woven-body', 'picnic-basket-carry-handle']],
+    ['cine_prop_rose_arbor', ['rose-arbor-arched-rafter', 'rose-arbor-bloom']],
+    ['cine_prop_garden_obelisk', ['garden-obelisk-tapered-rail', 'garden-obelisk-cross-tie']],
+    ['cine_prop_beach_umbrella', ['beach-umbrella-striped-canopy', 'beach-umbrella-canopy-rib']],
+    ['cine_prop_hammock_stand', ['hammock-stand-rising-support', 'hammock-sagging-fabric-panel']],
+    ['cine_prop_greenhouse_frame', ['greenhouse-frame-roof-rafter', 'greenhouse-clear-roof-panel']],
+    ['cine_prop_cold_frame', ['cold-frame-sloped-glass-lid', 'cold-frame-seedling']],
+    ['cine_prop_potting_shed', ['potting-shed-plank-door', 'potting-shed-pitched-roof']],
+  ] as const)('constructs %s from recognizable greenspace parts', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#668d52', '#8b7052', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

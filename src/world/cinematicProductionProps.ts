@@ -33,6 +33,8 @@ const CLINICAL_OVERRIDE = /(lab_fume_hood|microscope_station|centrifuge_bench|nu
 const TRANSPORT_OVERRIDE = /(terminal_check_in|baggage_carousel|security_scanner|bike_rack|escalator_end|staircase_landing|handrail_run)/;
 const TECHNOLOGY_OVERRIDE = /(photo_booth|arcade_cabinet_pair|pinball_machine|stage_lighting_rig|concert_speaker_stack|phone_charging_kiosk|charging_station|smart_home_hub|drone_dock|rooftop_solar_rig|rooftop_antennas|weather_station_post|emergency_light|exit_sign_post)/;
 const OFFICE_OVERRIDE = /(reception_counter|desk_organizer_set|whiteboard)/;
+const GREENSPACE_DISPLAY_OVERRIDE = /(bonsai_table|herb_garden_shelf|greenhouse_bench|terrarium_table|picnic_basket)/;
+const GREENSPACE_STRUCTURE_OVERRIDE = /(rose_arbor|garden_obelisk|beach_umbrella|hammock_stand|greenhouse_frame|cold_frame|potting_shed)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -78,6 +80,12 @@ export function buildCinematicProductionProp(
   } else if (OFFICE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildOfficeProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (GREENSPACE_DISPLAY_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildGreenspaceDisplay(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (GREENSPACE_STRUCTURE_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildGreenspaceStructure(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -442,6 +450,142 @@ function buildToy(root: THREE.Group, key: string, b: Bounds, p: Palette, variant
       add([b.w * 0.28, b.h * 0.4, b.d * 0.28], [0, b.h * 0.72, b.d * 0.24], p.light, { shape: 'sphere', name: 'toy-rocking-horse-head' });
     } else add([b.w * 0.68, b.h * 0.14, b.d * 0.58], [0, b.h * 0.38, 0], p.secondary, { rotation: [-0.18, 0, 0], name: 'baby-bouncer-fabric-seat' });
   }
+  void variant;
+}
+
+function buildGreenspaceDisplay(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('picnic_basket')) {
+    add([b.w * 0.88, b.h * 0.5, b.d * 0.84], [0, b.h * 0.28, 0], p.wood, { name: 'picnic-basket-woven-body', roughness: 0.86 });
+    for (let slat = -3; slat <= 3; slat += 1) {
+      add([b.w * 0.06, b.h * 0.45, b.d * 0.025], [slat * b.w * 0.11, b.h * 0.3, b.d * 0.43], slat % 2 ? p.light : p.secondary, { name: 'picnic-basket-vertical-weave', roughness: 0.9 });
+    }
+    for (const y of [0.13, 0.27, 0.41]) add([b.w * 0.9, b.h * 0.035, b.d * 0.025], [0, b.h * y, b.d * 0.45], p.secondary, { name: 'picnic-basket-horizontal-weave', roughness: 0.9 });
+    add([b.w * 0.9, b.h * 0.09, b.d * 0.86], [0, b.h * 0.57, 0], p.wood, { rotation: [-0.06, 0, 0], name: 'picnic-basket-hinged-lid', roughness: 0.82 });
+    addBeamBetween(root, [-b.w * 0.34, b.h * 0.54, 0], [-b.w * 0.16, b.h * 0.93, 0], b.w * 0.045, p.dark, 'picnic-basket-carry-handle');
+    addBeamBetween(root, [-b.w * 0.16, b.h * 0.93, 0], [b.w * 0.16, b.h * 0.93, 0], b.w * 0.045, p.dark, 'picnic-basket-carry-handle');
+    addBeamBetween(root, [b.w * 0.16, b.h * 0.93, 0], [b.w * 0.34, b.h * 0.54, 0], b.w * 0.045, p.dark, 'picnic-basket-carry-handle');
+    return;
+  }
+
+  if (key.includes('herb_garden_shelf')) {
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.96, b.d * 0.055], [side * b.w * 0.44, b.h * 0.5, -b.d * 0.2], p.wood, { name: 'herb-shelf-upright', roughness: 0.78 });
+    for (const y of [0.12, 0.43, 0.74]) {
+      add([b.w * 0.94, b.h * 0.055, b.d * 0.82], [0, b.h * y, 0], p.wood, { name: 'herb-shelf-slatted-deck', roughness: 0.8 });
+      for (const x of [-0.31, 0, 0.31]) {
+        add([b.w * 0.18, b.h * 0.15, b.d * 0.22], [x * b.w, b.h * (y + 0.1), 0], x === 0 ? p.secondary : p.primary, { shape: 'cylinder', name: 'herb-shelf-terracotta-pot', roughness: 0.82 });
+        for (const leaf of [-1, 0, 1]) add([b.w * 0.045, b.h * 0.18, b.d * 0.04], [x * b.w + leaf * b.w * 0.035, b.h * (y + 0.25), leaf * b.d * 0.04], leaf === 0 ? '#3f7b45' : '#5e9857', { shape: 'cone', rotation: [leaf * 0.18, 0, leaf * 0.28], name: 'herb-shelf-edible-leaf' });
+      }
+    }
+    return;
+  }
+
+  const displayHeight = key.includes('greenhouse_bench') ? 0.54 : 0.48;
+  for (const x of [-0.4, 0.4]) for (const z of [-0.32, 0.32]) add([b.w * 0.045, b.h * displayHeight, b.d * 0.045], [x * b.w, b.h * displayHeight * 0.5, z * b.d], p.wood, { name: 'garden-display-square-leg', roughness: 0.78 });
+  if (key.includes('greenhouse_bench')) {
+    for (let slat = -4; slat <= 4; slat += 1) add([b.w * 0.92, b.h * 0.05, b.d * 0.07], [0, b.h * 0.56, slat * b.d * 0.085], p.wood, { name: 'greenhouse-bench-worktop-slat', roughness: 0.8 });
+    add([b.w * 0.82, b.h * 0.045, b.d * 0.66], [0, b.h * 0.2, 0], p.wood, { name: 'greenhouse-bench-lower-shelf', roughness: 0.82 });
+    for (const x of [-0.3, 0, 0.3]) {
+      add([b.w * 0.19, b.h * 0.17, b.d * 0.22], [x * b.w, b.h * 0.69, 0], x === 0 ? p.primary : p.secondary, { shape: 'cylinder', name: 'greenhouse-bench-seedling-pot', roughness: 0.82 });
+      for (const side of [-1, 1]) add([b.w * 0.045, b.h * 0.18, b.d * 0.045], [x * b.w + side * b.w * 0.035, b.h * 0.83, 0], '#4f8a50', { shape: 'cone', rotation: [0, 0, side * 0.25], name: 'greenhouse-bench-seedling' });
+    }
+    return;
+  }
+
+  add([b.w * 0.94, b.h * 0.075, b.d * 0.86], [0, b.h * 0.52, 0], p.wood, { name: key.includes('bonsai') ? 'bonsai-display-tabletop' : 'terrarium-display-tabletop', roughness: 0.76 });
+  if (key.includes('bonsai')) {
+    add([b.w * 0.64, b.h * 0.16, b.d * 0.58], [0, b.h * 0.64, 0], p.secondary, { name: 'bonsai-ceramic-training-pot', roughness: 0.48 });
+    add([b.w * 0.56, b.h * 0.025, b.d * 0.5], [0, b.h * 0.73, 0], p.dark, { name: 'bonsai-visible-soil', roughness: 0.96 });
+    addBeamBetween(root, [0, b.h * 0.73, 0], [-b.w * 0.08, b.h * 0.95, 0], b.w * 0.055, p.wood, 'bonsai-contorted-trunk');
+    addBeamBetween(root, [-b.w * 0.08, b.h * 0.89, 0], [-b.w * 0.27, b.h * 0.97, b.d * 0.04], b.w * 0.035, p.wood, 'bonsai-pruned-branch');
+    addBeamBetween(root, [-b.w * 0.06, b.h * 0.92, 0], [b.w * 0.2, b.h * 1.06, -b.d * 0.03], b.w * 0.032, p.wood, 'bonsai-pruned-branch');
+    for (const [x, y, z] of [[-0.28, 1.0, 0.05], [0.2, 1.08, -0.04], [0, 1.16, 0.02]] as const) add([b.w * 0.32, b.h * 0.12, b.d * 0.28], [x * b.w, y * b.h, z * b.d], '#4d7643', { name: 'bonsai-clipped-foliage-pad', roughness: 0.94 });
+    return;
+  }
+
+  add([b.w * 0.76, b.h * 0.025, b.d * 0.66], [0, b.h * 0.6, 0], p.dark, { name: 'terrarium-habitat-soil', roughness: 0.96 });
+  for (const side of [-1, 1]) add([b.w * 0.035, b.h * 0.48, b.d * 0.035], [side * b.w * 0.39, b.h * 0.82, 0], p.metal, { name: 'terrarium-corner-frame', metalness: 0.46 });
+  add([b.w * 0.82, b.h * 0.43, b.d * 0.025], [0, b.h * 0.82, b.d * 0.34], p.glass, { name: 'terrarium-front-glass', opacity: 0.26, roughness: 0.08 });
+  add([b.w * 0.82, b.h * 0.025, b.d * 0.7], [0, b.h * 1.04, 0], p.glass, { name: 'terrarium-glass-lid', opacity: 0.3, roughness: 0.08 });
+  addBeamBetween(root, [-b.w * 0.24, b.h * 0.64, -b.d * 0.12], [b.w * 0.24, b.h * 0.93, b.d * 0.08], b.w * 0.04, p.wood, 'terrarium-climbing-branch');
+  for (const side of [-1, 0, 1]) add([b.w * 0.09, b.h * 0.25, b.d * 0.08], [side * b.w * 0.2, b.h * 0.74, -b.d * 0.08], '#4b8b54', { shape: 'cone', rotation: [0, 0, side * 0.24], name: 'terrarium-live-plant' });
+  void variant;
+}
+
+function buildGreenspaceStructure(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('rose_arbor')) {
+    for (const x of [-0.42, 0.42]) for (const z of [-0.35, 0.35]) add([b.w * 0.045, b.h * 0.78, b.d * 0.045], [x * b.w, b.h * 0.4, z * b.d], p.wood, { name: 'rose-arbor-upright', roughness: 0.78 });
+    for (const z of [-0.35, 0.35]) {
+      addBeamBetween(root, [-b.w * 0.42, b.h * 0.78, z * b.d], [0, b.h * 0.98, z * b.d], b.w * 0.035, p.wood, 'rose-arbor-arched-rafter');
+      addBeamBetween(root, [0, b.h * 0.98, z * b.d], [b.w * 0.42, b.h * 0.78, z * b.d], b.w * 0.035, p.wood, 'rose-arbor-arched-rafter');
+    }
+    for (let rung = 1; rung <= 4; rung += 1) for (const x of [-0.42, 0.42]) add([b.w * 0.025, b.h * 0.025, b.d * 0.72], [x * b.w, b.h * rung * 0.16, 0], p.wood, { name: 'rose-arbor-side-lattice' });
+    for (let bloom = 0; bloom < 8; bloom += 1) {
+      const side = bloom % 2 ? 1 : -1;
+      add([b.w * 0.07, b.h * 0.06, b.d * 0.07], [side * b.w * 0.44, b.h * (0.18 + bloom * 0.09), (bloom % 3 - 1) * b.d * 0.22], bloom % 3 ? '#c84665' : '#e38aa0', { shape: 'sphere', name: 'rose-arbor-bloom', roughness: 0.9 });
+    }
+    return;
+  }
+  if (key.includes('garden_obelisk')) {
+    for (const [x, z] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) addBeamBetween(root, [x * b.w * 0.42, 0, z * b.d * 0.42], [x * b.w * 0.08, b.h * 0.92, z * b.d * 0.08], b.w * 0.035, p.metal, 'garden-obelisk-tapered-rail');
+    for (const y of [0.2, 0.42, 0.64]) {
+      const half = b.w * (0.42 - y * 0.34);
+      add([half * 2, b.h * 0.025, b.d * 0.035], [0, b.h * y, half], p.metal, { name: 'garden-obelisk-cross-tie', metalness: 0.48 });
+      add([half * 2, b.h * 0.025, b.d * 0.035], [0, b.h * y, -half], p.metal, { name: 'garden-obelisk-cross-tie', metalness: 0.48 });
+    }
+    add([b.w * 0.16, b.h * 0.12, b.d * 0.16], [0, b.h * 0.96, 0], p.secondary, { shape: 'cone', name: 'garden-obelisk-crown' });
+    return;
+  }
+  if (key.includes('beach_umbrella')) {
+    add([b.w * 0.04, b.h * 0.82, b.d * 0.04], [0, b.h * 0.43, 0], p.metal, { shape: 'cylinder', name: 'beach-umbrella-center-pole', metalness: 0.52 });
+    add([b.w * 0.96, b.h * 0.18, b.d * 0.96], [0, b.h * 0.87, 0], variant % 2 ? p.primary : p.secondary, { shape: 'cone', name: 'beach-umbrella-striped-canopy', roughness: 0.72 });
+    for (let rib = 0; rib < 8; rib += 1) {
+      const angle = rib / 8 * Math.PI * 2;
+      addBeamBetween(root, [0, b.h * 0.94, 0], [Math.cos(angle) * b.w * 0.44, b.h * 0.82, Math.sin(angle) * b.d * 0.44], b.w * 0.012, rib % 2 ? p.light : p.metal, 'beach-umbrella-canopy-rib');
+    }
+    add([b.w * 0.24, b.h * 0.05, b.d * 0.24], [0, b.h * 0.03, 0], p.dark, { shape: 'cylinder', name: 'beach-umbrella-sand-base' });
+    return;
+  }
+  if (key.includes('hammock_stand')) {
+    for (const side of [-1, 1]) {
+      addBeamBetween(root, [side * b.w * 0.18, b.h * 0.08, -b.d * 0.36], [side * b.w * 0.46, b.h * 0.78, 0], b.h * 0.045, p.wood, 'hammock-stand-rising-support');
+      addBeamBetween(root, [side * b.w * 0.18, b.h * 0.08, b.d * 0.36], [side * b.w * 0.46, b.h * 0.78, 0], b.h * 0.045, p.wood, 'hammock-stand-rising-support');
+      add([b.w * 0.28, b.h * 0.045, b.d * 0.68], [side * b.w * 0.18, b.h * 0.05, 0], p.wood, { name: 'hammock-stand-ground-foot', roughness: 0.76 });
+    }
+    add([b.w * 0.42, b.h * 0.055, b.d * 0.055], [0, b.h * 0.07, 0], p.wood, { name: 'hammock-stand-center-spine', roughness: 0.76 });
+    for (let strip = -4; strip <= 4; strip += 1) {
+      const normalized = strip / 4;
+      const y = 0.37 + Math.abs(normalized) * 0.28;
+      add([b.w * 0.115, b.h * 0.025, b.d * 0.58], [strip * b.w * 0.105, b.h * y, 0], strip % 2 ? p.primary : p.light, { rotation: [0, 0, normalized * 0.32], name: 'hammock-sagging-fabric-panel', roughness: 0.9 });
+    }
+    return;
+  }
+  if (key.includes('cold_frame')) {
+    add([b.w * 0.94, b.h * 0.42, b.d * 0.9], [0, b.h * 0.22, 0], p.wood, { name: 'cold-frame-raised-bed', roughness: 0.8 });
+    add([b.w * 0.82, b.h * 0.025, b.d * 0.8], [0, b.h * 0.48, 0], p.glass, { rotation: [-0.16, 0, 0], name: 'cold-frame-sloped-glass-lid', opacity: 0.3, roughness: 0.08 });
+    add([b.w * 0.82, b.h * 0.025, b.d * 0.035], [0, b.h * 0.53, b.d * 0.36], p.metal, { name: 'cold-frame-lid-hinge', metalness: 0.48 });
+    for (const x of [-0.28, 0, 0.28]) for (const z of [-0.2, 0.2]) add([b.w * 0.07, b.h * 0.18, b.d * 0.06], [x * b.w, b.h * 0.38, z * b.d], '#4e8c50', { shape: 'cone', name: 'cold-frame-seedling' });
+    return;
+  }
+  if (key.includes('potting_shed')) {
+    add([b.w * 0.9, b.h * 0.76, b.d * 0.82], [0, b.h * 0.4, 0], p.wood, { name: 'potting-shed-board-wall', roughness: 0.84 });
+    add([b.w * 0.34, b.h * 0.62, b.d * 0.035], [-b.w * 0.18, b.h * 0.34, b.d * 0.43], p.dark, { name: 'potting-shed-plank-door', roughness: 0.82 });
+    add([b.w * 0.28, b.h * 0.28, b.d * 0.025], [b.w * 0.24, b.h * 0.5, b.d * 0.43], p.glass, { name: 'potting-shed-window-glass', opacity: 0.36, roughness: 0.1 });
+    for (const side of [-1, 1]) add([b.w * 0.56, b.h * 0.08, b.d * 0.98], [side * b.w * 0.23, b.h * 0.88, 0], side < 0 ? p.primary : p.secondary, { rotation: [0, 0, side * 0.36], name: 'potting-shed-pitched-roof', roughness: 0.72 });
+    add([b.w * 0.38, b.h * 0.05, b.d * 0.24], [b.w * 0.18, b.h * 0.22, b.d * 0.46], p.light, { name: 'potting-shed-exterior-work-shelf' });
+    return;
+  }
+
+  // Greenhouse frame: a readable glazed house section with pitched roof.
+  for (const x of [-0.45, 0.45]) for (const z of [-0.4, 0.4]) add([b.w * 0.03, b.h * 0.72, b.d * 0.03], [x * b.w, b.h * 0.37, z * b.d], p.metal, { name: 'greenhouse-frame-upright', metalness: 0.58 });
+  for (const z of [-0.4, 0.4]) {
+    addBeamBetween(root, [-b.w * 0.45, b.h * 0.72, z * b.d], [0, b.h * 0.98, z * b.d], b.w * 0.025, p.metal, 'greenhouse-frame-roof-rafter');
+    addBeamBetween(root, [0, b.h * 0.98, z * b.d], [b.w * 0.45, b.h * 0.72, z * b.d], b.w * 0.025, p.metal, 'greenhouse-frame-roof-rafter');
+  }
+  add([b.w * 0.86, b.h * 0.64, b.d * 0.02], [0, b.h * 0.4, b.d * 0.41], p.glass, { name: 'greenhouse-clear-wall-panel', opacity: 0.2, roughness: 0.06 });
+  for (const side of [-1, 1]) add([b.w * 0.5, b.h * 0.025, b.d * 0.78], [side * b.w * 0.22, b.h * 0.84, 0], p.glass, { rotation: [0, 0, side * 0.28], name: 'greenhouse-clear-roof-panel', opacity: 0.22, roughness: 0.06 });
+  add([b.w * 0.32, b.h * 0.62, b.d * 0.025], [0, b.h * 0.34, b.d * 0.43], p.glass, { name: 'greenhouse-hinged-door', opacity: 0.28, roughness: 0.08 });
   void variant;
 }
 
