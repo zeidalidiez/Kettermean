@@ -523,7 +523,9 @@ function buildGreenspaceStructure(root: THREE.Group, key: string, b: Bounds, p: 
     for (let rung = 1; rung <= 4; rung += 1) for (const x of [-0.42, 0.42]) add([b.w * 0.025, b.h * 0.025, b.d * 0.72], [x * b.w, b.h * rung * 0.16, 0], p.wood, { name: 'rose-arbor-side-lattice' });
     for (let bloom = 0; bloom < 8; bloom += 1) {
       const side = bloom % 2 ? 1 : -1;
-      add([b.w * 0.07, b.h * 0.06, b.d * 0.07], [side * b.w * 0.44, b.h * (0.18 + bloom * 0.09), (bloom % 3 - 1) * b.d * 0.22], bloom % 3 ? '#c84665' : '#e38aa0', { shape: 'sphere', name: 'rose-arbor-bloom', roughness: 0.9 });
+      const y = b.h * (0.18 + bloom * 0.09);
+      addBeamBetween(root, [side * b.w * 0.43, y - b.h * 0.08, (bloom % 3 - 1) * b.d * 0.2], [side * b.w * 0.43, y + b.h * 0.08, (bloom % 3 - 1) * b.d * 0.22], b.w * 0.012, '#3d7142', 'rose-arbor-climbing-vine');
+      add([b.w * 0.07, b.h * 0.06, b.d * 0.07], [side * b.w * 0.44, y, (bloom % 3 - 1) * b.d * 0.22], bloom % 3 ? '#c84665' : '#e38aa0', { shape: 'cone', rotation: [side * Math.PI / 2, 0, 0], name: 'rose-arbor-bloom', roughness: 0.9 });
     }
     return;
   }
@@ -533,6 +535,8 @@ function buildGreenspaceStructure(root: THREE.Group, key: string, b: Bounds, p: 
       const half = b.w * (0.42 - y * 0.34);
       add([half * 2, b.h * 0.025, b.d * 0.035], [0, b.h * y, half], p.metal, { name: 'garden-obelisk-cross-tie', metalness: 0.48 });
       add([half * 2, b.h * 0.025, b.d * 0.035], [0, b.h * y, -half], p.metal, { name: 'garden-obelisk-cross-tie', metalness: 0.48 });
+      add([b.w * 0.035, b.h * 0.025, half * 2], [half, b.h * y, 0], p.metal, { name: 'garden-obelisk-cross-tie', metalness: 0.48 });
+      add([b.w * 0.035, b.h * 0.025, half * 2], [-half, b.h * y, 0], p.metal, { name: 'garden-obelisk-cross-tie', metalness: 0.48 });
     }
     add([b.w * 0.16, b.h * 0.12, b.d * 0.16], [0, b.h * 0.96, 0], p.secondary, { shape: 'cone', name: 'garden-obelisk-crown' });
     return;
@@ -554,15 +558,23 @@ function buildGreenspaceStructure(root: THREE.Group, key: string, b: Bounds, p: 
       add([b.w * 0.28, b.h * 0.045, b.d * 0.68], [side * b.w * 0.18, b.h * 0.05, 0], p.wood, { name: 'hammock-stand-ground-foot', roughness: 0.76 });
     }
     add([b.w * 0.42, b.h * 0.055, b.d * 0.055], [0, b.h * 0.07, 0], p.wood, { name: 'hammock-stand-center-spine', roughness: 0.76 });
-    for (let strip = -4; strip <= 4; strip += 1) {
-      const normalized = strip / 4;
-      const y = 0.37 + Math.abs(normalized) * 0.28;
-      add([b.w * 0.115, b.h * 0.025, b.d * 0.58], [strip * b.w * 0.105, b.h * y, 0], strip % 2 ? p.primary : p.light, { rotation: [0, 0, normalized * 0.32], name: 'hammock-sagging-fabric-panel', roughness: 0.9 });
+    addHammockCloth(root, b, p);
+    for (let segment = -6; segment < 6; segment += 1) {
+      const x0 = segment / 6;
+      const x1 = (segment + 1) / 6;
+      const y0 = 0.34 + Math.pow(Math.abs(x0), 1.65) * 0.3;
+      const y1 = 0.34 + Math.pow(Math.abs(x1), 1.65) * 0.3;
+      for (const z of [-0.31, 0.31]) addBeamBetween(root, [x0 * b.w * 0.44, y0 * b.h, z * b.d], [x1 * b.w * 0.44, y1 * b.h, z * b.d], b.h * 0.012, p.dark, 'hammock-woven-edge-rope');
     }
+    addBeamBetween(root, [-b.w * 0.46, b.h * 0.78, 0], [-b.w * 0.44, b.h * 0.63, 0], b.w * 0.012, p.dark, 'hammock-suspension-rope');
+    addBeamBetween(root, [b.w * 0.44, b.h * 0.63, 0], [b.w * 0.46, b.h * 0.78, 0], b.w * 0.012, p.dark, 'hammock-suspension-rope');
     return;
   }
   if (key.includes('cold_frame')) {
-    add([b.w * 0.94, b.h * 0.42, b.d * 0.9], [0, b.h * 0.22, 0], p.wood, { name: 'cold-frame-raised-bed', roughness: 0.8 });
+    add([b.w * 0.94, b.h * 0.24, b.d * 0.08], [0, b.h * 0.14, b.d * 0.41], p.wood, { name: 'cold-frame-raised-bed-wall', roughness: 0.8 });
+    add([b.w * 0.94, b.h * 0.38, b.d * 0.08], [0, b.h * 0.21, -b.d * 0.41], p.wood, { name: 'cold-frame-raised-bed-wall', roughness: 0.8 });
+    for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.3, b.d * 0.74], [side * b.w * 0.43, b.h * 0.17, 0], p.wood, { name: 'cold-frame-raised-bed-wall', roughness: 0.8 });
+    add([b.w * 0.78, b.h * 0.025, b.d * 0.72], [0, b.h * 0.1, 0], p.dark, { name: 'cold-frame-visible-soil', roughness: 0.96 });
     add([b.w * 0.82, b.h * 0.025, b.d * 0.8], [0, b.h * 0.48, 0], p.glass, { rotation: [-0.16, 0, 0], name: 'cold-frame-sloped-glass-lid', opacity: 0.3, roughness: 0.08 });
     add([b.w * 0.82, b.h * 0.025, b.d * 0.035], [0, b.h * 0.53, b.d * 0.36], p.metal, { name: 'cold-frame-lid-hinge', metalness: 0.48 });
     for (const x of [-0.28, 0, 0.28]) for (const z of [-0.2, 0.2]) add([b.w * 0.07, b.h * 0.18, b.d * 0.06], [x * b.w, b.h * 0.38, z * b.d], '#4e8c50', { shape: 'cone', name: 'cold-frame-seedling' });
@@ -572,7 +584,8 @@ function buildGreenspaceStructure(root: THREE.Group, key: string, b: Bounds, p: 
     add([b.w * 0.9, b.h * 0.76, b.d * 0.82], [0, b.h * 0.4, 0], p.wood, { name: 'potting-shed-board-wall', roughness: 0.84 });
     add([b.w * 0.34, b.h * 0.62, b.d * 0.035], [-b.w * 0.18, b.h * 0.34, b.d * 0.43], p.dark, { name: 'potting-shed-plank-door', roughness: 0.82 });
     add([b.w * 0.28, b.h * 0.28, b.d * 0.025], [b.w * 0.24, b.h * 0.5, b.d * 0.43], p.glass, { name: 'potting-shed-window-glass', opacity: 0.36, roughness: 0.1 });
-    for (const side of [-1, 1]) add([b.w * 0.56, b.h * 0.08, b.d * 0.98], [side * b.w * 0.23, b.h * 0.88, 0], side < 0 ? p.primary : p.secondary, { rotation: [0, 0, side * 0.36], name: 'potting-shed-pitched-roof', roughness: 0.72 });
+    for (const side of [-1, 1]) add([b.w * 0.56, b.h * 0.08, b.d * 0.98], [side * b.w * 0.23, b.h * 0.86, 0], p.dark, { rotation: [0, 0, -side * 0.36], name: 'potting-shed-pitched-roof', roughness: 0.72 });
+    add([b.w * 0.035, b.h * 0.025, b.d * 0.94], [0, b.h * 0.96, 0], p.dark, { name: 'potting-shed-roof-ridge-cap', metalness: 0.12 });
     add([b.w * 0.38, b.h * 0.05, b.d * 0.24], [b.w * 0.18, b.h * 0.22, b.d * 0.46], p.light, { name: 'potting-shed-exterior-work-shelf' });
     return;
   }
@@ -587,6 +600,48 @@ function buildGreenspaceStructure(root: THREE.Group, key: string, b: Bounds, p: 
   for (const side of [-1, 1]) add([b.w * 0.5, b.h * 0.025, b.d * 0.78], [side * b.w * 0.22, b.h * 0.84, 0], p.glass, { rotation: [0, 0, side * 0.28], name: 'greenhouse-clear-roof-panel', opacity: 0.22, roughness: 0.06 });
   add([b.w * 0.32, b.h * 0.62, b.d * 0.025], [0, b.h * 0.34, b.d * 0.43], p.glass, { name: 'greenhouse-hinged-door', opacity: 0.28, roughness: 0.08 });
   void variant;
+}
+
+function addHammockCloth(root: THREE.Group, b: Bounds, p: Palette): void {
+  const along = 16;
+  const across = 4;
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const primary = new THREE.Color(p.primary);
+  const stripe = new THREE.Color(p.light);
+  for (let xIndex = 0; xIndex <= along; xIndex += 1) {
+    const u = xIndex / along;
+    const normalizedX = u * 2 - 1;
+    const y = b.h * (0.34 + Math.pow(Math.abs(normalizedX), 1.65) * 0.3);
+    const color = Math.abs(Math.abs(normalizedX) - 0.42) < 0.11 ? stripe : primary;
+    for (let zIndex = 0; zIndex <= across; zIndex += 1) {
+      const v = zIndex / across;
+      const normalizedZ = v * 2 - 1;
+      positions.push(normalizedX * b.w * 0.44, y - Math.cos(normalizedZ * Math.PI / 2) * b.h * 0.025, normalizedZ * b.d * 0.31);
+      colors.push(color.r, color.g, color.b);
+      uvs.push(u, v);
+    }
+  }
+  const stride = across + 1;
+  for (let xIndex = 0; xIndex < along; xIndex += 1) for (let zIndex = 0; zIndex < across; zIndex += 1) {
+    const a = xIndex * stride + zIndex;
+    const bIndex = a + stride;
+    indices.push(a, bIndex, a + 1, bIndex, bIndex + 1, a + 1);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.92, side: THREE.DoubleSide, vertexColors: true });
+  const cloth = new THREE.Mesh(geometry, material);
+  cloth.name = 'hammock-sagging-fabric-panel';
+  cloth.castShadow = true;
+  cloth.receiveShadow = true;
+  root.add(cloth);
 }
 
 function buildClinicalProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
