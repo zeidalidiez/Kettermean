@@ -42,6 +42,20 @@ const EXPANDED_PRODUCTION_KINDS = new Set([
   'server_rack',
   'privacy_screen',
   'shopping_cart',
+  'copy_machine',
+  'archive_trolley',
+  'ticket_gate',
+  'departure_board',
+  'retail_display',
+  'tool_chest',
+  'drum_stack',
+  'luggage_cart',
+  'room_service',
+  'traffic_cone',
+  'exercise_bike',
+  'pool_ladder',
+  'utility_shelf',
+  'breaker_panel',
 ]);
 
 /** Rebuild expanded-catalogue props that previously shared unrelated chassis. */
@@ -67,6 +81,20 @@ export function buildExpandedProductionProp(
     case 'server_rack': buildServerRack(root, bounds, palette, variant); break;
     case 'privacy_screen': buildPrivacyScreen(root, bounds, palette, variant); break;
     case 'shopping_cart': buildShoppingCart(root, bounds, palette, variant); break;
+    case 'copy_machine': buildCopyMachine(root, bounds, palette, variant); break;
+    case 'archive_trolley': buildArchiveTrolley(root, bounds, palette, variant); break;
+    case 'ticket_gate': buildTicketGate(root, bounds, palette, variant); break;
+    case 'departure_board': buildDepartureBoard(root, bounds, palette, variant); break;
+    case 'retail_display': buildRetailDisplay(root, bounds, palette, variant); break;
+    case 'tool_chest': buildToolChest(root, bounds, palette, variant); break;
+    case 'drum_stack': buildDrumStack(root, bounds, palette, variant); break;
+    case 'luggage_cart': buildLuggageCart(root, bounds, palette, variant); break;
+    case 'room_service': buildRoomServiceCart(root, bounds, palette, variant); break;
+    case 'traffic_cone': buildTrafficCones(root, bounds, palette, variant); break;
+    case 'exercise_bike': buildExerciseBike(root, bounds, palette, variant); break;
+    case 'pool_ladder': buildPoolLadder(root, bounds, palette, variant); break;
+    case 'utility_shelf': buildUtilityShelf(root, bounds, palette, variant); break;
+    case 'breaker_panel': buildBreakerPanel(root, bounds, palette, variant); break;
   }
 
   root.name = `${kind}-${variant}`;
@@ -231,6 +259,184 @@ function buildShoppingCart(root: THREE.Group, b: Bounds, p: Palette, variant: nu
   for (const x of [-0.29, 0.29]) for (const z of [-0.25, 0.25]) {
     add([b.w * 0.1, b.w * 0.055, b.w * 0.1], [x * b.w, b.h * 0.09, z * b.d], p.paintDark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'shopping-cart-caster-wheel' });
   }
+}
+
+function buildCopyMachine(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.78, b.h * 0.54, b.d * 0.72], [0, b.h * 0.3, 0], p.light, { name: 'copier-paper-cabinet' });
+  for (let drawer = 0; drawer < 2; drawer += 1) {
+    add([b.w * 0.68, b.h * 0.16, b.d * 0.025], [0, b.h * (0.16 + drawer * 0.2), b.d * 0.37], p.paint, { name: 'copier-paper-drawer' });
+    add([b.w * 0.2, b.h * 0.018, b.d * 0.018], [0, b.h * (0.16 + drawer * 0.2), b.d * 0.39], p.metal, { name: 'copier-drawer-handle', metalness: 0.5 });
+  }
+  add([b.w * 0.94, b.h * 0.22, b.d * 0.88], [0, b.h * 0.66, 0], p.paint, { name: 'copier-scanner-housing' });
+  add([b.w * 0.72, b.h * 0.018, b.d * 0.62], [0, b.h * 0.79, 0], p.glass, { name: 'copier-scanner-glass', opacity: 0.5, roughness: 0.08 });
+  add([b.w * 0.76, b.h * 0.06, b.d * 0.66], [0, b.h * 0.84, -b.d * 0.03], p.paintDark, { rotation: [-0.08, 0, 0], name: 'copier-hinged-lid' });
+  add([b.w * 0.55, b.h * 0.05, b.d * 0.3], [0, b.h * 0.58, b.d * 0.35], p.paintDark, { rotation: [-0.18, 0, 0], name: 'copier-output-tray' });
+  add([b.w * 0.34, b.h * 0.07, b.d * 0.16], [b.w * 0.3, b.h * 0.75, b.d * 0.31], p.paintDark, { name: 'copier-control-panel' });
+  for (let button = 0; button < 4; button += 1) add([b.w * 0.035, b.h * 0.018, b.d * 0.02], [b.w * (0.22 + button * 0.055), b.h * 0.79, b.d * 0.39], button === variant % 4 ? p.glow : p.light, { name: 'copier-control-button', emissive: button === variant % 4 ? p.glow : '#000000', emissiveIntensity: 0.35 });
+}
+
+function buildArchiveTrolley(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const x of [-0.42, 0.42]) for (const z of [-0.34, 0.34]) add([b.w * 0.045, b.h * 0.84, b.d * 0.045], [x * b.w, b.h * 0.48, z * b.d], p.metal, { name: 'archive-trolley-frame-post', metalness: 0.55 });
+  for (let shelf = 0; shelf < 3; shelf += 1) {
+    const y = b.h * (0.24 + shelf * 0.27);
+    add([b.w * 0.82, b.h * 0.045, b.d * 0.62], [0, y, 0], p.wood, { rotation: [shelf % 2 ? 0.04 : -0.04, 0, 0], name: 'archive-trolley-book-shelf' });
+    for (let book = 0; book < 5; book += 1) add([b.w * 0.11, b.h * (0.1 + (book + variant) % 3 * 0.025), b.d * 0.3], [b.w * (-0.28 + book * 0.14), y + b.h * 0.075, 0], book % 2 ? p.accent : p.light, { rotation: [0, 0, (book - 2) * 0.025], name: 'archive-trolley-book' });
+  }
+  add([b.w * 0.74, b.h * 0.045, b.d * 0.045], [0, b.h * 0.95, -b.d * 0.35], p.metal, { name: 'archive-trolley-push-handle', metalness: 0.58 });
+  for (const x of [-0.36, 0.36]) for (const z of [-0.3, 0.3]) add([b.w * 0.1, b.w * 0.05, b.w * 0.1], [x * b.w, b.h * 0.08, z * b.d], p.paintDark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'archive-trolley-caster' });
+}
+
+function buildTicketGate(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.42, b.h * 0.82, b.d * 0.86], [-b.w * 0.23, b.h * 0.43, 0], p.metal, { name: 'ticket-gate-pedestal', metalness: 0.45 });
+  add([b.w * 0.46, b.h * 0.1, b.d * 0.9], [-b.w * 0.23, b.h * 0.88, 0], p.paintDark, { name: 'ticket-gate-reader-deck' });
+  add([b.w * 0.22, b.h * 0.025, b.d * 0.24], [-b.w * 0.23, b.h * 0.94, b.d * 0.12], p.glass, { name: 'ticket-gate-card-reader', opacity: 0.62, emissive: p.glow, emissiveIntensity: 0.22 });
+  add([b.w * 0.56, b.h * 0.055, b.d * 0.08], [b.w * 0.17, b.h * 0.58, 0], p.metal, { rotation: [0, variant % 2 ? 0.1 : -0.1, 0], name: 'ticket-gate-swing-arm', metalness: 0.62 });
+  add([b.w * 0.06, b.h * 0.5, b.d * 0.06], [b.w * 0.43, b.h * 0.35, 0], p.metal, { name: 'ticket-gate-arm-support', metalness: 0.55 });
+  for (let arrow = -1; arrow <= 1; arrow += 1) add([b.w * 0.045, b.h * 0.025, b.d * 0.025], [-b.w * 0.23 + arrow * b.w * 0.06, b.h * 0.83, b.d * 0.45], p.glow, { name: 'ticket-gate-direction-light', emissive: p.glow, emissiveIntensity: 0.48 });
+}
+
+function buildDepartureBoard(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const x of [-0.42, 0.42]) add([b.w * 0.045, b.h * 0.88, b.d * 0.08], [x * b.w, b.h * 0.48, 0], p.metal, { name: 'departure-board-support-post', metalness: 0.5 });
+  add([b.w * 0.96, b.h * 0.7, b.d * 0.2], [0, b.h * 0.62, 0], p.paintDark, { name: 'departure-board-frame' });
+  add([b.w * 0.88, b.h * 0.58, b.d * 0.025], [0, b.h * 0.62, b.d * 0.115], '#111719', { name: 'departure-board-black-display' });
+  for (let row = 0; row < 6; row += 1) {
+    const y = b.h * (0.4 + row * 0.085);
+    add([b.w * 0.8, b.h * 0.008, b.d * 0.012], [0, y, b.d * 0.135], '#4b5559', { name: 'departure-board-row-divider' });
+    for (let column = 0; column < 8; column += 1) add([b.w * 0.055, b.h * 0.035, b.d * 0.012], [b.w * (-0.31 + column * 0.09), y + b.h * 0.03, b.d * 0.145], column < 2 ? p.glow : p.light, { name: 'departure-board-split-flap-character', emissive: column < 2 ? p.glow : '#000000', emissiveIntensity: column < 2 ? 0.18 : 0 });
+  }
+  add([b.w * 0.98, b.h * 0.05, b.d * 0.32], [0, b.h * 0.08, 0], p.stone, { name: 'departure-board-floor-base' });
+  void variant;
+}
+
+function buildRetailDisplay(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.84, b.h * 0.25, b.d * 0.8], [0, b.h * 0.15, 0], p.woodDark, { name: 'retail-island-storage-base' });
+  for (let tier = 0; tier < 3; tier += 1) {
+    const width = b.w * (0.9 - tier * 0.17);
+    const depth = b.d * (0.86 - tier * 0.15);
+    const y = b.h * (0.36 + tier * 0.23);
+    add([width, b.h * 0.055, depth], [0, y, 0], tier % 2 ? p.accent : p.light, { name: 'retail-island-display-tier' });
+    for (let product = -2; product <= 2; product += 1) add([b.w * 0.1, b.h * (0.1 + (product + variant + 2) % 3 * 0.035), b.d * 0.12], [product * width * 0.17, y + b.h * 0.075, 0], product % 2 ? p.paint : p.accent, { name: 'retail-island-boxed-product' });
+  }
+  add([b.w * 0.06, b.h * 0.72, b.d * 0.06], [0, b.h * 0.64, 0], p.metal, { name: 'retail-island-sign-post', metalness: 0.45 });
+  add([b.w * 0.48, b.h * 0.2, b.d * 0.04], [0, b.h * 0.9, 0], p.accent, { name: 'retail-island-price-sign' });
+}
+
+function buildToolChest(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.9, b.h * 0.78, b.d * 0.82], [0, b.h * 0.45, 0], variant % 2 ? p.paint : p.accent, { name: 'tool-chest-steel-cabinet', metalness: 0.35 });
+  for (let drawer = 0; drawer < 6; drawer += 1) {
+    const y = b.h * (0.18 + drawer * 0.105);
+    add([b.w * 0.8, b.h * 0.085, b.d * 0.025], [0, y, b.d * 0.43], drawer % 2 ? p.paint : p.accent, { name: 'tool-chest-drawer-front', metalness: 0.32 });
+    add([b.w * 0.28, b.h * 0.018, b.d * 0.018], [0, y, b.d * 0.45], p.metal, { name: 'tool-chest-drawer-pull', metalness: 0.65 });
+  }
+  add([b.w * 0.96, b.h * 0.065, b.d * 0.9], [0, b.h * 0.88, 0], p.paintDark, { name: 'tool-chest-rubber-worktop' });
+  add([b.w * 0.42, b.h * 0.045, b.d * 0.06], [b.w * 0.6, b.h * 0.7, 0], p.metal, { name: 'tool-chest-side-handle', metalness: 0.6 });
+  for (const x of [-0.36, 0.36]) for (const z of [-0.32, 0.32]) add([b.w * 0.11, b.w * 0.055, b.w * 0.11], [x * b.w, b.h * 0.06, z * b.d], p.paintDark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'tool-chest-caster' });
+}
+
+function buildDrumStack(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const drums: Array<[number, number, number]> = [[-0.27, 0.27, -0.17], [0.27, 0.27, -0.17], [-0.27, 0.27, 0.24], [0.27, 0.27, 0.24], [0, 0.78, 0.02]];
+  for (let index = 0; index < drums.length; index += 1) {
+    const [x, y, z] = drums[index]!;
+    const color = index % 2 ? p.paint : p.accent;
+    add([b.w * 0.29, b.h * 0.5, b.w * 0.29], [x * b.w, y * b.h, z * b.d], color, { shape: 'cylinder', name: 'industrial-steel-drum', metalness: 0.36 });
+    for (const band of [-0.18, 0.18]) add([b.w * 0.3, b.h * 0.035, b.w * 0.3], [x * b.w, (y + band) * b.h, z * b.d], p.metal, { shape: 'cylinder', name: 'industrial-drum-reinforcing-band', metalness: 0.58 });
+  }
+  void variant;
+}
+
+function buildLuggageCart(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.9, b.h * 0.065, b.d * 0.82], [0, b.h * 0.11, 0], p.wood, { name: 'luggage-cart-carpeted-deck' });
+  for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.78, b.d * 0.055], [side * b.w * 0.4, b.h * 0.5, 0], p.metal, { shape: 'cylinder', name: 'luggage-cart-brass-upright', metalness: 0.62 });
+  add([b.w * 0.82, b.h * 0.055, b.d * 0.055], [0, b.h * 0.9, 0], p.metal, { shape: 'cylinder', name: 'luggage-cart-overhead-rail', metalness: 0.62 });
+  const cases: Array<[number, number, number, number, number]> = [[-0.2, 0.28, 0, 0.34, 0.28], [0.2, 0.3, 0.08, 0.3, 0.34], [0.02, 0.57, -0.08, 0.42, 0.25]];
+  for (let index = 0; index < cases.length; index += 1) {
+    const [x, y, z, width, height] = cases[index]!;
+    add([b.w * width, b.h * height, b.d * 0.34], [b.w * x, b.h * y, b.d * z], index % 2 ? p.accent : p.paint, { name: 'luggage-cart-suitcase' });
+    add([b.w * width * 0.38, b.h * 0.04, b.d * 0.04], [b.w * x, b.h * (y + height * 0.56), b.d * z], p.paintDark, { name: 'luggage-cart-suitcase-handle' });
+  }
+  for (const x of [-0.34, 0.34]) for (const z of [-0.32, 0.32]) add([b.w * 0.12, b.w * 0.06, b.w * 0.12], [x * b.w, b.h * 0.05, z * b.d], p.paintDark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'luggage-cart-caster' });
+  void variant;
+}
+
+function buildRoomServiceCart(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.86, b.h * 0.06, b.d * 0.74], [0, b.h * 0.48, 0], p.wood, { name: 'room-service-serving-deck' });
+  add([b.w * 0.78, b.h * 0.045, b.d * 0.66], [0, b.h * 0.2, 0], p.woodDark, { name: 'room-service-lower-shelf' });
+  for (const x of [-0.38, 0.38]) for (const z of [-0.3, 0.3]) add([b.w * 0.045, b.h * 0.48, b.d * 0.045], [x * b.w, b.h * 0.27, z * b.d], p.metal, { name: 'room-service-cart-leg', metalness: 0.55 });
+  add([b.w * 0.18, b.h * 0.17, b.d * 0.18], [0, b.h * 0.6, 0], p.light, { shape: 'cone', name: 'room-service-cloche-dome', metalness: 0.45 });
+  add([b.w * 0.22, b.h * 0.025, b.d * 0.22], [0, b.h * 0.51, 0], p.metal, { shape: 'cylinder', name: 'room-service-dinner-plate', metalness: 0.32 });
+  for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.12, b.d * 0.08], [side * b.w * 0.23, b.h * 0.57, 0], p.light, { shape: 'cylinder', name: 'room-service-drinking-glass', opacity: 0.58 });
+  add([b.w * 0.055, b.h * 0.45, b.d * 0.055], [-b.w * 0.46, b.h * 0.58, 0], p.metal, { name: 'room-service-push-upright', metalness: 0.55 });
+  add([b.w * 0.28, b.h * 0.045, b.d * 0.045], [-b.w * 0.36, b.h * 0.8, 0], p.metal, { name: 'room-service-push-handle', metalness: 0.55 });
+  for (const x of [-0.34, 0.34]) for (const z of [-0.28, 0.28]) add([b.w * 0.1, b.w * 0.05, b.w * 0.1], [x * b.w, b.h * 0.07, z * b.d], p.paintDark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'room-service-caster' });
+  void variant;
+}
+
+function buildTrafficCones(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  const cones: Array<[number, number]> = [[-0.25, 0.13], [0.22, 0.2], [0, -0.2]];
+  for (let index = 0; index < cones.length; index += 1) {
+    const [x, z] = cones[index]!;
+    const y = b.h * (0.3 + index * 0.055);
+    add([b.w * 0.31, b.h * 0.055, b.d * 0.31], [x * b.w, b.h * 0.04, z * b.d], p.paintDark, { name: 'traffic-cone-square-rubber-base' });
+    add([b.w * 0.2, b.h * (0.55 + index * 0.06), b.d * 0.2], [x * b.w, y, z * b.d], '#dd602f', { shape: 'cone', name: 'traffic-cone-tapered-body' });
+    add([b.w * 0.18, b.h * 0.055, b.d * 0.18], [x * b.w, b.h * (0.36 + index * 0.08), z * b.d], p.light, { shape: 'cylinder', name: 'traffic-cone-reflective-band', metalness: 0.16 });
+  }
+  void variant;
+}
+
+function buildExerciseBike(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.82, b.h * 0.055, b.d * 0.12], [0, b.h * 0.04, 0], p.paintDark, { name: 'exercise-bike-floor-base' });
+  addBeamBetween(root, [-b.w * 0.28, b.h * 0.08, 0], [b.w * 0.1, b.h * 0.6, 0], b.w * 0.06, p.metal, 'exercise-bike-main-frame');
+  addBeamBetween(root, [b.w * 0.1, b.h * 0.6, 0], [b.w * 0.28, b.h * 0.9, 0], b.w * 0.05, p.metal, 'exercise-bike-console-frame');
+  add([b.w * 0.48, b.w * 0.07, b.w * 0.48], [-b.w * 0.14, b.h * 0.34, 0], p.paint, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'exercise-bike-flywheel', metalness: 0.34 });
+  add([b.w * 0.28, b.h * 0.07, b.d * 0.28], [b.w * 0.05, b.h * 0.67, 0], p.paintDark, { name: 'exercise-bike-saddle' });
+  add([b.w * 0.04, b.h * 0.27, b.d * 0.04], [b.w * 0.05, b.h * 0.53, 0], p.metal, { name: 'exercise-bike-seat-post', metalness: 0.58 });
+  add([b.w * 0.48, b.h * 0.045, b.d * 0.045], [b.w * 0.28, b.h * 0.92, 0], p.paintDark, { name: 'exercise-bike-handlebar' });
+  add([b.w * 0.18, b.h * 0.14, b.d * 0.08], [b.w * 0.28, b.h * 0.82, 0], p.glass, { name: 'exercise-bike-console', opacity: 0.72, emissive: p.glow, emissiveIntensity: 0.14 });
+  add([b.w * 0.38, b.h * 0.025, b.d * 0.05], [-b.w * 0.14, b.h * 0.34, 0], p.metal, { rotation: [0, 0, variant % 2 ? 0.25 : -0.25], name: 'exercise-bike-pedal-crank', metalness: 0.62 });
+}
+
+function buildPoolLadder(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const side of [-1, 1]) {
+    add([b.w * 0.055, b.h * 0.78, b.d * 0.055], [side * b.w * 0.31, b.h * 0.43, 0], p.metal, { shape: 'cylinder', name: 'pool-ladder-stainless-rail', metalness: 0.72 });
+    addBeamBetween(root, [side * b.w * 0.31, b.h * 0.78, 0], [side * b.w * 0.43, b.h * 0.94, -b.d * 0.18], b.w * 0.055, p.metal, 'pool-ladder-curved-grab-section');
+    add([b.w * 0.13, b.h * 0.05, b.d * 0.2], [side * b.w * 0.43, b.h * 0.04, -b.d * 0.18], p.metal, { shape: 'cylinder', name: 'pool-ladder-deck-anchor', metalness: 0.7 });
+  }
+  for (let rung = 0; rung < 5; rung += 1) add([b.w * 0.62, b.h * 0.045, b.d * 0.13], [0, b.h * (0.18 + rung * 0.13), 0], p.metal, { name: 'pool-ladder-nonslip-rung', metalness: 0.65 });
+  void variant;
+}
+
+function buildUtilityShelf(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  for (const x of [-0.44, 0.44]) for (const z of [-0.38, 0.38]) add([b.w * 0.035, b.h * 0.94, b.d * 0.035], [x * b.w, b.h * 0.5, z * b.d], p.metal, { name: 'utility-shelf-steel-upright', metalness: 0.52 });
+  for (let shelf = 0; shelf < 4; shelf += 1) {
+    const y = b.h * (0.13 + shelf * 0.27);
+    add([b.w * 0.92, b.h * 0.04, b.d * 0.82], [0, y, 0], p.metal, { name: 'utility-shelf-deck', metalness: 0.42 });
+    for (let item = -2; item <= 2; item += 1) add([b.w * 0.13, b.h * (0.09 + (item + shelf + variant + 2) % 3 * 0.03), b.d * 0.22], [item * b.w * 0.16, y + b.h * 0.075, 0], item % 2 ? p.paint : p.accent, { name: 'utility-shelf-labeled-supply' });
+  }
+}
+
+function buildBreakerPanel(root: THREE.Group, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  add([b.w * 0.88, b.h * 0.82, b.d * 0.68], [0, b.h * 0.5, 0], p.metal, { name: 'breaker-panel-steel-box', metalness: 0.46 });
+  add([b.w * 0.76, b.h * 0.7, b.d * 0.025], [0, b.h * 0.51, b.d * 0.36], p.paintDark, { name: 'breaker-panel-open-interior' });
+  for (let row = 0; row < 7; row += 1) for (const side of [-1, 1]) {
+    const active = (row + side + variant) % 4 === 0;
+    add([b.w * 0.2, b.h * 0.06, b.d * 0.05], [side * b.w * 0.2, b.h * (0.24 + row * 0.085), b.d * 0.39], active ? p.accent : p.light, { name: 'breaker-panel-toggle' });
+    add([b.w * 0.08, b.h * 0.018, b.d * 0.012], [side * b.w * 0.34, b.h * (0.24 + row * 0.085), b.d * 0.42], active ? p.glow : '#5d6768', { name: 'breaker-panel-circuit-label', emissive: active ? p.glow : '#000000', emissiveIntensity: active ? 0.25 : 0 });
+  }
+  for (const x of [-0.25, 0, 0.25]) add([b.w * 0.08, b.h * 0.2, b.w * 0.08], [x * b.w, b.h * 0.94, 0], p.metal, { shape: 'cylinder', name: 'breaker-panel-conduit', metalness: 0.52 });
 }
 
 function addBeamBetween(

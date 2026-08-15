@@ -107,6 +107,20 @@ describe('production model regressions', () => {
     ['server_rack', 'server_rack_01', ['server-rack-blade', 'server-rack-status-led']],
     ['privacy_screen', 'privacy_screen_01', ['privacy-screen-washable-fabric', 'privacy-screen-stabilizing-foot']],
     ['shopping_cart', 'shopping_cart_01', ['shopping-cart-basket-rib', 'shopping-cart-caster-wheel']],
+    ['copy_machine', 'copy_machine_01', ['copier-scanner-glass', 'copier-output-tray']],
+    ['archive_trolley', 'archive_trolley_01', ['archive-trolley-book-shelf', 'archive-trolley-book']],
+    ['ticket_gate', 'ticket_gate_01', ['ticket-gate-card-reader', 'ticket-gate-swing-arm']],
+    ['departure_board', 'departure_board_01', ['departure-board-black-display', 'departure-board-split-flap-character']],
+    ['retail_display', 'retail_display_01', ['retail-island-display-tier', 'retail-island-boxed-product']],
+    ['tool_chest', 'tool_chest_01', ['tool-chest-drawer-front', 'tool-chest-caster']],
+    ['drum_stack', 'drum_stack_01', ['industrial-steel-drum', 'industrial-drum-reinforcing-band']],
+    ['luggage_cart', 'luggage_cart_01', ['luggage-cart-suitcase', 'luggage-cart-overhead-rail']],
+    ['room_service', 'room_service_01', ['room-service-serving-deck', 'room-service-cloche-dome']],
+    ['traffic_cone', 'traffic_cone_01', ['traffic-cone-square-rubber-base', 'traffic-cone-reflective-band']],
+    ['exercise_bike', 'exercise_bike_01', ['exercise-bike-flywheel', 'exercise-bike-pedal-crank']],
+    ['pool_ladder', 'pool_ladder_01', ['pool-ladder-curved-grab-section', 'pool-ladder-nonslip-rung']],
+    ['utility_shelf', 'utility_shelf_01', ['utility-shelf-deck', 'utility-shelf-labeled-supply']],
+    ['breaker_panel', 'breaker_panel_01', ['breaker-panel-toggle', 'breaker-panel-conduit']],
   ] as const)('rebuilds expanded %s from object-specific parts', (kind, assetId, requiredNames) => {
     const model = buildModel(kind as PropKind, '#77899a', '#9e8669', assetId);
     const report = inspect(model);
