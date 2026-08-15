@@ -375,6 +375,33 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_work_desk', ['work-desk-worktop', 'work-desk-drawer-pedestal']],
+    ['cine_prop_executive_desk', ['executive-desk-leather-edged-top', 'executive-desk-writing-blotter']],
+    ['cine_prop_standing_desk', ['standing-desk-telescoping-leg', 'standing-desk-height-controller']],
+    ['cine_prop_hot_desk_cluster', ['hot-desk-work-surface', 'shared-workstation-acoustic-divider']],
+    ['cine_prop_staff_desk_terrace', ['staff-terrace-work-surface', 'shared-workstation-monitor']],
+    ['cine_prop_vanity_desk', ['vanity-desk-mirror-glass', 'vanity-desk-cosmetic-bottle']],
+    ['cine_prop_conference_table', ['conference-table-cable-trough', 'conference-table-microphone']],
+    ['cine_prop_round_coffee_table', ['coffee-table-round-top', 'coffee-table-lower-glass-shelf']],
+    ['cine_prop_library_reading_room', ['library-reading-open-book', 'library-reading-lamp-shade']],
+    ['cine_prop_planning_table', ['planning-table-blueprint-sheet', 'planning-table-flat-file-drawer']],
+    ['cine_prop_picnic_table', ['picnic-tabletop-plank', 'picnic-table-angled-trestle-leg']],
+    ['cine_prop_grill_side_table', ['grill-side-prep-top', 'grill-side-hanging-tongs']],
+    ['cine_prop_puzzle_table', ['puzzle-table-recessed-playfield', 'puzzle-table-jigsaw-piece']],
+    ['cine_prop_kids_table_set', ['kids-table-chair-seat', 'kids-table-crayon']],
+    ['cine_prop_bistro_table', ['bistro-table-round-top', 'bistro-table-center-pedestal']],
+    ['cine_prop_wooden_dining_set', ['dining-set-solid-tabletop', 'dining-set-chair-back']],
+    ['cine_prop_kitchen_island', ['kitchen-island-stone-worktop', 'kitchen-island-sink-basin']],
+  ] as const)('gives work and table fixture %s a purpose-built layout', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#6c8067', '#85694d', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

@@ -41,6 +41,7 @@ const RETAIL_OVERRIDE = /(concession_stand|ticket_booth|shop_mannequin|mannequin
 const KITCHEN_BATH_OVERRIDE = /(kitchen_appliance_suite|pedestal_sink|shower_stall|espresso_machine|bar_counter|kitchen_cart|microwave_cart|espresso_bar|bath_caddy|ironing_board|play_kitchen|dish_rack|changing_table|towel_rack)/;
 const CEREMONIAL_OVERRIDE = /(podium|pulpit|candle_rack|voting_booth|ballot_box|flag_stand|registry_desk|ceremonial_stage|lantern_post)/;
 const PUBLIC_SEATING_OVERRIDE = /(waiting_room_lounge|stadium_seat_row|transit_platform_seat|accent_chair|reception_chair|breakfast_nook|metro_seat_bank|gazebo_seat|beach_chair|kids_reading_nook|reading_bench|garden_pavilion_bench|airport_seating|tennis_bench|platform_bench_dual)/;
+const WORK_TABLE_OVERRIDE = /(work_desk|executive_desk|standing_desk|conference_table|round_coffee_table|library_reading_room|planning_table|hot_desk_cluster|picnic_table|staff_desk_terrace|grill_side_table|puzzle_table|kids_table_set|bistro_table|wooden_dining_set|kitchen_island|vanity_desk)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -110,6 +111,9 @@ export function buildCinematicProductionProp(
   } else if (PUBLIC_SEATING_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildPublicSeatingProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (WORK_TABLE_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildWorkTableProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1266,6 +1270,133 @@ function buildPublicSeatingProp(root: THREE.Group, key: string, b: Bounds, p: Pa
   } else if (key.includes('tennis_bench')) {
     add([b.w * 0.34, b.w * 0.34, b.w * 0.025], [b.w * 0.28, b.h * 0.27, b.d * 0.32], p.dark, { shape: 'torus', name: 'tennis-bench-racquet-frame' });
     addBeamBetween(root, [b.w * 0.28, b.h * 0.27, b.d * 0.32], [b.w * 0.38, b.h * 0.08, b.d * 0.32], b.w * 0.025, p.wood, 'tennis-bench-racquet-handle');
+  }
+  void variant;
+}
+
+function buildWorkTableProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('vanity_desk')) {
+    add([b.w * 0.9, b.h * 0.07, b.d * 0.58], [0, b.h * 0.48, 0], p.wood, { name: 'vanity-desk-writing-top', roughness: 0.7 });
+    for (const side of [-1, 1]) add([b.w * 0.24, b.h * 0.45, b.d * 0.48], [side * b.w * 0.32, b.h * 0.24, 0], p.wood, { name: 'vanity-desk-drawer-pedestal', roughness: 0.74 });
+    for (const side of [-1, 1]) for (let drawer = 0; drawer < 2; drawer += 1) add([b.w * 0.2, b.h * 0.12, b.d * 0.025], [side * b.w * 0.32, b.h * (0.15 + drawer * 0.15), b.d * 0.25], p.primary, { name: 'vanity-desk-drawer-front' });
+    add([b.w * 0.48, b.h * 0.46, b.d * 0.04], [0, b.h * 0.78, -b.d * 0.2], p.glass, { name: 'vanity-desk-mirror-glass', opacity: 0.42, roughness: 0.06 });
+    add([b.w * 0.56, b.h * 0.54, b.d * 0.06], [0, b.h * 0.78, -b.d * 0.23], p.wood, { name: 'vanity-desk-mirror-frame', roughness: 0.72 });
+    for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.12, b.d * 0.08], [side * b.w * 0.24, b.h * 0.56, 0], side < 0 ? p.secondary : p.light, { shape: 'cylinder', name: 'vanity-desk-cosmetic-bottle' });
+    return;
+  }
+  if (/(hot_desk_cluster|staff_desk_terrace)/.test(key)) {
+    const backToBack = key.includes('hot_desk');
+    const stations: Array<readonly [number, number]> = backToBack
+      ? [[0, -0.22], [0, 0.22]]
+      : [[-0.25, 0], [0.25, 0]];
+    for (let station = 0; station < stations.length; station += 1) {
+      const [nx, nz] = stations[station]!;
+      add([b.w * (backToBack ? 0.84 : 0.44), b.h * 0.06, b.d * (backToBack ? 0.34 : 0.72)], [nx * b.w, b.h * 0.58, nz * b.d], p.wood, { name: backToBack ? 'hot-desk-work-surface' : 'staff-terrace-work-surface', roughness: 0.68 });
+      for (const side of [-1, 1]) add([b.w * 0.04, b.h * 0.56, b.d * 0.04], [nx * b.w + side * b.w * (backToBack ? 0.36 : 0.18), b.h * 0.29, nz * b.d], p.metal, { name: 'shared-workstation-square-leg', metalness: 0.5 });
+      add([b.w * 0.23, b.h * 0.2, b.d * 0.04], [nx * b.w, b.h * 0.78, nz * b.d - b.d * 0.08], p.dark, { name: 'shared-workstation-monitor' });
+      add([b.w * 0.2, b.h * 0.025, b.d * 0.1], [nx * b.w, b.h * 0.63, nz * b.d + b.d * 0.08], p.light, { name: 'shared-workstation-keyboard' });
+    }
+    add([backToBack ? b.w * 0.84 : b.w * 0.035, b.h * 0.34, backToBack ? b.d * 0.035 : b.d * 0.72], [0, b.h * 0.77, 0], p.primary, { name: 'shared-workstation-acoustic-divider', roughness: 0.9 });
+    return;
+  }
+  if (/(work_desk|executive_desk|standing_desk)/.test(key)) {
+    const standing = key.includes('standing');
+    const executive = key.includes('executive');
+    const topY = standing ? 0.76 : 0.6;
+    add([b.w * 0.94, b.h * (executive ? 0.1 : 0.065), b.d * 0.72], [0, b.h * topY, 0], executive ? p.wood : p.light, { name: standing ? 'standing-desk-worktop' : executive ? 'executive-desk-leather-edged-top' : 'work-desk-worktop', roughness: executive ? 0.68 : 0.38 });
+    if (standing) {
+      for (const side of [-1, 1]) {
+        add([b.w * 0.09, b.h * 0.68, b.d * 0.09], [side * b.w * 0.34, b.h * 0.36, 0], p.metal, { name: 'standing-desk-telescoping-leg', metalness: 0.54 });
+        add([b.w * 0.28, b.h * 0.05, b.d * 0.52], [side * b.w * 0.34, b.h * 0.04, 0], p.metal, { name: 'standing-desk-stable-foot', metalness: 0.52 });
+      }
+      add([b.w * 0.13, b.h * 0.04, b.d * 0.08], [b.w * 0.32, b.h * 0.69, b.d * 0.3], p.dark, { name: 'standing-desk-height-controller' });
+    } else {
+      const pedestalCount = executive ? 2 : 1;
+      for (let pedestal = 0; pedestal < pedestalCount; pedestal += 1) {
+        const x = executive ? (pedestal ? 1 : -1) * b.w * 0.31 : b.w * 0.31;
+        add([b.w * 0.25, b.h * 0.52, b.d * 0.56], [x, b.h * 0.28, 0], executive ? p.wood : p.primary, { name: executive ? 'executive-desk-drawer-pedestal' : 'work-desk-drawer-pedestal' });
+        for (let drawer = 0; drawer < 3; drawer += 1) add([b.w * 0.21, b.h * 0.1, b.d * 0.025], [x, b.h * (0.15 + drawer * 0.13), b.d * 0.29], p.secondary, { name: 'desk-drawer-front' });
+      }
+      for (const side of [-1, 1]) if (!executive || side === -1) add([b.w * 0.045, b.h * 0.54, b.d * 0.045], [side * b.w * 0.38, b.h * 0.28, -b.d * 0.25], p.metal, { name: 'desk-square-support-leg', metalness: 0.48 });
+    }
+    add([b.w * 0.32, b.h * 0.24, b.d * 0.04], [-b.w * 0.1, b.h * (topY + 0.18), -b.d * 0.18], p.dark, { name: 'desk-monitor-screen' });
+    add([b.w * 0.3, b.h * 0.025, b.d * 0.12], [-b.w * 0.08, b.h * (topY + 0.05), b.d * 0.14], p.light, { name: 'desk-keyboard' });
+    if (executive) add([b.w * 0.46, b.h * 0.018, b.d * 0.32], [0, b.h * (topY + 0.06), b.d * 0.05], p.dark, { name: 'executive-desk-writing-blotter', roughness: 0.82 });
+    return;
+  }
+  if (key.includes('picnic_table')) {
+    for (let slat = -2; slat <= 2; slat += 1) add([b.w * 0.9, b.h * 0.055, b.d * 0.12], [0, b.h * 0.64, slat * b.d * 0.12], p.wood, { name: 'picnic-tabletop-plank', roughness: 0.82 });
+    for (const side of [-1, 1]) {
+      addBeamBetween(root, [side * b.w * 0.32, 0, -b.d * 0.36], [side * b.w * 0.22, b.h * 0.62, -b.d * 0.16], b.w * 0.045, p.wood, 'picnic-table-angled-trestle-leg');
+      addBeamBetween(root, [side * b.w * 0.32, 0, b.d * 0.36], [side * b.w * 0.22, b.h * 0.62, b.d * 0.16], b.w * 0.045, p.wood, 'picnic-table-angled-trestle-leg');
+    }
+    for (const z of [-0.4, 0.4]) add([b.w * 0.92, b.h * 0.07, b.d * 0.2], [0, b.h * 0.34, z * b.d], p.wood, { name: 'picnic-table-bench-plank', roughness: 0.82 });
+    return;
+  }
+  if (key.includes('bistro_table')) {
+    add([b.w * 0.66, b.h * 0.07, b.d * 0.66], [0, b.h * 0.62, 0], p.wood, { shape: 'cylinder', name: 'bistro-table-round-top', roughness: 0.7 });
+    add([b.w * 0.08, b.h * 0.58, b.d * 0.08], [0, b.h * 0.32, 0], p.metal, { shape: 'cylinder', name: 'bistro-table-center-pedestal', metalness: 0.58 });
+    add([b.w * 0.5, b.h * 0.05, b.d * 0.5], [0, b.h * 0.04, 0], p.metal, { shape: 'cylinder', name: 'bistro-table-weighted-base', metalness: 0.54 });
+    for (const side of [-1, 1]) {
+      add([b.w * 0.24, b.h * 0.055, b.d * 0.24], [side * b.w * 0.42, b.h * 0.36, 0], p.primary, { shape: 'cylinder', name: 'bistro-chair-seat' });
+      add([b.w * 0.04, b.h * 0.34, b.d * 0.04], [side * b.w * 0.42, b.h * 0.18, 0], p.metal, { name: 'bistro-chair-leg', metalness: 0.5 });
+    }
+    return;
+  }
+  if (key.includes('wooden_dining_set')) {
+    add([b.w * 0.86, b.h * 0.08, b.d * 0.64], [0, b.h * 0.62, 0], p.wood, { name: 'dining-set-solid-tabletop', roughness: 0.7 });
+    for (const x of [-0.36, 0.36]) for (const z of [-0.25, 0.25]) add([b.w * 0.055, b.h * 0.58, b.d * 0.055], [x * b.w, b.h * 0.3, z * b.d], p.wood, { name: 'dining-set-table-leg', roughness: 0.74 });
+    for (const x of [-0.32, 0.32]) for (const z of [-0.42, 0.42]) {
+      add([b.w * 0.22, b.h * 0.055, b.d * 0.2], [x * b.w, b.h * 0.38, z * b.d], p.primary, { name: 'dining-set-chair-seat', roughness: 0.84 });
+      add([b.w * 0.2, b.h * 0.28, b.d * 0.045], [x * b.w, b.h * 0.55, z * b.d - Math.sign(z) * b.d * 0.08], p.wood, { name: 'dining-set-chair-back', roughness: 0.74 });
+    }
+    return;
+  }
+  if (key.includes('kitchen_island')) {
+    add([b.w * 0.86, b.h * 0.66, b.d * 0.72], [0, b.h * 0.35, 0], p.wood, { name: 'kitchen-island-cabinet-base', roughness: 0.7 });
+    add([b.w * 0.96, b.h * 0.07, b.d * 0.82], [0, b.h * 0.71, 0], p.light, { name: 'kitchen-island-stone-worktop', roughness: 0.26 });
+    for (let door = -1; door <= 1; door += 1) add([b.w * 0.24, b.h * 0.42, b.d * 0.025], [door * b.w * 0.27, b.h * 0.36, b.d * 0.37], door === 0 ? p.primary : p.secondary, { name: 'kitchen-island-cabinet-door' });
+    add([b.w * 0.32, b.h * 0.04, b.d * 0.28], [-b.w * 0.2, b.h * 0.76, 0], p.metal, { name: 'kitchen-island-sink-basin', metalness: 0.54 });
+    addBeamBetween(root, [-b.w * 0.2, b.h * 0.78, -b.d * 0.08], [-b.w * 0.2, b.h * 0.96, b.d * 0.02], b.w * 0.025, p.metal, 'kitchen-island-faucet');
+    for (const side of [-1, 1]) add([b.w * 0.18, b.h * 0.08, b.d * 0.18], [side * b.w * 0.28, b.h * 0.3, -b.d * 0.48], p.primary, { shape: 'cylinder', name: 'kitchen-island-counter-stool' });
+    return;
+  }
+  if (key.includes('round_coffee_table')) {
+    add([b.w * 0.86, b.h * 0.08, b.d * 0.86], [0, b.h * 0.48, 0], p.wood, { shape: 'cylinder', name: 'coffee-table-round-top', roughness: 0.68 });
+    add([b.w * 0.7, b.h * 0.045, b.d * 0.7], [0, b.h * 0.18, 0], p.glass, { shape: 'cylinder', name: 'coffee-table-lower-glass-shelf', opacity: 0.34, roughness: 0.08 });
+    for (const x of [-0.28, 0.28]) for (const z of [-0.28, 0.28]) add([b.w * 0.045, b.h * 0.46, b.d * 0.045], [x * b.w, b.h * 0.24, z * b.d], p.metal, { name: 'coffee-table-splayed-leg', metalness: 0.48 });
+    return;
+  }
+  if (key.includes('library_reading_room')) {
+    add([b.w * 0.94, b.h * 0.07, b.d * 0.72], [0, b.h * 0.58, 0], p.wood, { name: 'library-reading-tabletop', roughness: 0.7 });
+    for (const x of [-0.4, 0.4]) for (const z of [-0.28, 0.28]) add([b.w * 0.05, b.h * 0.56, b.d * 0.05], [x * b.w, b.h * 0.29, z * b.d], p.wood, { name: 'library-reading-table-leg' });
+    add([b.w * 0.06, b.h * 0.36, b.d * 0.06], [0, b.h * 0.78, 0], p.metal, { name: 'library-reading-lamp-post', metalness: 0.58 });
+    for (const side of [-1, 1]) add([b.w * 0.34, b.h * 0.025, b.d * 0.26], [side * b.w * 0.23, b.h * 0.65, side * b.d * 0.12], p.light, { rotation: [0, side * 0.08, 0], name: 'library-reading-open-book', roughness: 0.94 });
+    add([b.w * 0.3, b.h * 0.08, b.d * 0.3], [0, b.h * 0.95, 0], '#dfb45b', { name: 'library-reading-lamp-shade', emissive: '#dfb45b', emissiveIntensity: 0.25 });
+    return;
+  }
+
+  add([b.w * 0.94, b.h * 0.07, b.d * 0.78], [0, b.h * 0.58, 0], key.includes('grill') ? p.metal : p.wood, { name: key.includes('conference') ? 'conference-tabletop' : key.includes('planning') ? 'planning-tabletop' : key.includes('puzzle') ? 'puzzle-table-recessed-top' : key.includes('kids') ? 'kids-tabletop' : 'grill-side-prep-top', metalness: key.includes('grill') ? 0.5 : 0.08, roughness: 0.68 });
+  for (const x of [-0.4, 0.4]) for (const z of [-0.3, 0.3]) add([b.w * 0.045, b.h * 0.56, b.d * 0.045], [x * b.w, b.h * 0.29, z * b.d], key.includes('grill') ? p.metal : p.wood, { name: 'specialty-table-square-leg', metalness: key.includes('grill') ? 0.5 : 0.08 });
+  if (key.includes('conference')) {
+    add([b.w * 0.58, b.h * 0.035, b.d * 0.18], [0, b.h * 0.63, 0], p.dark, { name: 'conference-table-cable-trough' });
+    for (let mic = -2; mic <= 2; mic += 1) addBeamBetween(root, [mic * b.w * 0.16, b.h * 0.63, 0], [mic * b.w * 0.16, b.h * 0.76, b.d * 0.1], b.w * 0.012, p.dark, 'conference-table-microphone');
+  } else if (key.includes('planning')) {
+    for (let sheet = -1; sheet <= 1; sheet += 1) add([b.w * 0.28, b.h * 0.015, b.d * 0.54], [sheet * b.w * 0.28, b.h * 0.63, 0], sheet === 0 ? '#b8d5de' : p.light, { rotation: [0, sheet * 0.04, 0], name: 'planning-table-blueprint-sheet', roughness: 0.94 });
+    add([b.w * 0.6, b.h * 0.08, b.d * 0.58], [0, b.h * 0.42, 0], p.primary, { name: 'planning-table-flat-file-drawer' });
+  } else if (key.includes('puzzle')) {
+    add([b.w * 0.78, b.h * 0.035, b.d * 0.62], [0, b.h * 0.63, 0], p.dark, { name: 'puzzle-table-recessed-playfield' });
+    for (let piece = 0; piece < 14; piece += 1) add([b.w * 0.055, b.h * 0.018, b.d * 0.055], [((piece % 5) - 2) * b.w * 0.09, b.h * 0.66, (Math.floor(piece / 5) - 1) * b.d * 0.12], piece % 3 === 0 ? p.primary : piece % 3 === 1 ? p.secondary : p.light, { rotation: [0, piece * 0.14, 0], name: 'puzzle-table-jigsaw-piece' });
+  } else if (key.includes('kids')) {
+    for (const x of [-0.34, 0.34]) for (const z of [-0.42, 0.42]) {
+      add([b.w * 0.2, b.h * 0.055, b.d * 0.2], [x * b.w, b.h * 0.27, z * b.d], (x + z) > 0 ? p.primary : p.secondary, { name: 'kids-table-chair-seat' });
+      add([b.w * 0.18, b.h * 0.24, b.d * 0.04], [x * b.w, b.h * 0.42, z * b.d - Math.sign(z) * b.d * 0.08], (x + z) > 0 ? p.primary : p.secondary, { name: 'kids-table-chair-back' });
+    }
+    for (let crayon = -3; crayon <= 3; crayon += 1) add([b.w * 0.08, b.h * 0.018, b.d * 0.018], [crayon * b.w * 0.08, b.h * 0.64, 0], crayon % 2 ? p.primary : p.secondary, { rotation: [0, crayon * 0.12, 0], name: 'kids-table-crayon' });
+  } else {
+    add([b.w * 0.76, b.h * 0.05, b.d * 0.62], [0, b.h * 0.24, 0], p.metal, { name: 'grill-side-lower-shelf', metalness: 0.5 });
+    addBeamBetween(root, [b.w * 0.28, b.h * 0.64, b.d * 0.2], [b.w * 0.4, b.h * 0.45, b.d * 0.2], b.w * 0.016, p.dark, 'grill-side-hanging-tongs');
   }
   void variant;
 }
