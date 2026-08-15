@@ -51,6 +51,7 @@ import {
 } from './characterModels';
 import { buildProductionAnimal, clearProductionAnimalGeometries } from './animalModels';
 import { buildProductionProp } from './productionPropModels';
+import { buildExpandedProductionProp } from './expandedPropModels';
 import {
   applyProductionMaterials,
   clearProductionMaterialCache,
@@ -2251,6 +2252,7 @@ export function buildModel(
     isCraftedKind(kind) ||
     model.userData.productionCharacter === true ||
     model.userData.productionAnimal === true
+    || model.userData.productionExpandedProp === true
   ) {
     normalizeComposedModelToBounds(model, boundsForKind(kind));
   }
@@ -2342,6 +2344,14 @@ function createModel(
     boundsForKind(kind),
   );
   if (productionProp) return productionProp;
+  const expandedProductionProp = buildExpandedProductionProp(
+    String(kind),
+    assetVariant(assetId),
+    accent,
+    body,
+    boundsForKind(kind),
+  );
+  if (expandedProductionProp) return expandedProductionProp;
   const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
   if (cinematic) return cinematic;
   const crafted = buildCraftedModel(kind, assetVariant(assetId), accent, body, boundsForKind(kind));

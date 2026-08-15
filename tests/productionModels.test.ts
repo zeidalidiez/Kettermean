@@ -95,6 +95,26 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.rounded / report.meshes).toBeLessThan(0.55);
   });
+
+  it.each([
+    ['display_case', 'display_case_01', ['display-case-front-glass', 'display-case-curated-object']],
+    ['planter', 'planter_01', ['planter-visible-soil', 'planter-branch']],
+    ['tree', 'tree_01', ['tree-tapered-trunk', 'tree-structural-branch']],
+    ['fountain', 'fountain_01', ['fountain-lower-basin-rim', 'fountain-center-water-jet']],
+    ['bus_shelter', 'bus_shelter_01', ['bus-shelter-back-glass', 'bus-shelter-bench-seat']],
+    ['swing_set', 'swing_set_01', ['swing-set-a-frame-leg', 'swing-set-seat']],
+    ['pallet_stack', 'pallet_stack_01', ['pallet-deck-slat', 'pallet-load-bearing-stringer']],
+    ['server_rack', 'server_rack_01', ['server-rack-blade', 'server-rack-status-led']],
+    ['privacy_screen', 'privacy_screen_01', ['privacy-screen-washable-fabric', 'privacy-screen-stabilizing-foot']],
+    ['shopping_cart', 'shopping_cart_01', ['shopping-cart-basket-rib', 'shopping-cart-caster-wheel']],
+  ] as const)('rebuilds expanded %s from object-specific parts', (kind, assetId, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#77899a', '#9e8669', assetId);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('expanded-production-prop');
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(70);
+    expect(report.rounded / report.meshes).toBeLessThan(0.55);
+  });
 });
 
 function inspect(model: THREE.Object3D): {
