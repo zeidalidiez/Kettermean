@@ -468,6 +468,20 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_exam_table', ['exam-table-adjustable-backrest', 'exam-table-foot-stirrup']],
+    ['cine_prop_kiosk_payment', ['payment-kiosk-card-terminal', 'payment-kiosk-printed-receipt']],
+    ['cine_prop_atm_machine', ['atm-secure-keypad-key', 'atm-cash-dispensing-slot']],
+    ['cine_prop_interactive_kiosk', ['interactive-kiosk-large-touchscreen', 'interactive-kiosk-camera']],
+  ] as const)('finishes cinematic production coverage for %s', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#647b7e', '#756955', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

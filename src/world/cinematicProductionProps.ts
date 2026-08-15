@@ -45,6 +45,7 @@ const WORK_TABLE_OVERRIDE = /(work_desk|executive_desk|standing_desk|conference_
 const SPECIALTY_STORAGE_OVERRIDE = /(bookshelf_wall|pantry_cabinet|pharmacy_shelving|clinic_instrument_cabinet|card_catalog|locker_row|lockers_lounge|shoe_rack|document_cabinet|wine_rack|pantry_shelving|safety_cabinet)/;
 const DOMESTIC_STORAGE_OVERRIDE = /(sideboard_buffet|credenza|dresser_wardrobe|media_console|nightstand_pair|wardrobe_armoire|bathroom_vanity|sideboard_modern|tv_stand|entertainment_center|linen_tower|closet_organizer)/;
 const SOFT_FURNITURE_OVERRIDE = /(ergonomic_office_chair|plush_armchair|sectional_sofa|bar_stool|platform_bed|love_seat|ottoman|daybed|bunk_bed|lobby_sofa|meeting_sofa|dining_booth)/;
+const FINAL_UTILITY_OVERRIDE = /(exam_table|kiosk_payment|atm_machine|interactive_kiosk)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -126,6 +127,9 @@ export function buildCinematicProductionProp(
   } else if (SOFT_FURNITURE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildSoftFurnitureProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (FINAL_UTILITY_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildFinalUtilityProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1658,6 +1662,49 @@ function buildSoftFurnitureProp(root: THREE.Group, key: string, b: Bounds, p: Pa
     add([b.w * 0.14, b.h * 0.46, b.d * 0.72], [side * b.w * 0.48, b.h * 0.42, 0], p.primary, { name: 'sofa-padded-arm', roughness: 0.92 });
     add([b.w * 0.08, b.h * 0.18, b.d * 0.08], [side * b.w * 0.38, b.h * 0.09, 0], p.wood, { name: 'sofa-raised-leg', roughness: 0.72 });
   }
+  void variant;
+}
+
+function buildFinalUtilityProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('exam_table')) {
+    add([b.w * 0.72, b.h * 0.48, b.d * 0.72], [0, b.h * 0.26, 0], p.light, { name: 'exam-table-cabinet-base', metalness: 0.18, roughness: 0.4 });
+    for (let drawer = 0; drawer < 3; drawer += 1) add([b.w * 0.26, b.h * 0.1, b.d * 0.025], [b.w * 0.19, b.h * (0.15 + drawer * 0.12), b.d * 0.37], p.primary, { name: 'exam-table-supply-drawer' });
+    add([b.w * 0.82, b.h * 0.12, b.d * 0.62], [0, b.h * 0.58, b.d * 0.02], p.primary, { name: 'exam-table-padded-leg-section', roughness: 0.92 });
+    add([b.w * 0.8, b.h * 0.12, b.d * 0.42], [0, b.h * 0.7, -b.d * 0.34], p.primary, { rotation: [-0.35, 0, 0], name: 'exam-table-adjustable-backrest', roughness: 0.92 });
+    add([b.w * 0.22, b.w * 0.22, b.w * 0.045], [-b.w * 0.35, b.h * 0.56, -b.d * 0.28], p.light, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'exam-table-paper-roll' });
+    for (const side of [-1, 1]) {
+      addBeamBetween(root, [side * b.w * 0.26, b.h * 0.5, b.d * 0.23], [side * b.w * 0.42, b.h * 0.68, b.d * 0.32], b.w * 0.025, p.metal, 'exam-table-stirrup-support');
+      add([b.w * 0.17, b.h * 0.05, b.d * 0.2], [side * b.w * 0.43, b.h * 0.68, b.d * 0.34], p.metal, { name: 'exam-table-foot-stirrup', metalness: 0.58 });
+    }
+    add([b.w * 0.42, b.h * 0.12, b.d * 0.34], [0, b.h * 0.08, b.d * 0.38], p.dark, { name: 'exam-table-pullout-step', roughness: 0.7 });
+    return;
+  }
+  if (key.includes('atm_machine')) {
+    add([b.w * 0.9, b.h * 0.96, b.d * 0.72], [0, b.h * 0.5, 0], p.light, { name: 'atm-reinforced-cabinet', metalness: 0.32, roughness: 0.38 });
+    add([b.w * 0.62, b.h * 0.3, b.d * 0.035], [0, b.h * 0.7, b.d * 0.37], p.glass, { name: 'atm-customer-screen', opacity: 0.74, emissive: p.glow, emissiveIntensity: 0.16 });
+    for (const side of [-1, 1]) add([b.w * 0.12, b.h * 0.46, b.d * 0.3], [side * b.w * 0.39, b.h * 0.68, b.d * 0.28], p.dark, { name: 'atm-privacy-wing' });
+    for (let keypad = 0; keypad < 12; keypad += 1) add([b.w * 0.055, b.h * 0.035, b.d * 0.025], [((keypad % 3) - 1) * b.w * 0.08, b.h * (0.36 + Math.floor(keypad / 3) * 0.06), b.d * 0.38], p.dark, { name: 'atm-secure-keypad-key' });
+    add([b.w * 0.3, b.h * 0.04, b.d * 0.035], [0, b.h * 0.27, b.d * 0.38], p.dark, { name: 'atm-cash-dispensing-slot' });
+    add([b.w * 0.18, b.h * 0.035, b.d * 0.035], [b.w * 0.26, b.h * 0.49, b.d * 0.38], p.secondary, { name: 'atm-card-reader-slot', emissive: p.secondary, emissiveIntensity: 0.12 });
+    return;
+  }
+  if (key.includes('kiosk_payment')) {
+    add([b.w * 0.66, b.h * 0.78, b.d * 0.54], [0, b.h * 0.45, 0], p.primary, { name: 'payment-kiosk-pedestal', metalness: 0.18 });
+    add([b.w * 0.58, b.h * 0.36, b.d * 0.05], [0, b.h * 0.72, b.d * 0.28], p.glass, { name: 'payment-kiosk-touchscreen', opacity: 0.74, emissive: p.glow, emissiveIntensity: 0.16 });
+    add([b.w * 0.26, b.h * 0.16, b.d * 0.18], [b.w * 0.18, b.h * 0.43, b.d * 0.26], p.dark, { rotation: [-0.12, 0, 0], name: 'payment-kiosk-card-terminal' });
+    add([b.w * 0.13, b.h * 0.03, b.d * 0.025], [b.w * 0.18, b.h * 0.46, b.d * 0.36], p.glow, { name: 'payment-kiosk-nfc-target', emissive: p.glow, emissiveIntensity: 0.24 });
+    add([b.w * 0.28, b.h * 0.035, b.d * 0.035], [-b.w * 0.12, b.h * 0.35, b.d * 0.28], p.dark, { name: 'payment-kiosk-receipt-slot' });
+    add([b.w * 0.28, b.h * 0.16, b.d * 0.02], [-b.w * 0.12, b.h * 0.25, b.d * 0.29], p.light, { name: 'payment-kiosk-printed-receipt', roughness: 0.94 });
+    return;
+  }
+
+  add([b.w * 0.7, b.h * 0.58, b.d * 0.54], [0, b.h * 0.34, 0], p.primary, { name: 'interactive-kiosk-pedestal', metalness: 0.2 });
+  add([b.w * 0.82, b.h * 0.5, b.d * 0.12], [0, b.h * 0.76, b.d * 0.08], p.dark, { rotation: [-0.18, 0, 0], name: 'interactive-kiosk-display-housing' });
+  add([b.w * 0.72, b.h * 0.4, b.d * 0.025], [0, b.h * 0.76, b.d * 0.15], p.glass, { rotation: [-0.18, 0, 0], name: 'interactive-kiosk-large-touchscreen', opacity: 0.74, emissive: p.glow, emissiveIntensity: 0.18 });
+  add([b.w * 0.08, b.h * 0.06, b.d * 0.04], [0, b.h * 1.02, b.d * 0.08], p.glass, { name: 'interactive-kiosk-camera', opacity: 0.7 });
+  for (let vent = -3; vent <= 3; vent += 1) add([b.w * 0.045, b.h * 0.02, b.d * 0.02], [vent * b.w * 0.07, b.h * 0.36, b.d * 0.28], p.dark, { name: 'interactive-kiosk-speaker-vent' });
+  add([b.w * 0.9, b.h * 0.06, b.d * 0.7], [0, b.h * 0.04, 0], p.dark, { name: 'interactive-kiosk-floor-base', metalness: 0.45 });
   void variant;
 }
 
