@@ -94,7 +94,6 @@ function buildMasterworkProp(
     case 'medical': buildMedical(root, bounds, palette, variant, profile); break;
     default: buildCasework(root, bounds, palette, variant, profile);
   }
-  addMasterworkFinish(root, bounds, palette, variant, familyIndex);
   return root;
 }
 
@@ -500,22 +499,6 @@ function buildMedical(root: THREE.Group, b: Bounds, p: Palette, variant: number,
       add([b.w * 0.06, b.h * 0.42, b.w * 0.06], [side * b.w * 0.34, b.h * 0.92, 0], p.trim, { shape: 'cylinder', name: 'electrode-arm' });
       add([b.w * 0.22, b.h * 0.18, b.d * 0.2], [side * b.w * 0.34, b.h * 1.05, b.d * 0.08], p.glass, { shape: 'sphere', emissive: p.glow, emissiveIntensity: 0.28, opacity: 0.64, name: 'electrode-globe' });
     }
-  }
-}
-
-function addMasterworkFinish(root: THREE.Group, b: Bounds, p: Palette, variant: number, family: number): void {
-  const add = partAdder(root);
-  for (const side of [-1, 1]) {
-    add([b.w * 0.035, b.h * 0.72, b.w * 0.035], [side * b.w * 0.47, b.h * 0.48, b.d * 0.43], p.glow, { shape: 'cylinder', metalness: 0.7, name: 'masterwork-edge-inlay' });
-    for (let corner = 0; corner < 3; corner += 1) add([b.w * 0.045, b.w * 0.045, b.w * 0.03], [side * b.w * 0.47, b.h * (0.17 + corner * 0.31), b.d * 0.47], corner % 2 ? p.light : p.glow, { shape: 'sphere', metalness: 0.72, name: 'masterwork-fastener' });
-  }
-  for (let mark = 0; mark < 6; mark += 1) {
-    const angle = (mark / 6) * Math.PI * 2 + family * 0.13;
-    add([b.w * (0.035 + (mark % 2) * 0.012), b.h * 0.04, b.d * 0.022], [Math.cos(angle) * b.w * 0.27, b.h * (0.16 + mark * 0.11), b.d * 0.515], mark % 2 ? p.secondary : p.glow, { shape: mark % 3 ? 'sphere' : 'torus', rotation: [Math.PI / 2, 0, angle], name: 'masterwork-maker-mark' });
-  }
-  for (let flourish = 0; flourish <= variant; flourish += 1) {
-    const x = (flourish - variant / 2) * b.w * 0.065;
-    add([b.w * 0.035, b.h * (0.055 + flourish * 0.006), b.d * 0.024], [x, b.h * (0.96 + (flourish % 2) * 0.025), b.d * 0.12], shifted(p.glow, flourish + family), { shape: flourish % 2 ? 'cone' : 'sphere', name: 'variant-masterwork-finial' });
   }
 }
 

@@ -74,9 +74,8 @@ function buildAtelierProp(
   const bounds = ATELIER_BOUNDS[kind];
   const palette = paletteFor(kind, variant, accent, body);
   const root = new THREE.Group();
-  buildArchitecturalChassis(root, bounds, palette, variant, familyIndex);
+  buildArchitecturalChassis(root, bounds, palette, familyIndex);
   addPropIdentity(root, bounds, palette, variant, form, profile);
-  addLayeredFinish(root, bounds, palette, variant, familyIndex);
   return root;
 }
 
@@ -84,22 +83,9 @@ function buildArchitecturalChassis(
   root: THREE.Group,
   b: Bounds,
   p: Palette,
-  variant: number,
   family: number,
 ): void {
   const add = partAdder(root);
-  // A three-step plinth, rear structural frame, and front inlay make every prop
-  // read as assembled rather than a single primitive with decorations.
-  add([b.w * 0.98, b.h * 0.035, b.d * 0.94], [0, b.h * 0.025, 0], p.dark, { name: 'atelier-shadow-plinth' });
-  add([b.w * 0.91, b.h * 0.055, b.d * 0.87], [0, b.h * 0.07, 0], p.trim, { metalness: 0.58, name: 'atelier-inlaid-plinth' });
-  add([b.w * 0.82, b.h * 0.045, b.d * 0.78], [0, b.h * 0.115, 0], p.jewel, { metalness: 0.38, name: 'atelier-inner-plinth' });
-  for (const side of [-1, 1]) {
-    for (const depth of [-1, 1]) {
-      add([b.w * 0.045, b.h * 0.7, b.d * 0.045], [side * b.w * 0.42, b.h * 0.46, depth * b.d * 0.38], p.trim, { shape: 'capsule', metalness: 0.66, name: 'atelier-structural-upright' });
-      add([b.w * 0.075, b.h * 0.075, b.d * 0.075], [side * b.w * 0.42, b.h * 0.82, depth * b.d * 0.38], p.glow, { shape: variant % 2 ? 'sphere' : 'torus', emissive: variant === 5 ? p.glow : undefined, emissiveIntensity: 0.16, name: 'atelier-frame-knuckle' });
-    }
-  }
-
   switch (family % 6) {
     case 0:
       add([b.w * 0.76, b.h * 0.72, b.d * 0.68], [0, b.h * 0.49, 0], p.primary, { name: 'atelier-casework-core' });
@@ -333,31 +319,6 @@ function addPropIdentity(
         const radius = b.w * (0.09 + step / 24 * 0.29);
         add([b.w * 0.08, b.h * 0.045, b.d * (profile ? 0.14 : 0.07)], [Math.cos(angle) * radius, b.h * (0.28 + step * 0.022), Math.sin(angle) * b.d * (0.1 + step / 24 * 0.25)], step % 2 ? p.secondary : p.glow, { rotation: [0, -angle, profile ? angle * 0.06 : 0], name: profile ? 'impossible-floorplan-tile' : 'spiral-archive-shelf' });
       }
-  }
-}
-
-function addLayeredFinish(
-  root: THREE.Group,
-  b: Bounds,
-  p: Palette,
-  variant: number,
-  family: number,
-): void {
-  const add = partAdder(root);
-  for (const side of [-1, 1]) {
-    add([b.w * 0.023, b.h * 0.72, b.w * 0.023], [side * b.w * 0.465, b.h * 0.49, b.d * 0.455], p.glow, { shape: 'cylinder', metalness: 0.78, name: 'atelier-edge-inlay' });
-    for (let fastener = 0; fastener < 8; fastener += 1) add([b.w * 0.027, b.w * 0.027, b.d * 0.018], [side * b.w * 0.465, b.h * (0.18 + fastener * 0.095), b.d * 0.49], fastener % 2 ? p.light : p.jewel, { shape: fastener % 3 ? 'sphere' : 'torus', rotation: [Math.PI / 2, 0, 0], metalness: 0.76, name: 'atelier-hand-set-fastener' });
-  }
-  for (let mark = 0; mark < 12; mark += 1) {
-    const angle = mark / 12 * Math.PI * 2 + family * 0.137;
-    add([b.w * (0.025 + mark % 3 * 0.006), b.h * (0.035 + mark % 2 * 0.012), b.d * 0.018], [Math.cos(angle) * b.w * 0.28, b.h * (0.18 + mark * 0.062), b.d * 0.515], mark % 2 ? p.secondary : p.glow, { shape: mark % 3 ? 'sphere' : 'cone', rotation: [Math.PI / 2, angle, 0], name: `atelier-family-${family}-maker-mark` });
-  }
-  // Count and position change on every variant, ensuring silhouettes as well as
-  // materials differ across all six versions of a family.
-  for (let flourish = 0; flourish < 8 + variant * 2; flourish += 1) {
-    const angle = flourish / (8 + variant * 2) * Math.PI * 2;
-    const radius = b.w * (0.18 + variant * 0.018);
-    add([b.w * (0.025 + flourish % 3 * 0.007), b.h * (0.06 + flourish % 4 * 0.012), b.d * 0.025], [Math.cos(angle) * radius, b.h * (0.9 + Math.sin(angle * 2) * 0.055), Math.sin(angle) * b.d * 0.16], shifted(p.glow, flourish + family), { shape: flourish % 3 === 0 ? 'cone' : flourish % 2 ? 'sphere' : 'torus', rotation: [angle, variant * 0.14, -angle], emissive: variant === 5 ? p.glow : undefined, emissiveIntensity: 0.14, name: `atelier-variant-${variant}-finial` });
   }
 }
 

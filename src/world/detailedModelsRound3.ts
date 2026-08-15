@@ -73,7 +73,6 @@ function buildExhibitionProp(
   const root = new THREE.Group();
   buildPropChassis(root, bounds, palette, variant, formIndex);
   addPropIdentity(root, bounds, palette, variant, formIndex, profile);
-  addExhibitionFinish(root, bounds, palette, variant, familyIndex);
   return root;
 }
 
@@ -287,28 +286,6 @@ function addPropIdentity(
         const angle = panel / 12 * Math.PI * 2;
         add([b.w * 0.16, b.h * 0.22, b.d * 0.035], [Math.cos(angle) * b.w * 0.3, b.h * (0.55 + Math.sin(angle) * 0.28), Math.sin(angle) * b.d * 0.3], shifted(panel % 2 ? p.glow : p.glass, panel), { rotation: [0, angle, angle * 0.2], opacity: 0.64, emissive: p.glow, emissiveIntensity: 0.12, name: 'architectural-stained-panel' });
       }
-  }
-}
-
-function addExhibitionFinish(
-  root: THREE.Group,
-  b: Bounds,
-  p: Palette,
-  variant: number,
-  family: number,
-): void {
-  const add = partAdder(root);
-  for (const side of [-1, 1]) {
-    add([b.w * 0.025, b.h * 0.68, b.w * 0.025], [side * b.w * 0.46, b.h * 0.48, b.d * 0.45], p.glow, { shape: 'cylinder', metalness: 0.74, name: 'exhibition-edge-inlay' });
-    for (let fastener = 0; fastener < 4; fastener += 1) add([b.w * 0.035, b.w * 0.035, b.d * 0.022], [side * b.w * 0.46, b.h * (0.18 + fastener * 0.22), b.d * 0.49], fastener % 2 ? p.light : p.glow, { shape: 'sphere', metalness: 0.78, name: 'exhibition-fastener' });
-  }
-  for (let mark = 0; mark < 7; mark += 1) {
-    const angle = mark / 7 * Math.PI * 2 + family * 0.11;
-    add([b.w * (0.025 + (mark % 3) * 0.008), b.h * 0.035, b.d * 0.018], [Math.cos(angle) * b.w * 0.25, b.h * (0.17 + mark * 0.105), b.d * 0.515], mark % 2 ? p.secondary : p.glow, { shape: mark % 2 ? 'sphere' : 'torus', rotation: [Math.PI / 2, 0, angle], name: 'exhibition-maker-mark' });
-  }
-  for (let flourish = 0; flourish < 3 + variant; flourish += 1) {
-    const x = (flourish - (2 + variant) / 2) * b.w * 0.065;
-    add([b.w * 0.032, b.h * (0.05 + flourish * 0.007), b.d * 0.022], [x, b.h * (0.94 + (flourish % 2) * 0.03), b.d * 0.1], shifted(p.glow, flourish + family), { shape: flourish % 2 ? 'cone' : 'sphere', name: 'variant-exhibition-finial' });
   }
 }
 
