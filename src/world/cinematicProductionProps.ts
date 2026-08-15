@@ -44,6 +44,7 @@ const PUBLIC_SEATING_OVERRIDE = /(waiting_room_lounge|stadium_seat_row|transit_p
 const WORK_TABLE_OVERRIDE = /(work_desk|executive_desk|standing_desk|conference_table|round_coffee_table|library_reading_room|planning_table|hot_desk_cluster|picnic_table|staff_desk_terrace|grill_side_table|puzzle_table|kids_table_set|bistro_table|wooden_dining_set|kitchen_island|vanity_desk)/;
 const SPECIALTY_STORAGE_OVERRIDE = /(bookshelf_wall|pantry_cabinet|pharmacy_shelving|clinic_instrument_cabinet|card_catalog|locker_row|lockers_lounge|shoe_rack|document_cabinet|wine_rack|pantry_shelving|safety_cabinet)/;
 const DOMESTIC_STORAGE_OVERRIDE = /(sideboard_buffet|credenza|dresser_wardrobe|media_console|nightstand_pair|wardrobe_armoire|bathroom_vanity|sideboard_modern|tv_stand|entertainment_center|linen_tower|closet_organizer)/;
+const SOFT_FURNITURE_OVERRIDE = /(ergonomic_office_chair|plush_armchair|sectional_sofa|bar_stool|platform_bed|love_seat|ottoman|daybed|bunk_bed|lobby_sofa|meeting_sofa|dining_booth)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -122,6 +123,9 @@ export function buildCinematicProductionProp(
   } else if (DOMESTIC_STORAGE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildDomesticStorageProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (SOFT_FURNITURE_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildSoftFurnitureProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1555,6 +1559,105 @@ function buildDomesticStorageProp(root: THREE.Group, key: string, b: Bounds, p: 
   for (const side of [-1, 1]) add([b.w * 0.07, b.h * 0.96, b.d * 0.7], [side * b.w * 0.43, b.h * 0.5, 0], p.wood, { name: 'linen-tower-side-panel', roughness: 0.74 });
   for (const y of [0.06, 0.27, 0.48, 0.69, 0.9]) add([b.w * 0.88, b.h * 0.05, b.d * 0.68], [0, b.h * y, 0], p.wood, { name: 'linen-tower-shelf', roughness: 0.74 });
   for (let shelf = 0; shelf < 4; shelf += 1) for (let towel = -1; towel <= 1; towel += 1) add([b.w * 0.22, b.h * 0.08, b.d * 0.38], [towel * b.w * 0.24, b.h * (0.14 + shelf * 0.21), b.d * 0.1], (towel + shelf) % 2 ? p.primary : p.light, { name: 'linen-tower-folded-towel', roughness: 0.94 });
+  void variant;
+}
+
+function buildSoftFurnitureProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('ergonomic_office_chair')) {
+    add([b.w * 0.54, b.h * 0.1, b.d * 0.54], [0, b.h * 0.52, 0], p.primary, { name: 'oc-contoured-seat', roughness: 0.88 });
+    add([b.w * 0.52, b.h * 0.46, b.d * 0.08], [0, b.h * 0.8, -b.d * 0.23], p.primary, { rotation: [-0.1, 0, 0], name: 'oc-mesh-back', roughness: 0.94 });
+    add([b.w * 0.06, b.h * 0.44, b.d * 0.06], [0, b.h * 0.3, 0], p.metal, { shape: 'cylinder', name: 'oc-gas-lift', metalness: 0.6 });
+    for (let spoke = 0; spoke < 5; spoke += 1) {
+      const angle = spoke / 5 * Math.PI * 2;
+      const x = Math.cos(angle) * b.w * 0.31;
+      const z = Math.sin(angle) * b.d * 0.31;
+      addBeamBetween(root, [0, b.h * 0.12, 0], [x, b.h * 0.08, z], b.w * 0.035, p.metal, 'oc-base-spoke');
+      add([b.w * 0.1, b.w * 0.1, b.w * 0.025], [x, b.h * 0.06, z], p.dark, { shape: 'torus', rotation: [Math.PI / 2, 0, angle], name: 'oc-caster-wheel' });
+    }
+    for (const side of [-1, 1]) {
+      add([b.w * 0.07, b.h * 0.07, b.d * 0.48], [side * b.w * 0.35, b.h * 0.68, 0], p.dark, { name: 'oc-adjustable-arm-pad', roughness: 0.82 });
+      add([b.w * 0.04, b.h * 0.22, b.d * 0.04], [side * b.w * 0.35, b.h * 0.57, 0], p.metal, { name: 'oc-arm-support', metalness: 0.5 });
+    }
+    add([b.w * 0.32, b.h * 0.16, b.d * 0.07], [0, b.h * 1.03, -b.d * 0.24], p.primary, { name: 'oc-adjustable-headrest', roughness: 0.88 });
+    return;
+  }
+  if (key.includes('plush_armchair')) {
+    add([b.w * 0.62, b.h * 0.14, b.d * 0.62], [0, b.h * 0.45, 0], p.primary, { name: 'plush-armchair-seat-cushion', roughness: 0.94 });
+    add([b.w * 0.62, b.h * 0.56, b.d * 0.14], [0, b.h * 0.76, -b.d * 0.25], p.primary, { rotation: [-0.08, 0, 0], name: 'plush-armchair-back-cushion', roughness: 0.94 });
+    for (const side of [-1, 1]) add([b.w * 0.16, b.h * 0.48, b.d * 0.66], [side * b.w * 0.39, b.h * 0.48, 0], p.secondary, { name: 'plush-armchair-rolled-arm', roughness: 0.94 });
+    for (const x of [-0.28, 0.28]) for (const z of [-0.23, 0.23]) add([b.w * 0.07, b.h * 0.24, b.d * 0.07], [x * b.w, b.h * 0.12, z * b.d], p.wood, { name: 'plush-armchair-wood-leg', roughness: 0.72 });
+    add([b.w * 0.48, b.h * 0.08, b.d * 0.48], [0, b.h * 0.57, b.d * 0.04], p.light, { name: 'plush-armchair-loose-cushion', roughness: 0.96 });
+    return;
+  }
+  if (key.includes('bar_stool')) {
+    add([b.w * 0.56, b.h * 0.12, b.d * 0.56], [0, b.h * 0.8, 0], p.primary, { shape: 'cylinder', name: 'bar-stool-padded-seat', roughness: 0.88 });
+    for (const x of [-0.2, 0.2]) for (const z of [-0.2, 0.2]) addBeamBetween(root, [x * b.w, 0, z * b.d], [x * b.w * 0.72, b.h * 0.76, z * b.d * 0.72], b.w * 0.035, p.metal, 'bar-stool-splayed-leg');
+    add([b.w * 0.48, b.w * 0.48, b.w * 0.025], [0, b.h * 0.35, 0], p.metal, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], name: 'bar-stool-foot-ring', metalness: 0.58 });
+    add([b.w * 0.42, b.h * 0.24, b.d * 0.07], [0, b.h * 1.0, -b.d * 0.2], p.primary, { name: 'bar-stool-low-back', roughness: 0.88 });
+    return;
+  }
+  if (key.includes('sectional_sofa')) {
+    add([b.w * 0.92, b.h * 0.2, b.d * 0.54], [0, b.h * 0.28, -b.d * 0.14], p.primary, { name: 'sectional-sofa-long-base', roughness: 0.92 });
+    add([b.w * 0.38, b.h * 0.2, b.d * 0.9], [-b.w * 0.28, b.h * 0.28, 0], p.primary, { name: 'sectional-sofa-chaise-base', roughness: 0.92 });
+    for (let cushion = -1; cushion <= 1; cushion += 1) {
+      add([b.w * 0.27, b.h * 0.1, b.d * 0.46], [cushion * b.w * 0.28, b.h * 0.44, -b.d * 0.12], cushion === -1 ? p.secondary : p.light, { name: 'sectional-sofa-seat-cushion', roughness: 0.96 });
+      add([b.w * 0.26, b.h * 0.36, b.d * 0.09], [cushion * b.w * 0.28, b.h * 0.68, -b.d * 0.37], cushion === -1 ? p.secondary : p.primary, { rotation: [-0.06, 0, 0], name: 'sectional-sofa-back-cushion', roughness: 0.96 });
+    }
+    add([b.w * 0.32, b.h * 0.1, b.d * 0.62], [-b.w * 0.28, b.h * 0.44, b.d * 0.18], p.light, { name: 'sectional-sofa-chaise-cushion', roughness: 0.96 });
+    for (const side of [-1, 1]) add([b.w * 0.12, b.h * 0.4, b.d * 0.62], [side * b.w * 0.48, b.h * 0.39, -b.d * 0.12], p.primary, { name: 'sectional-sofa-arm', roughness: 0.92 });
+    return;
+  }
+  if (key.includes('dining_booth')) {
+    for (const z of [-1, 1]) {
+      add([b.w * 0.86, b.h * 0.12, b.d * 0.28], [0, b.h * 0.4, z * b.d * 0.33], p.primary, { name: 'dining-booth-bench-seat', roughness: 0.94 });
+      add([b.w * 0.86, b.h * 0.5, b.d * 0.08], [0, b.h * 0.68, z * b.d * 0.46], p.secondary, { name: 'dining-booth-tufted-back', roughness: 0.94 });
+    }
+    add([b.w * 0.66, b.h * 0.06, b.d * 0.46], [0, b.h * 0.55, 0], p.wood, { name: 'dining-booth-center-table', roughness: 0.7 });
+    add([b.w * 0.08, b.h * 0.5, b.d * 0.08], [0, b.h * 0.28, 0], p.metal, { name: 'dining-booth-table-pedestal', metalness: 0.52 });
+    return;
+  }
+  if (key.includes('bunk_bed')) {
+    for (const y of [0.3, 0.76]) {
+      add([b.w * 0.88, b.h * 0.1, b.d * 0.7], [0, b.h * y, 0], p.wood, { name: 'bunk-bed-frame-rail', roughness: 0.74 });
+      add([b.w * 0.8, b.h * 0.12, b.d * 0.62], [0, b.h * (y + 0.1), 0], p.light, { name: 'bunk-bed-mattress', roughness: 0.94 });
+    }
+    for (const x of [-0.42, 0.42]) for (const z of [-0.32, 0.32]) add([b.w * 0.06, b.h * 0.96, b.d * 0.06], [x * b.w, b.h * 0.5, z * b.d], p.wood, { name: 'bunk-bed-corner-post', roughness: 0.74 });
+    for (const x of [0.18, 0.46]) add([b.w * 0.04, b.h * 0.82, b.d * 0.04], [x * b.w, b.h * 0.46, b.d * 0.38], p.metal, { name: 'bunk-bed-ladder-side-rail', metalness: 0.48 });
+    for (let rung = 0; rung < 5; rung += 1) add([b.w * 0.28, b.h * 0.035, b.d * 0.035], [b.w * 0.32, b.h * (0.16 + rung * 0.16), b.d * 0.38], p.metal, { name: 'bunk-bed-ladder-rung', metalness: 0.48 });
+    add([b.w * 0.78, b.h * 0.06, b.d * 0.05], [0, b.h * 0.96, b.d * 0.31], p.wood, { name: 'bunk-bed-upper-guard-rail', roughness: 0.74 });
+    return;
+  }
+  if (/(platform_bed|daybed)/.test(key)) {
+    const daybed = key.includes('daybed');
+    add([b.w * 0.92, b.h * 0.2, b.d * 0.8], [0, b.h * 0.18, 0], p.wood, { name: daybed ? 'daybed-frame-base' : 'platform-bed-frame-base', roughness: 0.72 });
+    add([b.w * 0.84, b.h * 0.16, b.d * 0.72], [0, b.h * 0.34, 0], p.light, { name: daybed ? 'daybed-mattress' : 'platform-bed-mattress', roughness: 0.94 });
+    add([b.w * 0.86, b.h * 0.5, b.d * 0.1], [0, b.h * 0.62, -b.d * 0.36], daybed ? p.primary : p.wood, { name: daybed ? 'daybed-upholstered-back' : 'platform-bed-headboard', roughness: daybed ? 0.94 : 0.72 });
+    for (const side of [-1, 1]) add([b.w * 0.34, b.h * 0.09, b.d * 0.26], [side * b.w * 0.21, b.h * 0.47, -b.d * 0.22], p.light, { name: 'bed-sleeping-pillow', roughness: 0.96 });
+    add([b.w * 0.78, b.h * 0.04, b.d * 0.36], [0, b.h * 0.48, b.d * 0.16], p.secondary, { name: 'bed-folded-blanket', roughness: 0.96 });
+    if (daybed) for (const side of [-1, 1]) add([b.w * 0.1, b.h * 0.42, b.d * 0.72], [side * b.w * 0.44, b.h * 0.42, 0], p.primary, { name: 'daybed-side-arm', roughness: 0.94 });
+    return;
+  }
+  if (key.includes('ottoman')) {
+    add([b.w * 0.82, b.h * 0.38, b.d * 0.76], [0, b.h * 0.24, 0], p.primary, { name: 'ottoman-upholstered-body', roughness: 0.94 });
+    add([b.w * 0.76, b.h * 0.1, b.d * 0.7], [0, b.h * 0.47, 0], p.light, { name: 'ottoman-loose-top-cushion', roughness: 0.96 });
+    for (const x of [-0.32, 0.32]) for (const z of [-0.28, 0.28]) add([b.w * 0.06, b.h * 0.18, b.d * 0.06], [x * b.w, b.h * 0.09, z * b.d], p.wood, { name: 'ottoman-short-leg', roughness: 0.72 });
+    for (const x of [-0.24, 0, 0.24]) add([b.w * 0.035, b.h * 0.018, b.d * 0.035], [x * b.w, b.h * 0.53, 0], p.dark, { name: 'ottoman-tuft-button' });
+    return;
+  }
+
+  const loveSeat = key.includes('love_seat');
+  const seatCount = loveSeat ? 2 : 3;
+  add([b.w * 0.9, b.h * 0.22, b.d * 0.7], [0, b.h * 0.26, 0], p.primary, { name: 'sofa-upholstered-base', roughness: 0.92 });
+  for (let seat = 0; seat < seatCount; seat += 1) {
+    const x = (seat - (seatCount - 1) / 2) * b.w * (loveSeat ? 0.32 : 0.27);
+    add([b.w * (loveSeat ? 0.3 : 0.25), b.h * 0.11, b.d * 0.56], [x, b.h * 0.45, 0], seat % 2 ? p.light : p.primary, { name: 'sofa-removable-seat-cushion', roughness: 0.96 });
+    add([b.w * (loveSeat ? 0.3 : 0.25), b.h * 0.42, b.d * 0.1], [x, b.h * 0.69, -b.d * 0.29], seat % 2 ? p.primary : p.secondary, { rotation: [-0.06, 0, 0], name: 'sofa-removable-back-cushion', roughness: 0.96 });
+  }
+  for (const side of [-1, 1]) {
+    add([b.w * 0.14, b.h * 0.46, b.d * 0.72], [side * b.w * 0.48, b.h * 0.42, 0], p.primary, { name: 'sofa-padded-arm', roughness: 0.92 });
+    add([b.w * 0.08, b.h * 0.18, b.d * 0.08], [side * b.w * 0.38, b.h * 0.09, 0], p.wood, { name: 'sofa-raised-leg', roughness: 0.72 });
+  }
   void variant;
 }
 

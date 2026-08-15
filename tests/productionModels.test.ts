@@ -446,6 +446,28 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_ergonomic_office_chair', ['oc-gas-lift', 'oc-adjustable-headrest']],
+    ['cine_prop_plush_armchair', ['plush-armchair-seat-cushion', 'plush-armchair-rolled-arm']],
+    ['cine_prop_sectional_sofa', ['sectional-sofa-long-base', 'sectional-sofa-chaise-cushion']],
+    ['cine_prop_bar_stool', ['bar-stool-splayed-leg', 'bar-stool-foot-ring']],
+    ['cine_prop_platform_bed', ['platform-bed-mattress', 'platform-bed-headboard']],
+    ['cine_prop_love_seat', ['sofa-removable-seat-cushion', 'sofa-padded-arm']],
+    ['cine_prop_ottoman', ['ottoman-loose-top-cushion', 'ottoman-tuft-button']],
+    ['cine_prop_daybed', ['daybed-upholstered-back', 'daybed-side-arm']],
+    ['cine_prop_bunk_bed', ['bunk-bed-ladder-rung', 'bunk-bed-upper-guard-rail']],
+    ['cine_prop_lobby_sofa', ['sofa-removable-back-cushion', 'sofa-raised-leg']],
+    ['cine_prop_meeting_sofa', ['sofa-upholstered-base', 'sofa-padded-arm']],
+    ['cine_prop_dining_booth', ['dining-booth-bench-seat', 'dining-booth-center-table']],
+  ] as const)('rebuilds soft furniture %s with coherent upholstery and support', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#6d7e68', '#80634b', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {
