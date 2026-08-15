@@ -39,6 +39,7 @@ const GREENSPACE_UTILITY_OVERRIDE = /(watering_cart|compost_bin|compost_tumbler|
 const OUTLIER_OVERRIDE = /(fire_extinguisher_post|playpen|elevator_bank_doors|fish_tank_stand|umbrella_table|high_chair|soaking_tub|rocking_chair)/;
 const RETAIL_OVERRIDE = /(concession_stand|ticket_booth|shop_mannequin|mannequin_pair|clothing_rack|produce_bin|freezer_island|soda_fountain|food_truck_counter|hat_rack|deli_warmer|coffee_bar)/;
 const KITCHEN_BATH_OVERRIDE = /(kitchen_appliance_suite|pedestal_sink|shower_stall|espresso_machine|bar_counter|kitchen_cart|microwave_cart|espresso_bar|bath_caddy|ironing_board|play_kitchen|dish_rack|changing_table|towel_rack)/;
+const CEREMONIAL_OVERRIDE = /(podium|pulpit|candle_rack|voting_booth|ballot_box|flag_stand|registry_desk|ceremonial_stage|lantern_post)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -102,6 +103,9 @@ export function buildCinematicProductionProp(
   } else if (KITCHEN_BATH_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildKitchenBathProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (CEREMONIAL_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildCeremonialProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -1089,6 +1093,80 @@ function buildKitchenBathProp(root: THREE.Group, key: string, b: Bounds, p: Pale
   add([b.w * 0.32, b.h * 0.08, b.d * 0.28], [b.w * 0.22, b.h * 0.87, b.d * 0.12], p.light, { name: 'play-kitchen-sink-basin' });
   addBeamBetween(root, [b.w * 0.22, b.h * 0.94, 0], [b.w * 0.22, b.h * 1.08, b.d * 0.12], b.w * 0.025, p.metal, 'play-kitchen-faucet');
   for (let knob = -2; knob <= 2; knob += 1) add([b.w * 0.07, b.h * 0.07, b.d * 0.035], [knob * b.w * 0.12, b.h * 0.62, b.d * 0.38], knob % 2 ? p.secondary : p.light, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'play-kitchen-control-knob' });
+  void variant;
+}
+
+function buildCeremonialProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('candle_rack')) {
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.88, b.d * 0.055], [side * b.w * 0.43, b.h * 0.46, 0], p.metal, { name: 'candle-rack-upright', metalness: 0.58 });
+    for (const y of [0.2, 0.46, 0.72]) {
+      add([b.w * 0.9, b.h * 0.04, b.d * 0.46], [0, b.h * y, 0], p.metal, { name: 'candle-rack-votive-shelf', metalness: 0.52 });
+      for (let candle = -4; candle <= 4; candle += 1) {
+        const x = candle * b.w * 0.09;
+        add([b.w * 0.055, b.h * 0.12, b.d * 0.055], [x, b.h * (y + 0.08), 0], candle % 2 ? '#eee5cc' : '#d6c49b', { shape: 'cylinder', name: 'candle-rack-votive-candle', roughness: 0.92 });
+        add([b.w * 0.03, b.h * 0.055, b.d * 0.03], [x, b.h * (y + 0.17), 0], '#f0a342', { shape: 'cone', name: 'candle-rack-flame', emissive: '#f0a342', emissiveIntensity: 0.58 });
+      }
+    }
+    return;
+  }
+  if (key.includes('voting_booth')) {
+    for (const x of [-0.43, 0.43]) for (const z of [-0.32, 0.32]) add([b.w * 0.045, b.h * 0.94, b.d * 0.045], [x * b.w, b.h * 0.5, z * b.d], p.metal, { name: 'voting-booth-frame-post', metalness: 0.5 });
+    for (const side of [-1, 1]) add([b.w * 0.04, b.h * 0.78, b.d * 0.62], [side * b.w * 0.43, b.h * 0.55, 0], p.primary, { name: 'voting-booth-privacy-panel', roughness: 0.88 });
+    add([b.w * 0.82, b.h * 0.72, b.d * 0.035], [0, b.h * 0.58, -b.d * 0.32], p.primary, { name: 'voting-booth-back-curtain', roughness: 0.92 });
+    add([b.w * 0.76, b.h * 0.055, b.d * 0.52], [0, b.h * 0.48, 0], p.wood, { name: 'voting-booth-writing-shelf', roughness: 0.76 });
+    add([b.w * 0.32, b.h * 0.025, b.d * 0.26], [0, b.h * 0.52, 0], p.light, { name: 'voting-booth-ballot-paper', roughness: 0.94 });
+    return;
+  }
+  if (key.includes('ballot_box')) {
+    add([b.w * 0.78, b.h * 0.68, b.d * 0.76], [0, b.h * 0.38, 0], p.glass, { name: 'ballot-box-transparent-body', opacity: 0.3, roughness: 0.1 });
+    for (const x of [-0.38, 0.38]) for (const z of [-0.36, 0.36]) add([b.w * 0.045, b.h * 0.7, b.d * 0.045], [x * b.w, b.h * 0.38, z * b.d], p.metal, { name: 'ballot-box-security-frame', metalness: 0.5 });
+    add([b.w * 0.86, b.h * 0.08, b.d * 0.82], [0, b.h * 0.76, 0], p.primary, { name: 'ballot-box-sealed-lid' });
+    add([b.w * 0.44, b.h * 0.025, b.d * 0.08], [0, b.h * 0.81, 0], p.dark, { name: 'ballot-box-paper-slot' });
+    for (let paper = -2; paper <= 2; paper += 1) add([b.w * 0.35, b.h * 0.02, b.d * 0.25], [paper * b.w * 0.05, b.h * (0.12 + paper * 0.03), paper * b.d * 0.04], p.light, { rotation: [0, paper * 0.08, paper * 0.03], name: 'ballot-box-cast-ballot' });
+    return;
+  }
+  if (key.includes('flag_stand')) {
+    add([b.w * 0.58, b.h * 0.06, b.d * 0.58], [0, b.h * 0.04, 0], p.metal, { shape: 'cylinder', name: 'flag-stand-weighted-base', metalness: 0.58 });
+    add([b.w * 0.055, b.h * 0.92, b.d * 0.055], [0, b.h * 0.5, 0], p.metal, { shape: 'cylinder', name: 'flag-stand-pole', metalness: 0.68 });
+    add([b.w * 0.64, b.h * 0.5, b.d * 0.035], [b.w * 0.32, b.h * 0.74, 0], p.primary, { rotation: [0, 0, -0.05], name: 'flag-stand-draped-flag', roughness: 0.92 });
+    add([b.w * 0.22, b.h * 0.18, b.d * 0.025], [b.w * 0.31, b.h * 0.76, b.d * 0.025], p.secondary, { name: 'flag-stand-emblem-panel', roughness: 0.88 });
+    add([b.w * 0.1, b.h * 0.1, b.d * 0.1], [0, b.h * 0.98, 0], '#a77a34', { shape: 'cone', name: 'flag-stand-pole-cap', metalness: 0.7 });
+    return;
+  }
+  if (key.includes('registry_desk')) {
+    add([b.w * 0.94, b.h * 0.08, b.d * 0.78], [0, b.h * 0.56, 0], p.wood, { name: 'registry-desk-writing-top', roughness: 0.72 });
+    for (const x of [-0.4, 0.4]) for (const z of [-0.3, 0.3]) add([b.w * 0.055, b.h * 0.54, b.d * 0.055], [x * b.w, b.h * 0.28, z * b.d], p.wood, { name: 'registry-desk-square-leg', roughness: 0.76 });
+    add([b.w * 0.5, b.h * 0.035, b.d * 0.42], [-b.w * 0.12, b.h * 0.64, 0], p.light, { rotation: [-0.1, 0.08, 0], name: 'registry-desk-open-ledger', roughness: 0.92 });
+    addBeamBetween(root, [b.w * 0.2, b.h * 0.62, 0], [b.w * 0.34, b.h * 0.82, b.d * 0.04], b.w * 0.018, p.dark, 'registry-desk-writing-quill');
+    add([b.w * 0.16, b.h * 0.13, b.d * 0.16], [b.w * 0.34, b.h * 0.65, 0], p.secondary, { shape: 'cylinder', name: 'registry-desk-inkwell' });
+    return;
+  }
+  if (key.includes('ceremonial_stage')) {
+    for (let step = 0; step < 3; step += 1) add([b.w * (0.98 - step * 0.13), b.h * 0.12, b.d * (0.9 - step * 0.16)], [0, b.h * (0.06 + step * 0.12), -b.d * step * 0.04], step === 2 ? p.primary : p.wood, { name: 'ceremonial-stage-tier', roughness: 0.74 });
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.58, b.d * 0.055], [side * b.w * 0.43, b.h * 0.64, -b.d * 0.34], p.metal, { name: 'ceremonial-stage-backdrop-post', metalness: 0.48 });
+    add([b.w * 0.88, b.h * 0.48, b.d * 0.035], [0, b.h * 0.72, -b.d * 0.34], p.secondary, { name: 'ceremonial-stage-draped-backdrop', roughness: 0.92 });
+    add([b.w * 0.3, b.h * 0.38, b.d * 0.28], [0, b.h * 0.54, 0], p.wood, { name: 'ceremonial-stage-center-lectern' });
+    return;
+  }
+  if (key.includes('lantern_post')) {
+    add([b.w * 0.62, b.h * 0.06, b.d * 0.62], [0, b.h * 0.04, 0], p.dark, { shape: 'cylinder', name: 'lantern-post-base', metalness: 0.52 });
+    add([b.w * 0.09, b.h * 0.72, b.d * 0.09], [0, b.h * 0.42, 0], p.metal, { shape: 'cylinder', name: 'lantern-post-column', metalness: 0.62 });
+    for (const x of [-0.22, 0.22]) for (const z of [-0.22, 0.22]) add([b.w * 0.035, b.h * 0.32, b.d * 0.035], [x * b.w, b.h * 0.82, z * b.d], p.metal, { name: 'lantern-post-lamp-frame', metalness: 0.6 });
+    add([b.w * 0.42, b.h * 0.28, b.d * 0.42], [0, b.h * 0.82, 0], '#f1bd59', { name: 'lantern-post-glowing-glass', opacity: 0.58, emissive: '#f1bd59', emissiveIntensity: 0.52 });
+    add([b.w * 0.58, b.h * 0.12, b.d * 0.58], [0, b.h * 1.02, 0], p.dark, { shape: 'cone', name: 'lantern-post-weather-cap', metalness: 0.48 });
+    return;
+  }
+
+  const pulpit = key.includes('pulpit');
+  add([b.w * (pulpit ? 0.78 : 0.58), b.h * 0.68, b.d * (pulpit ? 0.62 : 0.48)], [0, b.h * 0.36, 0], p.wood, { rotation: [0, 0, pulpit ? 0 : -0.04], name: pulpit ? 'pulpit-paneled-body' : 'podium-lectern-body', roughness: 0.72 });
+  add([b.w * (pulpit ? 0.86 : 0.68), b.h * 0.08, b.d * 0.52], [0, b.h * 0.75, b.d * 0.02], p.wood, { rotation: [-0.14, 0, 0], name: pulpit ? 'pulpit-sloped-book-rest' : 'podium-sloped-notes-rest', roughness: 0.7 });
+  add([b.w * 0.42, b.h * 0.03, b.d * 0.32], [0, b.h * 0.81, b.d * 0.04], p.light, { rotation: [-0.14, 0, 0], name: pulpit ? 'pulpit-open-book' : 'podium-speaker-notes', roughness: 0.92 });
+  addBeamBetween(root, [b.w * 0.22, b.h * 0.78, 0], [b.w * 0.34, b.h * 0.98, b.d * 0.08], b.w * 0.018, p.dark, pulpit ? 'pulpit-reading-lamp' : 'podium-gooseneck-microphone');
+  if (pulpit) {
+    add([b.w * 0.92, b.h * 0.08, b.d * 0.84], [0, b.h * 0.05, 0], p.wood, { name: 'pulpit-raised-platform', roughness: 0.76 });
+    for (const side of [-1, 1]) add([b.w * 0.06, b.h * 0.46, b.d * 0.06], [side * b.w * 0.42, b.h * 0.32, -b.d * 0.25], p.wood, { name: 'pulpit-side-rail-post' });
+  }
   void variant;
 }
 

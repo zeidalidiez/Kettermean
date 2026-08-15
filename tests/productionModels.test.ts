@@ -331,6 +331,25 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_podium', ['podium-sloped-notes-rest', 'podium-gooseneck-microphone']],
+    ['cine_prop_pulpit', ['pulpit-open-book', 'pulpit-raised-platform']],
+    ['cine_prop_candle_rack', ['candle-rack-votive-candle', 'candle-rack-flame']],
+    ['cine_prop_voting_booth', ['voting-booth-privacy-panel', 'voting-booth-ballot-paper']],
+    ['cine_prop_ballot_box', ['ballot-box-paper-slot', 'ballot-box-cast-ballot']],
+    ['cine_prop_flag_stand', ['flag-stand-draped-flag', 'flag-stand-emblem-panel']],
+    ['cine_prop_registry_desk', ['registry-desk-open-ledger', 'registry-desk-writing-quill']],
+    ['cine_prop_ceremonial_stage', ['ceremonial-stage-tier', 'ceremonial-stage-draped-backdrop']],
+    ['cine_prop_lantern_post', ['lantern-post-lamp-frame', 'lantern-post-glowing-glass']],
+  ] as const)('gives ceremonial fixture %s object-specific construction', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#75584a', '#8b6b4f', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {
