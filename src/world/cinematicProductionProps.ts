@@ -38,6 +38,7 @@ const GREENSPACE_STRUCTURE_OVERRIDE = /(rose_arbor|garden_obelisk|beach_umbrella
 const GREENSPACE_UTILITY_OVERRIDE = /(watering_cart|compost_bin|compost_tumbler|rain_barrel|garden_tool_rack|wheelbarrow|sprinkler|soaker_hose_rack|sundial|garden_gnome|thermometer_post)/;
 const OUTLIER_OVERRIDE = /(fire_extinguisher_post|playpen|elevator_bank_doors|fish_tank_stand|umbrella_table|high_chair|soaking_tub|rocking_chair)/;
 const RETAIL_OVERRIDE = /(concession_stand|ticket_booth|shop_mannequin|mannequin_pair|clothing_rack|produce_bin|freezer_island|soda_fountain|food_truck_counter|hat_rack|deli_warmer|coffee_bar)/;
+const KITCHEN_BATH_OVERRIDE = /(kitchen_appliance_suite|pedestal_sink|shower_stall|espresso_machine|bar_counter|kitchen_cart|microwave_cart|espresso_bar|bath_caddy|ironing_board|play_kitchen|dish_rack|changing_table|towel_rack)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -98,6 +99,9 @@ export function buildCinematicProductionProp(
   } else if (RETAIL_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildRetailProp(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (KITCHEN_BATH_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildKitchenBathProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -965,6 +969,129 @@ function buildRetailProp(root: THREE.Group, key: string, b: Bounds, p: Palette, 
   void variant;
 }
 
+function buildKitchenBathProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('kitchen_appliance_suite')) {
+    add([b.w * 0.34, b.h * 0.9, b.d * 0.72], [-b.w * 0.31, b.h * 0.47, 0], p.light, { name: 'appliance-suite-refrigerator-body', metalness: 0.34, roughness: 0.32 });
+    add([b.w * 0.28, b.h * 0.015, b.d * 0.04], [-b.w * 0.31, b.h * 0.55, b.d * 0.37], p.dark, { name: 'appliance-suite-refrigerator-seam' });
+    add([b.w * 0.035, b.h * 0.28, b.d * 0.035], [-b.w * 0.18, b.h * 0.66, b.d * 0.39], p.metal, { name: 'appliance-suite-refrigerator-handle', metalness: 0.6 });
+    add([b.w * 0.34, b.h * 0.58, b.d * 0.7], [b.w * 0.1, b.h * 0.31, 0], p.dark, { name: 'appliance-suite-oven-range' });
+    add([b.w * 0.27, b.h * 0.27, b.d * 0.025], [b.w * 0.1, b.h * 0.28, b.d * 0.36], p.glass, { name: 'appliance-suite-oven-window', opacity: 0.68, roughness: 0.08 });
+    for (const x of [0.02, 0.18]) for (const z of [-0.16, 0.16]) add([b.w * 0.11, b.h * 0.025, b.d * 0.11], [x * b.w, b.h * 0.62, z * b.d], p.metal, { shape: 'cylinder', name: 'appliance-suite-cooktop-burner', metalness: 0.58 });
+    add([b.w * 0.32, b.h * 0.28, b.d * 0.62], [b.w * 0.32, b.h * 0.77, 0], p.light, { name: 'appliance-suite-wall-microwave', metalness: 0.28 });
+    add([b.w * 0.22, b.h * 0.17, b.d * 0.025], [b.w * 0.28, b.h * 0.77, b.d * 0.32], p.glass, { name: 'appliance-suite-microwave-door', opacity: 0.62 });
+    return;
+  }
+  if (key.includes('pedestal_sink')) {
+    add([b.w * 0.3, b.h * 0.62, b.d * 0.3], [0, b.h * 0.34, 0], p.light, { shape: 'cylinder', name: 'pedestal-sink-column', roughness: 0.3 });
+    add([b.w * 0.76, b.h * 0.18, b.d * 0.62], [0, b.h * 0.7, 0], p.light, { name: 'pedestal-sink-basin', roughness: 0.25 });
+    add([b.w * 0.56, b.h * 0.025, b.d * 0.4], [0, b.h * 0.79, 0], '#91bac4', { name: 'pedestal-sink-basin-water', opacity: 0.42, roughness: 0.1 });
+    add([b.w * 0.07, b.h * 0.26, b.d * 0.07], [0, b.h * 0.91, -b.d * 0.18], p.metal, { shape: 'cylinder', name: 'pedestal-sink-faucet-riser', metalness: 0.68 });
+    addBeamBetween(root, [0, b.h * 1.02, -b.d * 0.18], [0, b.h * 0.94, 0], b.w * 0.035, p.metal, 'pedestal-sink-faucet-spout');
+    for (const side of [-1, 1]) add([b.w * 0.11, b.h * 0.04, b.d * 0.04], [side * b.w * 0.19, b.h * 0.84, -b.d * 0.17], side < 0 ? '#477bb2' : '#b34c3f', { name: 'pedestal-sink-tap-handle', metalness: 0.4 });
+    return;
+  }
+  if (key.includes('shower_stall')) {
+    add([b.w * 0.9, b.h * 0.08, b.d * 0.86], [0, b.h * 0.05, 0], p.light, { name: 'shower-stall-drain-pan', roughness: 0.3 });
+    for (const x of [-0.43, 0.43]) for (const z of [-0.4, 0.4]) add([b.w * 0.035, b.h * 0.92, b.d * 0.035], [x * b.w, b.h * 0.5, z * b.d], p.metal, { name: 'shower-stall-frame-post', metalness: 0.58 });
+    add([b.w * 0.82, b.h * 0.84, b.d * 0.025], [0, b.h * 0.51, b.d * 0.41], p.glass, { name: 'shower-stall-glass-door', opacity: 0.22, roughness: 0.06 });
+    add([b.w * 0.025, b.h * 0.84, b.d * 0.76], [-b.w * 0.43, b.h * 0.51, 0], p.glass, { name: 'shower-stall-side-glass', opacity: 0.2, roughness: 0.06 });
+    add([b.w * 0.06, b.h * 0.72, b.d * 0.06], [b.w * 0.3, b.h * 0.58, -b.d * 0.34], p.metal, { shape: 'cylinder', name: 'shower-stall-riser-pipe', metalness: 0.65 });
+    add([b.w * 0.28, b.h * 0.06, b.d * 0.28], [b.w * 0.3, b.h * 0.9, -b.d * 0.22], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'shower-stall-rain-head', metalness: 0.66 });
+    add([b.w * 0.16, b.h * 0.16, b.d * 0.04], [b.w * 0.3, b.h * 0.46, -b.d * 0.38], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'shower-stall-control-valve', metalness: 0.64 });
+    return;
+  }
+  if (key.includes('espresso_bar')) {
+    buildRetailProp(root, 'coffee_bar', b, p, variant);
+    return;
+  }
+  if (key.includes('espresso_machine')) {
+    add([b.w * 0.86, b.h * 0.62, b.d * 0.74], [0, b.h * 0.4, 0], p.metal, { name: 'espresso-machine-boiler-housing', metalness: 0.58, roughness: 0.28 });
+    add([b.w * 0.72, b.h * 0.18, b.d * 0.04], [0, b.h * 0.62, b.d * 0.38], p.dark, { name: 'espresso-machine-control-panel' });
+    for (const side of [-1, 1]) {
+      add([b.w * 0.14, b.h * 0.12, b.d * 0.14], [side * b.w * 0.2, b.h * 0.45, b.d * 0.38], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'espresso-machine-group-head', metalness: 0.64 });
+      add([b.w * 0.3, b.h * 0.035, b.d * 0.035], [side * b.w * 0.3, b.h * 0.45, b.d * 0.42], p.dark, { name: 'espresso-machine-portafilter' });
+    }
+    add([b.w * 0.7, b.h * 0.05, b.d * 0.4], [0, b.h * 0.18, b.d * 0.12], p.metal, { name: 'espresso-machine-drip-tray', metalness: 0.62 });
+    addBeamBetween(root, [b.w * 0.34, b.h * 0.52, b.d * 0.3], [b.w * 0.42, b.h * 0.24, b.d * 0.34], b.w * 0.025, p.metal, 'espresso-machine-steam-wand');
+    return;
+  }
+  if (key.includes('bar_counter')) {
+    add([b.w * 0.94, b.h * 0.64, b.d * 0.78], [0, b.h * 0.34, 0], p.wood, { name: 'bar-counter-paneled-front', roughness: 0.76 });
+    add([b.w * 1.0, b.h * 0.07, b.d * 0.86], [0, b.h * 0.69, 0], p.light, { name: 'bar-counter-serving-top', roughness: 0.3 });
+    add([b.w * 0.72, b.h * 0.045, b.d * 0.045], [0, b.h * 0.22, b.d * 0.42], p.metal, { name: 'bar-counter-brass-foot-rail', metalness: 0.7 });
+    for (let bottle = -3; bottle <= 3; bottle += 1) add([b.w * 0.06, b.h * (0.18 + (bottle + 3) % 3 * 0.04), b.d * 0.06], [bottle * b.w * 0.1, b.h * 0.82, -b.d * 0.2], bottle % 2 ? '#5b7652' : '#8c5a45', { shape: 'cylinder', name: 'bar-counter-bottle' });
+    return;
+  }
+  if (/(kitchen_cart|microwave_cart)/.test(key)) {
+    for (const x of [-0.4, 0.4]) for (const z of [-0.3, 0.3]) {
+      add([b.w * 0.045, b.h * 0.62, b.d * 0.045], [x * b.w, b.h * 0.33, z * b.d], p.metal, { name: 'kitchen-cart-frame-post', metalness: 0.52 });
+      add([b.w * 0.11, b.w * 0.05, b.w * 0.11], [x * b.w, b.h * 0.04, z * b.d], p.dark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'kitchen-cart-caster' });
+    }
+    for (const y of [0.22, 0.48, 0.68]) add([b.w * 0.9, b.h * 0.055, b.d * 0.72], [0, b.h * y, 0], y === 0.68 ? p.wood : p.metal, { name: 'kitchen-cart-shelf', metalness: y === 0.68 ? 0.08 : 0.44 });
+    if (key.includes('microwave')) {
+      add([b.w * 0.68, b.h * 0.32, b.d * 0.54], [0, b.h * 0.86, 0], p.light, { name: 'microwave-cart-oven-body', metalness: 0.26 });
+      add([b.w * 0.44, b.h * 0.22, b.d * 0.025], [-b.w * 0.08, b.h * 0.86, b.d * 0.28], p.glass, { name: 'microwave-cart-oven-door', opacity: 0.66 });
+      for (let keyButton = 0; keyButton < 6; keyButton += 1) add([b.w * 0.035, b.h * 0.025, b.d * 0.02], [b.w * (0.24 + keyButton % 2 * 0.05), b.h * (0.8 + Math.floor(keyButton / 2) * 0.05), b.d * 0.29], p.dark, { name: 'microwave-cart-keypad-button' });
+    } else {
+      add([b.w * 0.48, b.h * 0.04, b.d * 0.34], [0, b.h * 0.74, 0], p.light, { name: 'kitchen-cart-cutting-board' });
+      for (const side of [-1, 1]) add([b.w * 0.16, b.h * 0.13, b.d * 0.16], [side * b.w * 0.22, b.h * 0.58, 0], p.primary, { shape: 'cylinder', name: 'kitchen-cart-cookware' });
+    }
+    return;
+  }
+  if (key.includes('bath_caddy')) {
+    add([b.w * 0.94, b.h * 0.09, b.d * 0.5], [0, b.h * 0.22, 0], p.wood, { name: 'bath-caddy-spanning-tray', roughness: 0.72 });
+    for (const side of [-1, 1]) add([b.w * 0.12, b.h * 0.2, b.d * 0.12], [side * b.w * 0.3, b.h * 0.35, 0], side < 0 ? p.light : p.secondary, { shape: 'cylinder', name: side < 0 ? 'bath-caddy-candle' : 'bath-caddy-bottle' });
+    add([b.w * 0.34, b.h * 0.035, b.d * 0.32], [0, b.h * 0.38, 0], p.light, { rotation: [-0.4, 0, 0], name: 'bath-caddy-open-book', roughness: 0.9 });
+    add([b.w * 0.36, b.h * 0.05, b.d * 0.06], [0, b.h * 0.3, -b.d * 0.16], p.wood, { name: 'bath-caddy-book-rest' });
+    return;
+  }
+  if (key.includes('ironing_board')) {
+    add([b.w * 0.92, b.h * 0.09, b.d * 0.42], [0, b.h * 0.72, 0], p.primary, { name: 'ironing-board-padded-surface', roughness: 0.86 });
+    addBeamBetween(root, [-b.w * 0.34, 0, -b.d * 0.18], [b.w * 0.24, b.h * 0.68, b.d * 0.18], b.w * 0.035, p.metal, 'ironing-board-cross-leg');
+    addBeamBetween(root, [b.w * 0.34, 0, -b.d * 0.18], [-b.w * 0.24, b.h * 0.68, b.d * 0.18], b.w * 0.035, p.metal, 'ironing-board-cross-leg');
+    add([b.w * 0.24, b.h * 0.16, b.d * 0.24], [b.w * 0.22, b.h * 0.86, 0], p.light, { rotation: [0, 0, -0.18], name: 'ironing-board-steam-iron', metalness: 0.32 });
+    add([b.w * 0.16, b.h * 0.04, b.d * 0.08], [b.w * 0.34, b.h * 0.82, 0], p.dark, { name: 'ironing-board-iron-handle' });
+    return;
+  }
+  if (key.includes('dish_rack')) {
+    add([b.w * 0.9, b.h * 0.06, b.d * 0.7], [0, b.h * 0.05, 0], p.metal, { name: 'dish-rack-drain-tray', metalness: 0.45 });
+    for (let slot = -4; slot <= 4; slot += 1) {
+      const x = slot * b.w * 0.085;
+      addBeamBetween(root, [x, b.h * 0.08, -b.d * 0.26], [x, b.h * 0.4, 0], b.w * 0.012, p.metal, 'dish-rack-plate-divider');
+      addBeamBetween(root, [x, b.h * 0.4, 0], [x, b.h * 0.08, b.d * 0.26], b.w * 0.012, p.metal, 'dish-rack-plate-divider');
+      add([b.w * 0.24, b.w * 0.025, b.w * 0.24], [x, b.h * 0.28, 0], p.light, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'dish-rack-drying-plate', roughness: 0.28 });
+    }
+    add([b.w * 0.18, b.h * 0.26, b.d * 0.22], [b.w * 0.38, b.h * 0.19, b.d * 0.2], p.primary, { name: 'dish-rack-cutlery-basket' });
+    for (let utensil = 0; utensil < 4; utensil += 1) add([b.w * 0.018, b.h * 0.3, b.d * 0.018], [b.w * (0.33 + utensil * 0.035), b.h * 0.38, b.d * 0.2], p.metal, { name: 'dish-rack-drying-utensil', metalness: 0.6 });
+    return;
+  }
+  if (key.includes('changing_table')) {
+    add([b.w * 0.9, b.h * 0.12, b.d * 0.78], [0, b.h * 0.74, 0], p.light, { name: 'changing-table-padded-mat', roughness: 0.9 });
+    for (const x of [-0.4, 0.4]) for (const z of [-0.32, 0.32]) add([b.w * 0.05, b.h * 0.7, b.d * 0.05], [x * b.w, b.h * 0.36, z * b.d], p.wood, { name: 'changing-table-frame-leg', roughness: 0.76 });
+    for (const y of [0.18, 0.46]) add([b.w * 0.82, b.h * 0.05, b.d * 0.66], [0, b.h * y, 0], p.wood, { name: 'changing-table-storage-shelf', roughness: 0.78 });
+    for (let diaper = -2; diaper <= 2; diaper += 1) add([b.w * 0.13, b.h * 0.07, b.d * 0.16], [diaper * b.w * 0.14, b.h * 0.26, 0], p.light, { name: 'changing-table-folded-diaper', roughness: 0.92 });
+    return;
+  }
+  if (key.includes('towel_rack')) {
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.84, b.d * 0.055], [side * b.w * 0.4, b.h * 0.44, 0], p.metal, { name: 'towel-rack-upright', metalness: 0.56 });
+    for (const y of [0.3, 0.58, 0.84]) {
+      add([b.w * 0.82, b.h * 0.035, b.d * 0.035], [0, b.h * y, 0], p.metal, { name: 'towel-rack-hanging-bar', metalness: 0.6 });
+      add([b.w * 0.58, b.h * 0.22, b.d * 0.035], [0, b.h * (y - 0.12), b.d * 0.03], y === 0.58 ? p.primary : p.light, { name: 'towel-rack-folded-towel', roughness: 0.94 });
+    }
+    return;
+  }
+
+  // Child-sized play kitchen with clearly separate sink, hob, and oven.
+  add([b.w * 0.94, b.h * 0.88, b.d * 0.72], [0, b.h * 0.46, 0], p.primary, { name: 'play-kitchen-cabinet-body', roughness: 0.74 });
+  add([b.w * 0.38, b.h * 0.36, b.d * 0.025], [-b.w * 0.22, b.h * 0.28, b.d * 0.37], p.glass, { name: 'play-kitchen-oven-door', opacity: 0.6 });
+  for (const side of [-1, 1]) add([b.w * 0.18, b.h * 0.025, b.d * 0.18], [side * b.w * 0.2, b.h * 0.94, 0], p.dark, { shape: 'cylinder', name: 'play-kitchen-hob-ring' });
+  add([b.w * 0.32, b.h * 0.08, b.d * 0.28], [b.w * 0.22, b.h * 0.87, b.d * 0.12], p.light, { name: 'play-kitchen-sink-basin' });
+  addBeamBetween(root, [b.w * 0.22, b.h * 0.94, 0], [b.w * 0.22, b.h * 1.08, b.d * 0.12], b.w * 0.025, p.metal, 'play-kitchen-faucet');
+  for (let knob = -2; knob <= 2; knob += 1) add([b.w * 0.07, b.h * 0.07, b.d * 0.035], [knob * b.w * 0.12, b.h * 0.62, b.d * 0.38], knob % 2 ? p.secondary : p.light, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'play-kitchen-control-knob' });
+  void variant;
+}
+
 function buildClinicalProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
   const add = partAdder(root);
   if (key.includes('wheelchair')) {
@@ -1292,6 +1419,7 @@ function productionKindFor(key: string): string | null {
   if (/^(concrete_barrier)$/.test(key)) return 'wooden_barricade';
   if (/^(altar_table|memorial_plinth)$/.test(key)) return 'altar';
   if (key === 'laundry_stack') return 'washer';
+  if (key === 'utility_tub') return 'maintenance_sink';
   if (/^(hospital_trolley|imaging_cart|blood_pressure_stand)$/.test(key)) return 'medical_cart';
   if (key === 'checkout_lane') return 'checkout';
   return null;

@@ -165,6 +165,7 @@ describe('production model regressions', () => {
     ['cine_prop_laundry_stack', 'washer', ['washer-door-glass', 'washer-program-dial']],
     ['cine_prop_imaging_cart', 'medical_cart', ['medical-cart-instrument-tray', 'medical-cart-supply-bottle']],
     ['cine_prop_checkout_lane', 'checkout', ['checkout-conveyor-belt', 'checkout-register-display']],
+    ['cine_prop_utility_tub', 'maintenance_sink', ['maintenance-sink-deep-basin', 'maintenance-sink-faucet-spout']],
   ] as const)('routes %s through the verified %s production model', (kind, productionKind, requiredNames) => {
     const model = buildModel(kind as PropKind, '#77899a', '#9e8669', `${kind}_01`);
     const report = inspect(model);
@@ -300,6 +301,30 @@ describe('production model regressions', () => {
     ['cine_prop_coffee_bar', ['coffee-bar-espresso-machine', 'coffee-bar-cup']],
   ] as const)('gives retail fixture %s a dedicated silhouette', (kind, requiredNames) => {
     const model = buildModel(kind as PropKind, '#8c5b46', '#725a43', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
+
+  it.each([
+    ['cine_prop_kitchen_appliance_suite', ['appliance-suite-refrigerator-body', 'appliance-suite-cooktop-burner']],
+    ['cine_prop_pedestal_sink', ['pedestal-sink-basin', 'pedestal-sink-faucet-spout']],
+    ['cine_prop_shower_stall', ['shower-stall-glass-door', 'shower-stall-rain-head']],
+    ['cine_prop_espresso_machine', ['espresso-machine-group-head', 'espresso-machine-steam-wand']],
+    ['cine_prop_bar_counter', ['bar-counter-brass-foot-rail', 'bar-counter-bottle']],
+    ['cine_prop_kitchen_cart', ['kitchen-cart-caster', 'kitchen-cart-cutting-board']],
+    ['cine_prop_microwave_cart', ['microwave-cart-oven-door', 'microwave-cart-keypad-button']],
+    ['cine_prop_espresso_bar', ['coffee-bar-espresso-machine', 'coffee-bar-group-head']],
+    ['cine_prop_bath_caddy', ['bath-caddy-spanning-tray', 'bath-caddy-open-book']],
+    ['cine_prop_ironing_board', ['ironing-board-cross-leg', 'ironing-board-steam-iron']],
+    ['cine_prop_play_kitchen', ['play-kitchen-oven-door', 'play-kitchen-hob-ring']],
+    ['cine_prop_dish_rack', ['dish-rack-plate-divider', 'dish-rack-drying-plate']],
+    ['cine_prop_changing_table', ['changing-table-padded-mat', 'changing-table-folded-diaper']],
+    ['cine_prop_towel_rack', ['towel-rack-hanging-bar', 'towel-rack-folded-towel']],
+  ] as const)('rebuilds kitchen and bath fixture %s by function', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#6f8a92', '#8c765d', `${kind}_01`);
     const report = inspect(model);
     expect(model.userData.detailTier).toBe('cinematic-production-prop');
     expect(model.userData.productionCinematicProp).toBe(true);
