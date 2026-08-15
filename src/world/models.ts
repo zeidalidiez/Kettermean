@@ -50,6 +50,7 @@ import {
   clearProductionCharacterGeometries,
 } from './characterModels';
 import { buildProductionAnimal, clearProductionAnimalGeometries } from './animalModels';
+import { buildProductionProp } from './productionPropModels';
 import {
   applyProductionMaterials,
   clearProductionMaterialCache,
@@ -2333,6 +2334,14 @@ function createModel(
     boundsForKind(kind),
   );
   if (animal) return animal;
+  const productionProp = buildProductionProp(
+    String(kind),
+    assetVariant(assetId),
+    accent,
+    body,
+    boundsForKind(kind),
+  );
+  if (productionProp) return productionProp;
   const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
   if (cinematic) return cinematic;
   const crafted = buildCraftedModel(kind, assetVariant(assetId), accent, body, boundsForKind(kind));
