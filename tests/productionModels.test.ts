@@ -266,6 +266,24 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_fire_extinguisher_post', ['fire-extinguisher-pressure-cylinder', 'fire-extinguisher-discharge-hose']],
+    ['cine_prop_elevator_bank_doors', ['elevator-bank-sliding-door', 'elevator-bank-call-button']],
+    ['cine_prop_playpen', ['playpen-padded-rail', 'playpen-breathable-mesh-strand']],
+    ['cine_prop_fish_tank_stand', ['aquarium-front-glass', 'aquarium-fish-body']],
+    ['cine_prop_umbrella_table', ['umbrella-table-fabric-canopy', 'umbrella-table-canopy-rib']],
+    ['cine_prop_high_chair', ['high-chair-removable-tray', 'high-chair-safety-harness']],
+    ['cine_prop_soaking_tub', ['soaking-tub-water-surface', 'soaking-tub-faucet-spout']],
+    ['cine_prop_rocking_chair', ['rocking-chair-curved-runner', 'rocking-chair-back-slat']],
+  ] as const)('replaces the incorrect generic chassis for %s', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#668d52', '#8b7052', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

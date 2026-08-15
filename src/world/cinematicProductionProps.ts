@@ -36,6 +36,7 @@ const OFFICE_OVERRIDE = /(reception_counter|desk_organizer_set|whiteboard)/;
 const GREENSPACE_DISPLAY_OVERRIDE = /(bonsai_table|herb_garden_shelf|greenhouse_bench|terrarium_table|picnic_basket)/;
 const GREENSPACE_STRUCTURE_OVERRIDE = /(rose_arbor|garden_obelisk|beach_umbrella|hammock_stand|greenhouse_frame|cold_frame|potting_shed)/;
 const GREENSPACE_UTILITY_OVERRIDE = /(watering_cart|compost_bin|compost_tumbler|rain_barrel|garden_tool_rack|wheelbarrow|sprinkler|soaker_hose_rack|sundial|garden_gnome|thermometer_post)/;
+const OUTLIER_OVERRIDE = /(fire_extinguisher_post|playpen|elevator_bank_doors|fish_tank_stand|umbrella_table|high_chair|soaking_tub|rocking_chair)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -90,6 +91,9 @@ export function buildCinematicProductionProp(
   } else if (GREENSPACE_UTILITY_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildGreenspaceUtility(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (OUTLIER_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildOutlierProp(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -754,6 +758,97 @@ function buildGreenspaceUtility(root: THREE.Group, key: string, b: Bounds, p: Pa
   add([b.w * 0.08, b.h * 0.46, b.d * 0.08], [0, b.h * 0.67, b.d * 0.14], p.glass, { shape: 'cylinder', name: 'garden-thermometer-glass-tube', opacity: 0.42, roughness: 0.06 });
   add([b.w * 0.035, b.h * (0.18 + variant * 0.025), b.d * 0.035], [0, b.h * 0.55, b.d * 0.18], '#c43f37', { name: 'garden-thermometer-mercury-column', emissive: '#7a1614', emissiveIntensity: 0.08 });
   for (let tick = -4; tick <= 4; tick += 1) add([b.w * (tick % 2 ? 0.16 : 0.22), b.h * 0.012, b.d * 0.025], [b.w * 0.2, b.h * (0.49 + (tick + 4) * 0.05), b.d * 0.14], p.dark, { name: 'garden-thermometer-scale-tick' });
+}
+
+function buildOutlierProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('fire_extinguisher')) {
+    add([b.w * 0.72, b.h * 0.06, b.d * 0.72], [0, b.h * 0.04, 0], p.dark, { shape: 'cylinder', name: 'fire-extinguisher-post-base', metalness: 0.44 });
+    add([b.w * 0.12, b.h * 0.88, b.d * 0.12], [0, b.h * 0.48, -b.d * 0.16], p.metal, { name: 'fire-extinguisher-mounting-post', metalness: 0.58 });
+    add([b.w * 0.4, b.h * 0.54, b.d * 0.4], [0, b.h * 0.45, b.d * 0.06], '#b93830', { shape: 'cylinder', name: 'fire-extinguisher-pressure-cylinder', metalness: 0.24, roughness: 0.42 });
+    add([b.w * 0.16, b.h * 0.12, b.d * 0.16], [0, b.h * 0.76, b.d * 0.06], p.dark, { shape: 'cylinder', name: 'fire-extinguisher-valve-body', metalness: 0.55 });
+    add([b.w * 0.36, b.h * 0.045, b.d * 0.08], [b.w * 0.08, b.h * 0.84, b.d * 0.06], p.metal, { name: 'fire-extinguisher-squeeze-handle', metalness: 0.62 });
+    addBeamBetween(root, [b.w * 0.18, b.h * 0.7, b.d * 0.08], [b.w * 0.28, b.h * 0.33, b.d * 0.2], b.w * 0.025, p.dark, 'fire-extinguisher-discharge-hose');
+    add([b.w * 0.22, b.h * 0.12, b.d * 0.08], [b.w * 0.28, b.h * 0.26, b.d * 0.2], p.dark, { shape: 'cone', rotation: [Math.PI / 2, 0, 0], name: 'fire-extinguisher-hose-nozzle' });
+    return;
+  }
+  if (key.includes('elevator_bank')) {
+    add([b.w * 0.96, b.h * 0.98, b.d * 0.18], [0, b.h * 0.5, -b.d * 0.12], p.metal, { name: 'elevator-bank-metal-surround', metalness: 0.58, roughness: 0.32 });
+    for (const side of [-1, 1]) add([b.w * 0.42, b.h * 0.82, b.d * 0.035], [side * b.w * 0.215, b.h * 0.44, b.d * 0.02], p.light, { name: 'elevator-bank-sliding-door', metalness: 0.48, roughness: 0.3 });
+    add([b.w * 0.018, b.h * 0.82, b.d * 0.04], [0, b.h * 0.44, b.d * 0.045], p.dark, { name: 'elevator-bank-center-seam' });
+    add([b.w * 0.28, b.h * 0.1, b.d * 0.04], [0, b.h * 0.92, b.d * 0.04], p.dark, { name: 'elevator-bank-floor-indicator' });
+    for (const side of [-1, 1]) add([b.w * 0.055, b.h * 0.055, b.d * 0.035], [b.w * 0.53, b.h * (0.43 + side * 0.07), b.d * 0.045], side === 1 ? p.glow : p.dark, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'elevator-bank-call-button', emissive: side === 1 ? p.glow : '#000000', emissiveIntensity: 0.2 });
+    return;
+  }
+  if (key.includes('playpen')) {
+    add([b.w * 0.84, b.h * 0.08, b.d * 0.82], [0, b.h * 0.08, 0], p.light, { name: 'playpen-padded-floor', roughness: 0.9 });
+    for (const x of [-0.43, 0.43]) for (const z of [-0.4, 0.4]) add([b.w * 0.055, b.h * 0.82, b.d * 0.055], [x * b.w, b.h * 0.44, z * b.d], p.dark, { name: 'playpen-corner-post', roughness: 0.74 });
+    for (const z of [-0.4, 0.4]) for (const y of [0.18, 0.82]) add([b.w * 0.86, b.h * 0.05, b.d * 0.05], [0, b.h * y, z * b.d], p.primary, { name: 'playpen-padded-rail', roughness: 0.9 });
+    for (const x of [-0.43, 0.43]) for (const y of [0.18, 0.82]) add([b.w * 0.05, b.h * 0.05, b.d * 0.8], [x * b.w, b.h * y, 0], p.primary, { name: 'playpen-padded-rail', roughness: 0.9 });
+    for (let slat = -3; slat <= 3; slat += 1) for (const z of [-0.4, 0.4]) add([b.w * 0.018, b.h * 0.58, b.d * 0.018], [slat * b.w * 0.11, b.h * 0.5, z * b.d], p.glass, { name: 'playpen-breathable-mesh-strand', opacity: 0.45, roughness: 0.68 });
+    return;
+  }
+  if (key.includes('fish_tank')) {
+    add([b.w * 0.88, b.h * 0.42, b.d * 0.78], [0, b.h * 0.22, 0], p.wood, { name: 'aquarium-stand-cabinet', roughness: 0.72 });
+    for (const side of [-1, 1]) add([b.w * 0.38, b.h * 0.3, b.d * 0.025], [side * b.w * 0.2, b.h * 0.22, b.d * 0.4], side < 0 ? p.primary : p.secondary, { name: 'aquarium-stand-cabinet-door' });
+    add([b.w * 0.92, b.h * 0.055, b.d * 0.84], [0, b.h * 0.45, 0], p.dark, { name: 'aquarium-tank-bottom-frame' });
+    add([b.w * 0.86, b.h * 0.5, b.d * 0.025], [0, b.h * 0.72, b.d * 0.4], p.glass, { name: 'aquarium-front-glass', opacity: 0.22, roughness: 0.06 });
+    add([b.w * 0.82, b.h * 0.36, b.d * 0.72], [0, b.h * 0.68, 0], '#408ba0', { name: 'aquarium-water-volume', opacity: 0.18, roughness: 0.1 });
+    add([b.w * 0.82, b.h * 0.04, b.d * 0.7], [0, b.h * 0.5, 0], '#6e6855', { name: 'aquarium-gravel-bed', roughness: 0.96 });
+    for (const side of [-1, 0, 1]) add([b.w * 0.07, b.h * (0.17 + (side + 1) * 0.04), b.d * 0.06], [side * b.w * 0.25, b.h * 0.6, -b.d * 0.16], '#4d8c57', { shape: 'cone', rotation: [0, 0, side * 0.2], name: 'aquarium-live-plant' });
+    for (let fish = -1; fish <= 1; fish += 1) {
+      const x = fish * b.w * 0.22;
+      const fishColor = ['#d9863c', '#d5bd52', '#69a8b4'][fish + 1]!;
+      add([b.w * 0.16, b.h * 0.08, b.d * 0.06], [x, b.h * (0.67 + fish * 0.08), b.d * 0.22], fishColor, { name: 'aquarium-fish-body' });
+      add([b.w * 0.08, b.h * 0.09, b.d * 0.04], [x - b.w * 0.11, b.h * (0.67 + fish * 0.08), b.d * 0.22], fishColor, { shape: 'cone', rotation: [0, 0, -Math.PI / 2], name: 'aquarium-fish-tail' });
+    }
+    return;
+  }
+  if (key.includes('umbrella_table')) {
+    add([b.w * 0.74, b.h * 0.07, b.d * 0.74], [0, b.h * 0.42, 0], p.wood, { shape: 'cylinder', name: 'umbrella-table-round-top', roughness: 0.76 });
+    add([b.w * 0.08, b.h * 0.78, b.d * 0.08], [0, b.h * 0.57, 0], p.metal, { shape: 'cylinder', name: 'umbrella-table-center-pole', metalness: 0.5 });
+    add([b.w * 0.95, b.h * 0.16, b.d * 0.95], [0, b.h * 0.93, 0], variant % 2 ? p.primary : p.secondary, { shape: 'cone', name: 'umbrella-table-fabric-canopy', roughness: 0.78 });
+    for (let rib = 0; rib < 8; rib += 1) {
+      const angle = rib / 8 * Math.PI * 2;
+      addBeamBetween(root, [0, b.h * 0.97, 0], [Math.cos(angle) * b.w * 0.43, b.h * 0.87, Math.sin(angle) * b.d * 0.43], b.w * 0.01, p.metal, 'umbrella-table-canopy-rib');
+    }
+    for (const side of [-1, 1]) {
+      add([b.w * 0.28, b.h * 0.06, b.d * 0.28], [side * b.w * 0.42, b.h * 0.25, 0], p.secondary, { name: 'umbrella-table-chair-seat', roughness: 0.82 });
+      add([b.w * 0.06, b.h * 0.28, b.d * 0.26], [side * b.w * 0.52, b.h * 0.41, 0], p.secondary, { name: 'umbrella-table-chair-back', roughness: 0.82 });
+      for (const z of [-0.1, 0.1]) add([b.w * 0.035, b.h * 0.24, b.d * 0.035], [side * b.w * 0.42, b.h * 0.12, z * b.d], p.metal, { name: 'umbrella-table-chair-leg', metalness: 0.48 });
+    }
+    return;
+  }
+  if (key.includes('high_chair')) {
+    for (const x of [-0.26, 0.26]) for (const z of [-0.22, 0.22]) addBeamBetween(root, [x * b.w, 0, z * b.d], [x * b.w * 0.72, b.h * 0.62, z * b.d * 0.72], b.w * 0.035, p.wood, 'high-chair-splayed-leg');
+    add([b.w * 0.5, b.h * 0.08, b.d * 0.46], [0, b.h * 0.58, 0], p.primary, { name: 'high-chair-padded-seat', roughness: 0.86 });
+    add([b.w * 0.48, b.h * 0.36, b.d * 0.07], [0, b.h * 0.78, -b.d * 0.2], p.primary, { name: 'high-chair-supportive-back', roughness: 0.86 });
+    add([b.w * 0.72, b.h * 0.055, b.d * 0.5], [0, b.h * 0.74, b.d * 0.26], p.light, { name: 'high-chair-removable-tray', roughness: 0.48 });
+    add([b.w * 0.34, b.h * 0.045, b.d * 0.18], [0, b.h * 0.28, b.d * 0.16], p.wood, { name: 'high-chair-footrest' });
+    add([b.w * 0.05, b.h * 0.23, b.d * 0.035], [0, b.h * 0.68, b.d * 0.12], p.dark, { name: 'high-chair-safety-harness' });
+    return;
+  }
+  if (key.includes('soaking_tub')) {
+    add([b.w * 0.76, b.h * 0.1, b.d * 0.68], [0, b.h * 0.08, 0], p.light, { name: 'soaking-tub-floor', roughness: 0.28 });
+    for (const z of [-1, 1]) add([b.w * 0.9, b.h * 0.56, b.d * 0.1], [0, b.h * 0.34, z * b.d * 0.41], p.light, { name: 'soaking-tub-side-wall', roughness: 0.26 });
+    for (const x of [-1, 1]) add([b.w * 0.1, b.h * 0.56, b.d * 0.72], [x * b.w * 0.4, b.h * 0.34, 0], p.light, { name: 'soaking-tub-end-wall', roughness: 0.26 });
+    add([b.w * 0.72, b.h * 0.025, b.d * 0.62], [0, b.h * 0.42, 0], '#5ea5ba', { name: 'soaking-tub-water-surface', opacity: 0.55, roughness: 0.12 });
+    add([b.w * 0.08, b.h * 0.42, b.d * 0.08], [-b.w * 0.28, b.h * 0.72, -b.d * 0.34], p.metal, { shape: 'cylinder', name: 'soaking-tub-faucet-riser', metalness: 0.65 });
+    addBeamBetween(root, [-b.w * 0.28, b.h * 0.9, -b.d * 0.34], [-b.w * 0.16, b.h * 0.82, -b.d * 0.22], b.w * 0.035, p.metal, 'soaking-tub-faucet-spout');
+    return;
+  }
+  // Rocking chair uses segmented runners instead of the lounge-chair chassis.
+  for (const z of [-0.28, 0.28]) {
+    addBeamBetween(root, [-b.w * 0.42, b.h * 0.1, z * b.d], [0, b.h * 0.04, z * b.d], b.w * 0.035, p.wood, 'rocking-chair-curved-runner');
+    addBeamBetween(root, [0, b.h * 0.04, z * b.d], [b.w * 0.42, b.h * 0.1, z * b.d], b.w * 0.035, p.wood, 'rocking-chair-curved-runner');
+    addBeamBetween(root, [-b.w * 0.25, b.h * 0.08, z * b.d], [-b.w * 0.19, b.h * 0.5, z * b.d], b.w * 0.032, p.wood, 'rocking-chair-leg');
+    addBeamBetween(root, [b.w * 0.25, b.h * 0.08, z * b.d], [b.w * 0.19, b.h * 0.5, z * b.d], b.w * 0.032, p.wood, 'rocking-chair-leg');
+  }
+  add([b.w * 0.58, b.h * 0.08, b.d * 0.58], [0, b.h * 0.5, 0], p.primary, { name: 'rocking-chair-seat', roughness: 0.8 });
+  for (const side of [-1, 1]) add([b.w * 0.07, b.h * 0.44, b.d * 0.07], [side * b.w * 0.25, b.h * 0.72, -b.d * 0.23], p.wood, { rotation: [0, 0, -side * 0.08], name: 'rocking-chair-back-post' });
+  for (let slat = -2; slat <= 2; slat += 1) add([b.w * 0.065, b.h * 0.38, b.d * 0.04], [slat * b.w * 0.1, b.h * 0.76, -b.d * 0.23], p.wood, { rotation: [0, 0, slat * 0.025], name: 'rocking-chair-back-slat', roughness: 0.78 });
+  for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.08, b.d * 0.58], [side * b.w * 0.34, b.h * 0.68, 0], p.wood, { name: 'rocking-chair-armrest', roughness: 0.76 });
+  void variant;
 }
 
 function buildClinicalProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
