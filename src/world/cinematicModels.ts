@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { hashString } from '../core/rng';
 import { geometryForShape } from './modelQuality';
+import { buildCraftedModel } from './craftedModels';
+import type { PropKind } from './models';
 import {
   CINEMATIC_BOUNDS,
   CINEMATIC_CREATURE_KINDS,
@@ -73,11 +75,87 @@ function buildCinematicProp(
   const familyIndex = CINEMATIC_PROP_FAMILIES.findIndex((item) => item.kind === kind);
   const bounds = CINEMATIC_BOUNDS[kind];
   const palette = paletteFor(kind, variant, accent, body);
-  const root = new THREE.Group();
-  buildPropChassis(root, bounds, palette, variant, familyIndex, family.form ?? 'casework');
-  addPropIdentity(root, bounds, palette, variant, family.form ?? 'casework');
-  addPropFinish(root, bounds, palette, variant, familyIndex);
+  const form = family.form ?? 'casework';
+  const craftedKind = craftedKindForCinematic(kind, form);
+  const root = craftedKind
+    ? buildCraftedModel(craftedKind, variant, accent, body, bounds) ?? new THREE.Group()
+    : new THREE.Group();
+  if (!craftedKind || root.children.length === 0) {
+    buildPropChassis(root, bounds, palette, variant, familyIndex, form);
+  }
+  addPropIdentity(root, kind, bounds, palette, variant, form);
   return root;
+}
+
+/**
+ * The cinematic catalogue contains hundreds of marketing-style names for a
+ * much smaller set of real construction archetypes. Route recognisable kinds
+ * through the hand-built everyday models first; the remaining unusual props
+ * use the form chassis below. This keeps silhouettes semantic without
+ * multiplying decorative geometry just to make each catalogue row different.
+ */
+function craftedKindForCinematic(
+  kind: CinematicPropKind,
+  form: CinematicPropForm,
+): PropKind | null {
+  const key = kind.toLowerCase();
+  const has = (pattern: RegExp): boolean => pattern.test(key);
+
+  if (has(/payphone/)) return 'payphone';
+  if (has(/phone_booth|telephone_booth/)) return 'phone_booth';
+  if (has(/office_chair|task_chair|desk_chair/)) return 'office_chair';
+  if (has(/armchair|club_chair/)) return 'armchair';
+  if (has(/sectional/)) return 'sectional';
+  if (has(/sofa|love_?seat|settee|banquette|dining_booth|restaurant_booth|daybed/)) return 'sofa';
+  if (has(/cinema_seat|theater_seat/)) return 'cinema_seat';
+  if (has(/airport_seat|terminal_seat/)) return 'airport_seat';
+  if (has(/pool_lounger|sun_lounger|deck_lounger/)) return 'pool_lounger';
+  if (has(/bar_stool|stool/)) return 'stool';
+  if (has(/garden.*bench|park.*bench|pavilion_bench/)) return 'garden_bench';
+  if (has(/bench|bleacher/)) return 'bench';
+  if (has(/dining_chair/)) return 'dining_chair';
+  if (has(/chair/)) return 'chair';
+
+  if (has(/hospital_bed|medical_bed|ward_bed|gurney/)) return 'hospital_bed';
+  if (has(/exam(ination)?_bed|exam(ination)?_table/)) return 'examination_bed';
+  if (has(/crib|cot/)) return 'crib';
+  if (has(/mattress|hotel_bed|guest_bed|bunk_bed|bed_frame/)) return 'mattress';
+
+  if (has(/reception.*desk|front_desk|check.?in_desk/)) return 'reception_desk';
+  if (has(/coffee_table/)) return 'coffee_table';
+  if (has(/side_table|end_table|nightstand/)) return 'side_table';
+  if (has(/cafeteria_table|dining_set|bistro_table|canteen_table/)) return 'cafeteria_table';
+  if (has(/folding_table/)) return 'folding_table';
+  if (has(/desk|workbench|lab_bench|checkout_counter|service_counter/)) return 'desk';
+  if (has(/table|island/)) return 'table';
+
+  if (has(/filing_cabinet|file_cabinet|flat_file/)) return 'filing_cabinet';
+  if (has(/wardrobe|armoire|closet/)) return 'wardrobe';
+  if (has(/bookcase|book_shelf|library_shelf/)) return 'bookcase';
+  if (has(/shelf|rack/)) return 'shelf';
+  if (has(/locker/)) return 'locker';
+  if (has(/cabinet|cupboard|credenza|dresser|tool_chest/)) return 'cabinet';
+
+  if (has(/shopping_cart|medical_cart|service_cart|room_service|trolley|luggage_cart/)) return 'cart';
+  if (has(/snack_machine|vending/)) return 'vending';
+  if (has(/cooler|freezer|refrigerator|fridge/)) return 'cooler';
+  if (has(/washer|washing_machine|laundry_machine/)) return 'washer';
+  if (has(/trash|waste_bin|garbage/)) return 'trash';
+  if (has(/television|\btv\b|video_wall|departure_board|display_board/)) return 'tv';
+  if (has(/terminal|kiosk|atm|arcade|copy_machine|server|control_panel|breaker_panel/)) return 'terminal';
+
+  if (has(/planter|plant_pot/)) return 'planter';
+  if (has(/plant|tree|topiary|shrub|palm/)) return 'plant';
+  if (has(/lamp|lantern|streetlight|light_fixture/)) return 'lamp';
+
+  // Conservative form fallbacks are limited to forms where the shared
+  // construction really is equivalent. Unusual machinery keeps its chassis.
+  if (form === 'seating') return 'chair';
+  if (form === 'table') return 'table';
+  if (form === 'casework') return 'cabinet';
+  if (form === 'soft') return 'mattress';
+  if (form === 'greenspace') return 'plant';
+  return null;
 }
 
 const LEGACY_KIND_FORMS: Record<string, CinematicPropForm> = {
@@ -199,8 +277,7 @@ export function buildCinematicLegacyModel(
   const familyIndex = hashString(kind) % 120;
   const root = new THREE.Group();
   buildPropChassis(root, bounds, palette, variant, familyIndex, form);
-  addPropIdentity(root, bounds, palette, variant, form);
-  addPropFinish(root, bounds, palette, variant, familyIndex);
+  addPropIdentity(root, kind, bounds, palette, variant, form);
   root.name = `${kind}-${variant}`;
   root.userData.detailTier = 'cinematic';
   root.userData.detailVariant = variant;
@@ -218,10 +295,6 @@ function buildPropChassis(
   form: CinematicPropForm,
 ): void {
   const add = partAdder(root);
-  // Base plinth and a structural spine so every object reads as assembled.
-  add([b.w * 0.96, b.h * 0.03, b.d * 0.92], [0, b.h * 0.018, 0], p.dark, { name: 'cine-shadow-plinth' });
-  add([b.w * 0.9, b.h * 0.05, b.d * 0.86], [0, b.h * 0.055, 0], p.trim, { metalness: 0.5, name: 'cine-inlaid-plinth' });
-
   switch (form) {
     case 'seating': {
       add([b.w * 0.92, b.h * 0.16, b.d * 0.92], [0, b.h * 0.5, 0], p.primary, { name: 'cine-seat-cushion' });
@@ -229,10 +302,6 @@ function buildPropChassis(
       for (const side of [-1, 1]) {
         add([b.w * 0.14, b.h * 0.5, b.d * 0.9], [side * b.w * 0.42, b.h * 0.62, 0], p.secondary, { name: 'cine-seat-arm' });
         add([b.w * 0.08, b.h * 0.4, b.w * 0.08], [side * b.w * 0.36, b.h * 0.18, b.d * 0.3], p.trim, { shape: 'capsule', name: 'cine-seat-leg' });
-      }
-      for (let welt = 0; welt < 12; welt += 1) {
-        const angle = welt / 12 * Math.PI * 2;
-        add([b.w * 0.02, b.h * 0.035, b.d * 0.02], [Math.cos(angle) * b.w * 0.4, b.h * 0.585, Math.sin(angle) * b.d * 0.4], p.glow, { shape: 'sphere', name: 'cine-seat-welt-stud' });
       }
       break;
     }
@@ -260,11 +329,6 @@ function buildPropChassis(
       add([b.w * 0.95, b.h * 0.28, b.d * 0.9], [0, b.h * 0.42, 0], p.primary, { name: 'cine-soft-base' });
       add([b.w * 0.9, b.h * 0.22, b.d * 0.84], [0, b.h * 0.62, 0], p.secondary, { name: 'cine-soft-pad' });
       add([b.w * 0.86, b.h * 0.5, b.d * 0.16], [0, b.h * 0.85, -b.d * 0.38], p.secondary, { name: 'cine-soft-headboard' });
-      for (let tuft = 0; tuft < 16; tuft += 1) {
-        const x = ((tuft % 4) - 1.5) * b.w * 0.18;
-        const z = (Math.floor(tuft / 4) - 1.5) * b.d * 0.16;
-        add([b.w * 0.025, b.h * 0.03, b.d * 0.025], [x, b.h * 0.53, z], p.glow, { shape: 'sphere', name: 'cine-soft-button' });
-      }
       break;
     }
     case 'kitchen': {
@@ -343,7 +407,7 @@ function buildPropChassis(
       // technology
       add([b.w * 0.92, b.h * 0.06, b.d * 0.86], [0, b.h * 0.88, 0], p.primary, { name: 'cine-tech-top' });
       add([b.w * 0.86, b.h * 0.7, b.d * 0.8], [0, b.h * 0.38, 0], p.secondary, { name: 'cine-tech-carcass' });
-      for (let vent = 0; vent < 10; vent += 1) add([b.w * 0.04, b.h * 0.035, b.d * 0.02], [(vent - 4.5) * b.w * 0.07, b.h * 0.68, b.d * 0.4], p.glow, { shape: 'sphere', name: 'cine-tech-vent-led' });
+      for (let vent = 0; vent < 5; vent += 1) add([b.w * 0.09, b.h * 0.018, b.d * 0.025], [(vent - 2) * b.w * 0.14, b.h * 0.68, b.d * 0.4], p.dark, { name: 'cine-tech-vent-slot' });
       break;
     }
   }
@@ -351,34 +415,36 @@ function buildPropChassis(
 
 function addPropIdentity(
   root: THREE.Group,
+  kind: string,
   b: Bounds,
   p: Palette,
   variant: number,
   form: CinematicPropForm,
 ): void {
   const add = partAdder(root);
+  const key = kind.toLowerCase();
   const front = b.d * 0.48;
-  // Family + variant drive construction changes so all eight variants of a
-  // family remain geometry-distinct.
+  const offset = (variant % 3 - 1) * b.w * 0.035;
+
+  // Details describe function: seams on upholstery, drawer hardware on
+  // casework, controls on machines. The old implementation added dozens of
+  // unrelated beads, toruses, screws and finials to every object.
   switch (form) {
     case 'seating':
     case 'soft': {
-      for (let cushion = 0; cushion < 10 + variant; cushion += 1) {
-        const angle = cushion / (10 + variant) * Math.PI * 2;
-        add([b.w * 0.03, b.h * 0.045, b.d * 0.03], [Math.cos(angle) * b.w * 0.35, b.h * (0.5 + Math.sin(angle) * 0.08), Math.sin(angle) * b.d * 0.32], cushion % 2 ? p.light : p.secondary, { shape: cushion % 3 ? 'sphere' : 'torus', rotation: [Math.PI / 2, 0, angle], name: 'cine-seat-tuft-row' });
-      }
-      for (let armStud = 0; armStud < 8 + variant; armStud += 1) {
-        const x = (armStud - (7 + variant) / 2) * b.w * 0.05;
-        add([b.w * 0.025, b.h * 0.03, b.d * 0.025], [x, b.h * 0.66, front], armStud % 2 ? p.glow : p.trim, { shape: 'sphere', name: 'cine-arm-stud' });
+      add([b.w * 0.7, b.h * 0.012, b.d * 0.025], [offset, b.h * 0.59, front], p.trim, { name: 'upholstery-front-seam' });
+      if (/bed|mattress|cot/.test(key)) {
+        add([b.w * 0.82, b.h * 0.015, b.d * 0.02], [0, b.h * 0.69, front], p.light, { name: 'mattress-piped-edge' });
       }
       break;
     }
     case 'table': {
-      for (let setting = 0; setting < 6 + variant; setting += 1) {
-        const x = ((setting % 3) - 1) * b.w * 0.24;
-        const z = (Math.floor(setting / 3) - 0.5) * b.d * 0.34;
-        add([b.w * 0.08, b.h * 0.04, b.w * 0.08], [x, b.h * 0.93, z], p.glow, { shape: 'cylinder', name: 'cine-table-place-setting' });
-        if (setting % 2 === 0) add([b.w * 0.035, b.h * 0.09, b.w * 0.035], [x, b.h * 0.97, z], p.light, { shape: 'cone', name: 'cine-table-glass' });
+      if (/dining|bistro|cafeteria|canteen/.test(key)) {
+        add([b.w * 0.16, b.h * 0.018, b.w * 0.16], [offset, b.h * 0.94, 0], p.light, { shape: 'cylinder', name: 'place-setting-plate' });
+        add([b.w * 0.045, b.h * 0.1, b.w * 0.045], [b.w * 0.16, b.h * 0.98, 0], p.glass, { shape: 'cylinder', opacity: 0.72, name: 'place-setting-glass' });
+      } else if (/desk|workstation|reception/.test(key)) {
+        add([b.w * 0.28, b.h * 0.22, b.d * 0.035], [offset, b.h * 1.04, 0], p.dark, { name: 'desk-monitor' });
+        add([b.w * 0.24, b.h * 0.015, b.d * 0.22], [offset, b.h * 0.94, b.d * 0.14], p.secondary, { name: 'desk-keyboard' });
       }
       break;
     }
@@ -386,103 +452,72 @@ function addPropIdentity(
     case 'kitchen':
     case 'office':
     case 'retail': {
-      for (let trim = 0; trim < 12 + variant; trim += 1) {
-        const x = ((trim % 6) - 2.5) * b.w * 0.13;
-        const y = b.h * (0.16 + Math.floor(trim / 6) * 0.62);
-        add([b.w * 0.1, b.h * 0.03, b.d * 0.02], [x, y, front], trim % 2 ? p.light : p.secondary, { name: 'cine-case-trim-strip' });
+      const drawerCount = /filing|drawer|tool_chest/.test(key) ? 3 : 2;
+      for (let drawer = 0; drawer < drawerCount; drawer += 1) {
+        const y = b.h * (0.3 + drawer * 0.24);
+        add([b.w * 0.68, b.h * 0.18, b.d * 0.025], [0, y, front], drawer % 2 ? p.secondary : p.primary, { name: 'casework-front-panel' });
+        add([b.w * 0.16, b.h * 0.025, b.d * 0.035], [offset, y, front + b.d * 0.025], p.trim, { metalness: 0.6, name: 'casework-pull-handle' });
       }
-      for (let knob = 0; knob < 5 + variant; knob += 1) {
-        const x = ((knob % 3) - 1) * b.w * 0.24;
-        const y = b.h * (0.32 + Math.floor(knob / 3) * 0.5);
-        add([b.w * 0.035, b.w * 0.035, b.d * 0.02], [x, y, front + b.d * 0.02], knob % 2 ? p.glow : p.jewel, { shape: 'sphere', metalness: 0.7, name: 'cine-case-knob' });
+      if (/sink|basin/.test(key)) {
+        add([b.w * 0.35, b.h * 0.035, b.d * 0.35], [0, b.h * 0.92, 0], p.dark, { shape: 'cylinder', metalness: 0.65, name: 'sink-basin' });
+        add([b.w * 0.035, b.h * 0.18, b.w * 0.035], [0, b.h * 1.02, -b.d * 0.18], p.trim, { shape: 'cylinder', metalness: 0.75, name: 'sink-faucet' });
       }
       break;
     }
     case 'clinical': {
-      for (let instrument = 0; instrument < 14 + variant; instrument += 1) {
-        const x = ((instrument % 7) - 3) * b.w * 0.09;
-        const y = b.h * (0.95 + Math.floor(instrument / 7) * 0.03);
-        add([b.w * 0.025, b.h * (0.06 + instrument % 3 * 0.02), b.w * 0.025], [x, y, front], instrument % 2 ? p.glow : p.light, { shape: instrument % 3 ? 'capsule' : 'torus', rotation: [0, 0, (instrument - 7) * 0.03], name: 'cine-clinical-tool' });
-      }
+      add([b.w * 0.54, b.h * 0.035, b.d * 0.38], [0, b.h * 0.91, 0], p.light, { metalness: 0.5, name: 'clinical-instrument-tray' });
+      add([b.w * 0.22, b.h * 0.18, b.d * 0.035], [offset, b.h * 0.69, front], p.dark, { name: 'clinical-readout' });
+      add([b.w * 0.16, b.h * 0.025, b.d * 0.012], [offset, b.h * 0.69, front + b.d * 0.025], p.glow, { emissive: p.glow, emissiveIntensity: 0.35, name: 'clinical-readout-line' });
       break;
     }
     case 'leisure': {
-      for (let grip = 0; grip < 10 + variant; grip += 1) {
-        const angle = grip / (10 + variant) * Math.PI * 2;
-        add([b.w * 0.02, b.h * 0.06, b.w * 0.02], [Math.cos(angle) * b.w * 0.36, b.h * 0.96 + Math.sin(angle) * b.w * 0.12, 0], grip % 2 ? p.glow : p.light, { shape: 'sphere', name: 'cine-leisure-grip' });
+      if (/bike|cycle/.test(key)) {
+        for (const x of [-b.w * 0.28, b.w * 0.28]) {
+          add([b.w * 0.3, b.w * 0.055, b.w * 0.055], [x, b.h * 0.26, 0], p.dark, { shape: 'torus', rotation: [0, Math.PI / 2, 0], name: 'exercise-wheel' });
+        }
+      } else {
+        add([b.w * 0.62, b.h * 0.045, b.d * 0.05], [0, b.h * 0.72, front], p.trim, { name: 'leisure-grip-bar' });
       }
       break;
     }
     case 'transport': {
-      for (let screen = 0; screen < 8 + variant; screen += 1) {
-        const x = ((screen % 4) - 1.5) * b.w * 0.18;
-        const y = b.h * (0.55 + Math.floor(screen / 4) * 0.3);
-        add([b.w * 0.14, b.h * 0.2, b.d * 0.04], [x, y, front], p.glow, { shape: 'box', emissive: p.glow, emissiveIntensity: 0.2, name: 'cine-transport-screen' });
-      }
+      add([b.w * 0.56, b.h * 0.22, b.d * 0.035], [offset, b.h * 0.65, front], p.dark, { name: 'transport-information-display' });
+      add([b.w * 0.46, b.h * 0.025, b.d * 0.012], [offset, b.h * 0.65, front + b.d * 0.025], p.glow, { emissive: p.glow, emissiveIntensity: 0.4, name: 'transport-display-line' });
       break;
     }
     case 'greenspace': {
-      for (let leaf = 0; leaf < 14 + variant; leaf += 1) {
-        const angle = leaf / (14 + variant) * Math.PI * 2;
-        add([b.w * 0.09, b.h * 0.22, b.d * 0.05], [Math.cos(angle) * b.w * 0.34, b.h * (0.52 + Math.sin(angle * 2) * 0.16), Math.sin(angle) * b.d * 0.3], shifted(p.secondary, leaf + variant), { shape: 'capsule', rotation: [0, angle, -angle], name: 'cine-plant-leaf' });
-      }
+      add([b.w * 0.68, b.h * 0.04, b.d * 0.68], [0, b.h * 0.2, 0], p.trim, { shape: 'torus', rotation: [Math.PI / 2, 0, 0], name: 'planter-rim' });
       break;
     }
     case 'ceremonial': {
-      for (let candle = 0; candle < 10 + variant; candle += 1) {
-        const x = ((candle % 5) - 2) * b.w * 0.14;
-        const z = (Math.floor(candle / 5) - 0.5) * b.d * 0.4;
-        add([b.w * 0.03, b.h * 0.12, b.w * 0.03], [x, b.h * 0.94, z], p.light, { shape: 'cylinder', name: 'cine-ceremony-candle' });
-        add([b.w * 0.02, b.h * 0.04, b.w * 0.02], [x, b.h * 0.98, z], p.glow, { shape: 'sphere', emissive: p.glow, emissiveIntensity: 0.8, name: 'cine-ceremony-flame' });
+      if (/altar|shrine|candle/.test(key)) {
+        for (const x of [-b.w * 0.22, b.w * 0.22]) {
+          add([b.w * 0.035, b.h * 0.16, b.w * 0.035], [x, b.h * 0.98, 0], p.light, { shape: 'cylinder', name: 'ceremonial-candle' });
+          add([b.w * 0.025, b.h * 0.04, b.w * 0.025], [x, b.h * 1.08, 0], p.glow, { shape: 'cone', emissive: p.glow, emissiveIntensity: 0.8, name: 'ceremonial-flame' });
+        }
+      } else {
+        add([b.w * 0.5, b.h * 0.035, b.d * 0.06], [0, b.h * 0.72, front], p.trim, { name: 'ceremonial-inscription-band' });
       }
       break;
     }
     case 'aquatic': {
-      for (let weed = 0; weed < 12 + variant; weed += 1) {
-        const x = ((weed % 4) - 1.5) * b.w * 0.18;
-        const z = (Math.floor(weed / 4) - 0.5) * b.d * 0.3;
-        add([b.w * 0.02, b.h * (0.25 + weed % 3 * 0.1), b.w * 0.02], [x, b.h * 0.3, z], weed % 2 ? p.secondary : p.glow, { shape: 'capsule', rotation: [0, 0, (weed - 6) * 0.04], name: 'cine-aquatic-weed' });
-      }
+      add([b.w * 0.74, b.h * 0.018, b.d * 0.025], [0, b.h * 0.66, front], p.glow, { opacity: 0.62, name: 'aquatic-waterline' });
+      add([b.w * 0.045, b.h * 0.45, b.w * 0.045], [-b.w * 0.32, b.h * 0.45, -b.d * 0.28], p.trim, { shape: 'cylinder', metalness: 0.6, name: 'aquatic-filter-pipe' });
       break;
     }
     case 'industrial': {
-      for (let crate = 0; crate < 8 + variant; crate += 1) {
-        const x = ((crate % 4) - 1.5) * b.w * 0.16;
-        const z = (Math.floor(crate / 4) - 0.5) * b.d * 0.4;
-        add([b.w * 0.13, b.h * 0.12, b.d * 0.13], [x, b.h * (0.5 + crate % 3 * 0.05), z], crate % 2 ? p.primary : p.secondary, { name: 'cine-industrial-crate' });
+      for (const side of [-1, 1]) {
+        add([b.w * 0.055, b.h * 0.54, b.d * 0.045], [side * b.w * 0.33, b.h * 0.47, front], p.trim, { rotation: [0, 0, side * 0.45], metalness: 0.65, name: 'industrial-cross-brace' });
       }
       break;
     }
     default: {
-      for (let detail = 0; detail < 12 + variant; detail += 1) {
-        const x = ((detail % 6) - 2.5) * b.w * 0.1;
-        const y = b.h * (0.3 + Math.floor(detail / 6) * 0.4);
-        add([b.w * 0.05, b.h * 0.06, b.d * 0.03], [x, y, front], detail % 2 ? p.glow : p.light, { shape: detail % 3 ? 'sphere' : 'torus', rotation: [Math.PI / 2, 0, detail * 0.08], name: 'cine-tech-control' });
+      add([b.w * 0.58, b.h * 0.28, b.d * 0.035], [offset, b.h * 0.58, front], p.dark, { name: 'technology-screen-bezel' });
+      add([b.w * 0.5, b.h * 0.21, b.d * 0.012], [offset, b.h * 0.58, front + b.d * 0.025], p.glow, { emissive: p.glow, emissiveIntensity: 0.32, name: 'technology-screen' });
+      for (let control = 0; control < 3; control += 1) {
+        add([b.w * 0.08, b.h * 0.035, b.d * 0.025], [(control - 1) * b.w * 0.13 + offset, b.h * 0.34, front + b.d * 0.02], control === variant % 3 ? p.glow : p.light, { name: 'technology-control-key' });
       }
     }
-  }
-}
-
-function addPropFinish(
-  root: THREE.Group,
-  b: Bounds,
-  p: Palette,
-  variant: number,
-  family: number,
-): void {
-  const add = partAdder(root);
-  for (const side of [-1, 1]) {
-    add([b.w * 0.02, b.h * 0.6, b.w * 0.02], [side * b.w * 0.47, b.h * 0.45, b.d * 0.46], p.glow, { shape: 'cylinder', metalness: 0.7, name: 'cine-edge-inlay' });
-    for (let screw = 0; screw < 7; screw += 1) add([b.w * 0.02, b.w * 0.02, b.d * 0.015], [side * b.w * 0.47, b.h * (0.16 + screw * 0.12), b.d * 0.48], screw % 2 ? p.light : p.jewel, { shape: screw % 3 ? 'sphere' : 'torus', rotation: [Math.PI / 2, 0, 0], name: 'cine-edge-screw' });
-  }
-  for (let stamp = 0; stamp < 10; stamp += 1) {
-    const angle = stamp / 10 * Math.PI * 2 + family * 0.09;
-    add([b.w * (0.02 + stamp % 3 * 0.005), b.h * (0.03 + stamp % 2 * 0.008), b.d * 0.015], [Math.cos(angle) * b.w * 0.3, b.h * (0.14 + stamp * 0.07), b.d * 0.5], stamp % 2 ? p.secondary : p.glow, { shape: stamp % 3 ? 'sphere' : 'cone', rotation: [Math.PI / 2, angle, 0], name: `cine-family-${family}-stamp` });
-  }
-  for (let flourish = 0; flourish < 9 + variant; flourish += 1) {
-    const angle = flourish / (9 + variant) * Math.PI * 2;
-    const radius = b.w * (0.18 + variant * 0.02);
-    add([b.w * (0.02 + flourish % 3 * 0.005), b.h * (0.05 + flourish % 4 * 0.01), b.d * 0.02], [Math.cos(angle) * radius, b.h * (0.92 + Math.sin(angle * 2) * 0.05), Math.sin(angle) * b.d * 0.18], shifted(p.glow, flourish + family), { shape: flourish % 3 === 0 ? 'cone' : flourish % 2 ? 'sphere' : 'torus', rotation: [angle, variant * 0.12, -angle], name: `cine-variant-${variant}-finial` });
   }
 }
 

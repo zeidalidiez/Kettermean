@@ -34,10 +34,6 @@ import {
   buildAtelierModel,
 } from './detailedModelsRound4';
 import {
-  decorateModelWithFaceKit,
-  type FaceHostContext,
-} from './faceKits';
-import {
   buildMixedMediaModel,
   MIXED_MEDIA_BOUNDS,
 } from './mixedMediaModels';
@@ -49,6 +45,15 @@ import {
 import type { SemanticModelKind } from './semanticAssets';
 import { buildSurrealModel, SURREAL_BOUNDS } from './surrealModels';
 import { buildCraftedModel, isCraftedKind } from './craftedModels';
+import {
+  buildProductionHumanoid,
+  clearProductionCharacterGeometries,
+} from './characterModels';
+import { buildProductionAnimal } from './animalModels';
+import {
+  applyProductionMaterials,
+  clearProductionMaterialCache,
+} from './modelMaterials';
 import type { CinematicModelKind } from './cinematicAssets';
 import {
   CINEMATIC_BOUNDS,
@@ -273,6 +278,8 @@ export function clearModelMaterialCache(): void {
   }
   matCache.clear();
   clearModelQualityGeometries();
+  clearProductionCharacterGeometries();
+  clearProductionMaterialCache();
 }
 
 function mat(
@@ -2233,25 +2240,23 @@ export function buildModel(
   const cached = modelCache.get(key);
   if (cached) return cached.clone(true);
   const model = createModel(kind, accent, body, assetId);
-  if (kind !== 'door_fake' && shouldDecorateWithFaceKit(kind)) {
-    decorateModelWithFaceKit(model, {
-      kind,
-      variant: assetVariant(assetId),
-      host: faceHostForKind(kind),
-      bounds: boundsForKind(kind),
-      accent,
-    });
-  }
   if (
     isDetailedModelKind(kind) ||
     isMasterworkModelKind(kind) ||
     isExhibitionModelKind(kind) ||
     isAtelierModelKind(kind) ||
     isCinematicModelKind(kind) ||
-    isCraftedKind(kind)
+    isCraftedKind(kind) ||
+    model.userData.productionCharacter === true ||
+    model.userData.productionAnimal === true
   ) {
     normalizeComposedModelToBounds(model, boundsForKind(kind));
   }
+  applyProductionMaterials(model, {
+    kind: String(kind),
+    variant: assetVariant(assetId),
+    assetId,
+  });
   markCacheOwned(model);
   modelCache.set(key, model);
   return model.clone(true);
@@ -2311,6 +2316,22 @@ function createModel(
   body: string,
   assetId?: string,
 ): THREE.Group {
+  const character = buildProductionHumanoid(
+    String(kind),
+    assetVariant(assetId),
+    accent,
+    body,
+    boundsForKind(kind),
+  );
+  if (character) return character;
+  const animal = buildProductionAnimal(
+    String(kind),
+    assetVariant(assetId),
+    accent,
+    body,
+    boundsForKind(kind),
+  );
+  if (animal) return animal;
   const cinematic = buildCinematicModel(kind, assetVariant(assetId), accent, body);
   if (cinematic) return cinematic;
   const crafted = buildCraftedModel(kind, assetVariant(assetId), accent, body, boundsForKind(kind));
@@ -2836,45 +2857,6 @@ export function boundsForKind(kind: PropKind): { w: number; h: number; d: number
     default:
       return { w: 1, h: 1, d: 1 };
   }
-}
-
-function faceHostForKind(kind: PropKind): FaceHostContext {
-  const value = String(kind);
-  if (
-    value.startsWith('figure_') ||
-    value.startsWith('detail_figure_') ||
-    value.startsWith('exhibition_figure_') ||
-    value.startsWith('atelier_figure_') ||
-    value.startsWith('cine_figure_') ||
-    value === 'lowpoly_person' ||
-    value === 'voxel_watcher'
-  ) return 'humanoid';
-  if (
-    value.startsWith('animal_') ||
-    value.startsWith('detail_animal_') ||
-    value.startsWith('exhibition_animal_') ||
-    value.startsWith('atelier_animal_') ||
-    value.startsWith('cine_animal_') ||
-    value.includes('dog') ||
-    value.includes('cat') ||
-    value.includes('bird') ||
-    value.includes('whale') ||
-    value.includes('crawler') ||
-    value === 'figure_deer' ||
-    value === 'figure_balloon'
-  ) return 'animal';
-  return 'object';
-}
-
-function shouldDecorateWithFaceKit(kind: PropKind): boolean {
-  const value = String(kind);
-  // Preserve the deliberately cheap and voxel lanes as coherent media styles.
-  // Cross-mounted faces live on the composed high-detail 3D catalog instead.
-  // Crafted animals carry their own sculpted snouts, eyes, and ears; a generic
-  // generated face would cover the anatomy rather than enhance it.
-  if (isCraftedKind(value)) return false;
-  return !value.startsWith('lowpoly_') &&
-    !value.startsWith('voxel_');
 }
 
 export function kindFromLabel(label: string): PropKind {

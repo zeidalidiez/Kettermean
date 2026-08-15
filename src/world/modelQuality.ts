@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { ROOM } from '../config';
 
 /**
@@ -26,7 +25,7 @@ export interface ShapeDensity {
   torus: [number, number];
   /** CapsuleGeometry(..., capSegments, radialSegments). */
   capsule: [number, number];
-  /** RoundedBoxGeometry(..., bevelSegments). */
+  /** BoxGeometry(widthSegments, heightSegments). Kept as a tuple for parity. */
   box: [number, number];
   /** LatheGeometry(profile, radialSegments). */
   lathe: [number];
@@ -34,40 +33,40 @@ export interface ShapeDensity {
 
 const DENSITY: Record<ModelQuality, ShapeDensity> = {
   low: {
-    sphere: [14, 10],
-    cylinder: [14, 1],
-    cone: [14, 1],
-    torus: [10, 16],
-    capsule: [6, 12],
-    box: [1, 0.05],
-    lathe: [14],
+    sphere: [8, 6],
+    cylinder: [8, 1],
+    cone: [8, 1],
+    torus: [6, 10],
+    capsule: [3, 8],
+    box: [1, 1],
+    lathe: [8],
   },
   medium: {
-    sphere: [22, 15],
-    cylinder: [22, 2],
-    cone: [22, 2],
-    torus: [12, 24],
-    capsule: [8, 16],
-    box: [2, 0.05],
-    lathe: [20],
+    sphere: [12, 8],
+    cylinder: [10, 1],
+    cone: [10, 1],
+    torus: [8, 14],
+    capsule: [4, 10],
+    box: [1, 1],
+    lathe: [12],
   },
   high: {
-    sphere: [32, 22],
-    cylinder: [32, 4],
-    cone: [32, 4],
-    torus: [16, 36],
-    capsule: [12, 20],
-    box: [3, 0.06],
-    lathe: [28],
+    sphere: [16, 12],
+    cylinder: [12, 1],
+    cone: [12, 1],
+    torus: [10, 18],
+    capsule: [6, 12],
+    box: [1, 1],
+    lathe: [16],
   },
   ultra: {
-    sphere: [44, 30],
-    cylinder: [44, 6],
-    cone: [44, 6],
-    torus: [22, 48],
-    capsule: [16, 28],
-    box: [4, 0.06],
-    lathe: [40],
+    sphere: [24, 16],
+    cylinder: [18, 1],
+    cone: [18, 1],
+    torus: [12, 24],
+    capsule: [8, 16],
+    box: [1, 1],
+    lathe: [24],
   },
 };
 
@@ -181,7 +180,10 @@ export function geometryForShape(
       geometry = new THREE.LatheGeometry(LATHE_PROFILES[0]!(), d[0]);
       break;
     default:
-      geometry = new RoundedBoxGeometry(1, 1, 1, d[0], d[1]);
+      // Real furniture, cabinets, appliances, and architecture need planar
+      // faces and readable corners. Rounding every box made unrelated objects
+      // look inflated while multiplying triangles without adding information.
+      geometry = new THREE.BoxGeometry(1, 1, 1, d[0], d[1], 1);
   }
   geometry.userData.cacheOwned = true;
   GEOMETRY_CACHE.set(key, geometry);
