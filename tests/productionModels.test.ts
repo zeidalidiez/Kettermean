@@ -245,6 +245,27 @@ describe('production model regressions', () => {
     for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
     expect(report.meshes).toBeLessThan(80);
   });
+
+  it.each([
+    ['cine_prop_wheelbarrow', ['wheelbarrow-load-tray', 'wheelbarrow-front-wheel']],
+    ['cine_prop_watering_cart', ['watering-cart-water-tank', 'watering-cart-hose-reel']],
+    ['cine_prop_compost_bin', ['compost-bin-air-vent', 'compost-bin-harvest-door']],
+    ['cine_prop_compost_tumbler', ['compost-tumbler-rotating-drum', 'compost-tumbler-crank']],
+    ['cine_prop_rain_barrel', ['rain-barrel-storage-vessel', 'rain-barrel-spigot']],
+    ['cine_prop_garden_tool_rack', ['garden-tool-long-handle', 'garden-tool-spade-head']],
+    ['cine_prop_sprinkler', ['lawn-sprinkler-rotating-arm', 'lawn-sprinkler-water-nozzle']],
+    ['cine_prop_soaker_hose_rack', ['hose-reel-wound-hose', 'hose-reel-crank']],
+    ['cine_prop_sundial', ['sundial-engraved-dial-plate', 'sundial-shadow-gnomon']],
+    ['cine_prop_garden_gnome', ['garden-gnome-pointed-beard', 'garden-gnome-tall-hat']],
+    ['cine_prop_thermometer_post', ['garden-thermometer-glass-tube', 'garden-thermometer-scale-tick']],
+  ] as const)('gives %s functional garden-equipment geometry', (kind, requiredNames) => {
+    const model = buildModel(kind as PropKind, '#668d52', '#8b7052', `${kind}_01`);
+    const report = inspect(model);
+    expect(model.userData.detailTier).toBe('cinematic-production-prop');
+    expect(model.userData.productionCinematicProp).toBe(true);
+    for (const requiredName of requiredNames) expect(report.names).toContain(requiredName);
+    expect(report.meshes).toBeLessThan(80);
+  });
 });
 
 function inspect(model: THREE.Object3D): {

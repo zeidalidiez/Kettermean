@@ -35,6 +35,7 @@ const TECHNOLOGY_OVERRIDE = /(photo_booth|arcade_cabinet_pair|pinball_machine|st
 const OFFICE_OVERRIDE = /(reception_counter|desk_organizer_set|whiteboard)/;
 const GREENSPACE_DISPLAY_OVERRIDE = /(bonsai_table|herb_garden_shelf|greenhouse_bench|terrarium_table|picnic_basket)/;
 const GREENSPACE_STRUCTURE_OVERRIDE = /(rose_arbor|garden_obelisk|beach_umbrella|hammock_stand|greenhouse_frame|cold_frame|potting_shed)/;
+const GREENSPACE_UTILITY_OVERRIDE = /(watering_cart|compost_bin|compost_tumbler|rain_barrel|garden_tool_rack|wheelbarrow|sprinkler|soaker_hose_rack|sundial|garden_gnome|thermometer_post)/;
 
 /**
  * Reuse a verified production construction when a cinematic catalogue name is
@@ -86,6 +87,9 @@ export function buildCinematicProductionProp(
   } else if (GREENSPACE_STRUCTURE_OVERRIDE.test(key)) {
     model = new THREE.Group();
     buildGreenspaceStructure(model, key, bounds, paletteFor(variant, accent, body), variant);
+  } else if (GREENSPACE_UTILITY_OVERRIDE.test(key)) {
+    model = new THREE.Group();
+    buildGreenspaceUtility(model, key, bounds, paletteFor(variant, accent, body), variant);
   } else if (key === 'pool_lane_marker') {
     model = new THREE.Group();
     buildPoolLaneMarker(model, bounds, paletteFor(variant, accent, body), variant);
@@ -642,6 +646,114 @@ function addHammockCloth(root: THREE.Group, b: Bounds, p: Palette): void {
   cloth.castShadow = true;
   cloth.receiveShadow = true;
   root.add(cloth);
+}
+
+function buildGreenspaceUtility(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
+  const add = partAdder(root);
+  if (key.includes('wheelbarrow')) {
+    add([b.w * 0.54, b.h * 0.06, b.d * 0.5], [b.w * 0.02, b.h * 0.4, 0], p.dark, { rotation: [0, 0, -0.08], name: 'wheelbarrow-load-tray', metalness: 0.28 });
+    for (const z of [-1, 1]) add([b.w * 0.66, b.h * 0.24, b.d * 0.06], [b.w * 0.02, b.h * 0.51, z * b.d * 0.29], p.primary, { rotation: [0, 0, -0.08], name: 'wheelbarrow-flared-tray-wall', metalness: 0.24 });
+    for (const x of [-1, 1]) add([b.w * 0.06, b.h * 0.22, b.d * 0.58], [x * b.w * 0.3, b.h * 0.5, 0], p.primary, { rotation: [0, 0, x * -0.14], name: 'wheelbarrow-flared-tray-wall', metalness: 0.24 });
+    for (const z of [-0.24, 0.24]) {
+      addBeamBetween(root, [-b.w * 0.46, b.h * 0.36, z * b.d], [b.w * 0.3, b.h * 0.28, z * b.d], b.w * 0.025, p.wood, 'wheelbarrow-long-handle');
+      add([b.w * 0.16, b.h * 0.04, b.d * 0.055], [-b.w * 0.49, b.h * 0.37, z * b.d], p.dark, { name: 'wheelbarrow-handle-grip', roughness: 0.86 });
+      addBeamBetween(root, [-b.w * 0.1, b.h * 0.34, z * b.d], [-b.w * 0.02, b.h * 0.06, z * b.d], b.w * 0.023, p.metal, 'wheelbarrow-support-leg');
+    }
+    add([b.h * 0.38, b.h * 0.38, b.w * 0.045], [b.w * 0.38, b.h * 0.2, 0], p.dark, { shape: 'torus', name: 'wheelbarrow-front-wheel' });
+    add([b.w * 0.07, b.h * 0.07, b.d * 0.62], [b.w * 0.38, b.h * 0.2, 0], p.metal, { shape: 'cylinder', rotation: [Math.PI / 2, 0, 0], name: 'wheelbarrow-wheel-axle', metalness: 0.56 });
+    return;
+  }
+  if (key.includes('watering_cart')) {
+    add([b.w * 0.76, b.h * 0.08, b.d * 0.72], [0, b.h * 0.18, 0], p.metal, { name: 'watering-cart-chassis', metalness: 0.42 });
+    add([b.w * 0.5, b.h * 0.56, b.d * 0.5], [b.w * 0.08, b.h * 0.5, 0], p.primary, { shape: 'cylinder', name: 'watering-cart-water-tank', metalness: 0.24 });
+    for (const z of [-0.36, 0.36]) add([b.h * 0.34, b.h * 0.34, b.w * 0.05], [b.w * 0.08, b.h * 0.18, z * b.d], p.dark, { shape: 'torus', name: 'watering-cart-wheel' });
+    addBeamBetween(root, [-b.w * 0.34, b.h * 0.22, -b.d * 0.28], [-b.w * 0.48, b.h * 0.78, -b.d * 0.28], b.w * 0.028, p.metal, 'watering-cart-push-handle');
+    addBeamBetween(root, [-b.w * 0.34, b.h * 0.22, b.d * 0.28], [-b.w * 0.48, b.h * 0.78, b.d * 0.28], b.w * 0.028, p.metal, 'watering-cart-push-handle');
+    add([b.w * 0.38, b.w * 0.38, b.w * 0.035], [-b.w * 0.2, b.h * 0.55, b.d * 0.28], p.dark, { shape: 'torus', name: 'watering-cart-hose-reel' });
+    addBeamBetween(root, [b.w * 0.3, b.h * 0.56, 0], [b.w * 0.48, b.h * 0.46, 0], b.w * 0.035, p.metal, 'watering-cart-spout');
+    return;
+  }
+  if (key.includes('compost_tumbler')) {
+    for (const side of [-1, 1]) addBeamBetween(root, [side * b.w * 0.42, 0, -b.d * 0.32], [side * b.w * 0.27, b.h * 0.72, 0], b.w * 0.035, p.metal, 'compost-tumbler-a-frame');
+    for (const side of [-1, 1]) addBeamBetween(root, [side * b.w * 0.42, 0, b.d * 0.32], [side * b.w * 0.27, b.h * 0.72, 0], b.w * 0.035, p.metal, 'compost-tumbler-a-frame');
+    add([b.w * 0.62, b.h * 0.56, b.d * 0.62], [0, b.h * 0.58, 0], p.dark, { shape: 'cylinder', rotation: [0, 0, Math.PI / 2], name: 'compost-tumbler-rotating-drum', roughness: 0.82 });
+    add([b.w * 0.3, b.h * 0.3, b.d * 0.025], [0, b.h * 0.58, b.d * 0.32], p.primary, { name: 'compost-tumbler-loading-hatch' });
+    addBeamBetween(root, [b.w * 0.32, b.h * 0.58, 0], [b.w * 0.46, b.h * 0.76, 0], b.w * 0.025, p.metal, 'compost-tumbler-crank');
+    return;
+  }
+  if (key.includes('compost_bin')) {
+    add([b.w * 0.86, b.h * 0.82, b.d * 0.84], [0, b.h * 0.43, 0], p.dark, { name: 'compost-bin-ventilated-body', roughness: 0.86 });
+    for (let slot = -3; slot <= 3; slot += 1) for (const side of [-1, 1]) add([b.w * 0.08, b.h * 0.035, b.d * 0.025], [slot * b.w * 0.11, b.h * (side < 0 ? 0.3 : 0.58), b.d * 0.43], p.light, { name: 'compost-bin-air-vent' });
+    add([b.w * 0.92, b.h * 0.1, b.d * 0.9], [0, b.h * 0.88, 0], p.primary, { rotation: [-0.05, 0, 0], name: 'compost-bin-latching-lid', roughness: 0.82 });
+    add([b.w * 0.4, b.h * 0.24, b.d * 0.025], [0, b.h * 0.18, b.d * 0.43], p.secondary, { name: 'compost-bin-harvest-door' });
+    return;
+  }
+  if (key.includes('rain_barrel')) {
+    add([b.w * 0.76, b.h * 0.86, b.d * 0.76], [0, b.h * 0.46, 0], p.primary, { shape: 'cylinder', name: 'rain-barrel-storage-vessel', roughness: 0.74 });
+    for (const y of [0.18, 0.48, 0.78]) add([b.w * 0.8, b.h * 0.035, b.d * 0.8], [0, b.h * y, 0], p.metal, { shape: 'cylinder', name: 'rain-barrel-reinforcing-band', metalness: 0.48 });
+    add([b.w * 0.24, b.h * 0.36, b.d * 0.2], [-b.w * 0.25, b.h * 0.92, 0], p.metal, { name: 'rain-barrel-downspout-diverter', metalness: 0.42 });
+    addBeamBetween(root, [0, b.h * 0.27, b.d * 0.38], [0, b.h * 0.27, b.d * 0.52], b.w * 0.03, p.metal, 'rain-barrel-spigot');
+    add([b.w * 0.16, b.h * 0.035, b.d * 0.035], [0, b.h * 0.31, b.d * 0.51], p.metal, { name: 'rain-barrel-spigot-handle', metalness: 0.6 });
+    return;
+  }
+  if (key.includes('garden_tool_rack')) {
+    add([b.w * 0.92, b.h * 0.12, b.d * 0.18], [0, b.h * 0.72, 0], p.wood, { name: 'garden-tool-rack-wall-rail', roughness: 0.8 });
+    add([b.w * 0.92, b.h * 0.06, b.d * 0.3], [0, b.h * 0.08, 0], p.wood, { name: 'garden-tool-rack-floor-foot', roughness: 0.8 });
+    for (let tool = -3; tool <= 3; tool += 1) {
+      const x = tool * b.w * 0.12;
+      add([b.w * 0.025, b.h * (0.54 + (tool + 3) % 3 * 0.08), b.d * 0.025], [x, b.h * 0.42, b.d * 0.04], tool % 2 ? p.wood : p.metal, { shape: 'cylinder', rotation: [0, 0, tool * 0.035], name: 'garden-tool-long-handle' });
+      add([b.w * (tool % 3 === 0 ? 0.18 : 0.1), b.h * 0.12, b.d * 0.06], [x, b.h * 0.1, b.d * 0.04], p.metal, { rotation: [0, 0, tool * 0.04], name: tool % 3 === 0 ? 'garden-tool-spade-head' : 'garden-tool-rake-head', metalness: 0.5 });
+    }
+    return;
+  }
+  if (key.includes('soaker_hose_rack')) {
+    add([b.w * 0.78, b.h * 0.08, b.d * 0.62], [0, b.h * 0.04, 0], p.metal, { name: 'hose-reel-stable-base', metalness: 0.5 });
+    for (const side of [-1, 1]) add([b.w * 0.05, b.h * 0.62, b.d * 0.05], [side * b.w * 0.3, b.h * 0.35, 0], p.metal, { name: 'hose-reel-upright', metalness: 0.56 });
+    for (let coil = 0; coil < 5; coil += 1) add([b.w * (0.58 - coil * 0.035), b.w * (0.58 - coil * 0.035), b.w * 0.025], [0, b.h * 0.48, (coil - 2) * b.d * 0.035], '#315c43', { shape: 'torus', name: 'hose-reel-wound-hose', roughness: 0.88 });
+    addBeamBetween(root, [b.w * 0.3, b.h * 0.48, 0], [b.w * 0.43, b.h * 0.62, 0], b.w * 0.025, p.dark, 'hose-reel-crank');
+    return;
+  }
+  if (key.includes('sprinkler')) {
+    add([b.w * 0.82, b.h * 0.08, b.d * 0.22], [0, b.h * 0.06, 0], p.metal, { name: 'lawn-sprinkler-stable-base', metalness: 0.52 });
+    addBeamBetween(root, [-b.w * 0.34, b.h * 0.09, 0], [-b.w * 0.24, b.h * 0.31, 0], b.w * 0.025, p.metal, 'lawn-sprinkler-rotating-arm');
+    addBeamBetween(root, [-b.w * 0.24, b.h * 0.31, 0], [b.w * 0.24, b.h * 0.31, 0], b.w * 0.025, p.metal, 'lawn-sprinkler-rotating-arm');
+    addBeamBetween(root, [b.w * 0.24, b.h * 0.31, 0], [b.w * 0.34, b.h * 0.09, 0], b.w * 0.025, p.metal, 'lawn-sprinkler-rotating-arm');
+    for (let nozzle = -3; nozzle <= 3; nozzle += 1) {
+      add([b.w * 0.035, b.h * 0.1, b.d * 0.035], [nozzle * b.w * 0.075, b.h * 0.37, 0], p.metal, { shape: 'cylinder', name: 'lawn-sprinkler-nozzle-riser', metalness: 0.58 });
+      add([b.w * 0.028, b.h * 0.04, b.d * 0.028], [nozzle * b.w * 0.075, b.h * 0.43, 0], p.dark, { shape: 'cylinder', name: 'lawn-sprinkler-water-nozzle', metalness: 0.54 });
+    }
+    for (const nozzle of [-3, -1, 1, 3]) addBeamBetween(root, [nozzle * b.w * 0.075, b.h * 0.45, 0], [nozzle * b.w * 0.1, b.h * 0.72, (nozzle % 2 ? 1 : -1) * b.d * 0.34], b.w * 0.009, '#72cfe3', 'lawn-sprinkler-water-jet');
+    return;
+  }
+  if (key.includes('sundial')) {
+    add([b.w * 0.64, b.h * 0.08, b.d * 0.64], [0, b.h * 0.05, 0], p.dark, { shape: 'cylinder', name: 'sundial-stone-base', roughness: 0.9 });
+    add([b.w * 0.22, b.h * 0.36, b.d * 0.22], [0, b.h * 0.25, 0], p.light, { shape: 'cylinder', name: 'sundial-pedestal', roughness: 0.84 });
+    add([b.w * 0.72, b.h * 0.045, b.d * 0.72], [0, b.h * 0.46, 0], '#a77835', { shape: 'cylinder', name: 'sundial-engraved-dial-plate', metalness: 0.66, roughness: 0.32 });
+    for (let mark = 0; mark < 12; mark += 1) {
+      const angle = mark / 12 * Math.PI * 2;
+      add([b.w * 0.025, b.h * 0.012, b.d * 0.12], [Math.cos(angle) * b.w * 0.27, b.h * 0.49, Math.sin(angle) * b.d * 0.27], p.dark, { rotation: [0, -angle, 0], name: 'sundial-hour-mark' });
+    }
+    addBeamBetween(root, [0, b.h * 0.49, 0], [0, b.h * 0.78, -b.d * 0.18], b.w * 0.025, '#8c6428', 'sundial-shadow-gnomon');
+    return;
+  }
+  if (key.includes('garden_gnome')) {
+    for (const side of [-1, 1]) add([b.w * 0.18, b.h * 0.12, b.d * 0.26], [side * b.w * 0.13, b.h * 0.07, b.d * 0.07], p.dark, { name: 'garden-gnome-boot' });
+    add([b.w * 0.58, b.h * 0.46, b.d * 0.52], [0, b.h * 0.31, 0], p.primary, { shape: 'cone', name: 'garden-gnome-coat', roughness: 0.84 });
+    add([b.w * 0.36, b.h * 0.28, b.d * 0.34], [0, b.h * 0.62, b.d * 0.06], '#d0a17f', { shape: 'sphere', name: 'garden-gnome-face', roughness: 0.82 });
+    add([b.w * 0.32, b.h * 0.34, b.d * 0.14], [0, b.h * 0.5, b.d * 0.2], p.light, { shape: 'cone', rotation: [Math.PI, 0, 0], name: 'garden-gnome-pointed-beard', roughness: 0.92 });
+    add([b.w * 0.42, b.h * 0.38, b.d * 0.42], [0, b.h * 0.86, 0], p.secondary, { shape: 'cone', name: 'garden-gnome-tall-hat', roughness: 0.82 });
+    for (const side of [-1, 1]) add([b.w * 0.045, b.h * 0.035, b.d * 0.025], [side * b.w * 0.08, b.h * 0.66, b.d * 0.23], p.dark, { name: 'garden-gnome-eye' });
+    add([b.w * 0.09, b.h * 0.08, b.d * 0.08], [0, b.h * 0.61, b.d * 0.24], '#b87d61', { shape: 'cone', rotation: [Math.PI / 2, 0, 0], name: 'garden-gnome-nose', roughness: 0.84 });
+    for (const side of [-1, 1]) addBeamBetween(root, [side * b.w * 0.18, b.h * 0.38, 0], [side * b.w * 0.26, b.h * 0.22, b.d * 0.08], b.w * 0.05, p.primary, 'garden-gnome-sleeved-arm');
+    return;
+  }
+  // Tall thermometer post with a protected glass tube and readable scale.
+  add([b.w * 0.7, b.h * 0.035, b.d * 0.7], [0, b.h * 0.02, 0], p.dark, { shape: 'cylinder', name: 'garden-thermometer-ground-base' });
+  add([b.w * 0.14, b.h * 0.92, b.d * 0.14], [0, b.h * 0.48, 0], p.wood, { name: 'garden-thermometer-post', roughness: 0.82 });
+  add([b.w * 0.66, b.h * 0.56, b.d * 0.18], [0, b.h * 0.68, b.d * 0.03], p.light, { name: 'garden-thermometer-scale-plate', roughness: 0.52 });
+  add([b.w * 0.08, b.h * 0.46, b.d * 0.08], [0, b.h * 0.67, b.d * 0.14], p.glass, { shape: 'cylinder', name: 'garden-thermometer-glass-tube', opacity: 0.42, roughness: 0.06 });
+  add([b.w * 0.035, b.h * (0.18 + variant * 0.025), b.d * 0.035], [0, b.h * 0.55, b.d * 0.18], '#c43f37', { name: 'garden-thermometer-mercury-column', emissive: '#7a1614', emissiveIntensity: 0.08 });
+  for (let tick = -4; tick <= 4; tick += 1) add([b.w * (tick % 2 ? 0.16 : 0.22), b.h * 0.012, b.d * 0.025], [b.w * 0.2, b.h * (0.49 + (tick + 4) * 0.05), b.d * 0.14], p.dark, { name: 'garden-thermometer-scale-tick' });
 }
 
 function buildClinicalProp(root: THREE.Group, key: string, b: Bounds, p: Palette, variant: number): void {
