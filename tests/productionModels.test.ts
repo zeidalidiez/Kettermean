@@ -70,6 +70,7 @@ describe('production model regressions', () => {
     ['atelier_prop_mycology_incubator', 'atelier_mycology_incubator_01', ['cultured-mushroom-stalk', 'cultured-mushroom-cap']],
     ['detail_magic_lantern', 'exhibition_magic_lantern_01', ['magic-lantern-box-body', 'projector-glass-lens']],
     ['detail_optometrist_phoropter', 'exhibition_phoropter_01', ['phoropter-lens-housing', 'phoropter-glass-lens']],
+    ['detail_seismograph_desk', 'exhibition_seismograph_01', ['seismograph-paper-drum', 'seismograph-stylus-arm']],
     ['detail_seed_archive_carousel', 'exhibition_seed_carousel_01', ['seed-carousel-center-column', 'seed-carousel-labeled-drawer']],
     ['detail_processional_canopy', 'exhibition_canopy_01', ['canopy-brass-carrying-pole', 'processional-canopy-fabric-roof']],
     ['atelier_prop_surgical_carousel', 'atelier_surgical_carousel_01', ['surgical-carousel-arm', 'surgical-hanging-instrument']],
